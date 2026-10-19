@@ -1,6 +1,11 @@
 use serde_json::{json, Value};
+#[cfg(target_os = "macos")]
 use std::io::{BufRead, BufReader, Write};
+#[cfg(target_os = "macos")]
 use std::process::{Command, Stdio};
+#[cfg(target_os = "windows")]
+#[path = "windows_platform.rs"]
+pub mod windows;
 #[cfg(target_os = "macos")]
 struct Bridge {
     child: std::process::Child,
@@ -74,7 +79,11 @@ pub fn call(request: Value) -> Result<Value, String> {
         }
         Ok(v)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        windows::call(request)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = request;
         Err("This release implements the macOS adapter only".into())
@@ -83,7 +92,7 @@ pub fn call(request: Value) -> Result<Value, String> {
 pub fn target(selection: bool) -> Result<Value, String> {
     call(json!({"action":"target","selection":selection}))
 }
-/// Presence lookup never reads password data or shows Keychain consent on page load.
+/// No credential payload is sent to the WebView. Windows has no Keychain prompt.
 pub fn has_secret(slot: &str) -> Result<bool, String> {
     #[cfg(target_os = "macos")]
     {
@@ -97,35 +106,46 @@ pub fn has_secret(slot: &str) -> Result<bool, String> {
             _ => Err("无法检查钥匙串状态 / Keychain status unavailable".into()),
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        match keyring::Entry::new(env!("VAO_BUNDLE_ID"), slot)
+            .map_err(|_| "凭据服务初始化失败")?
+            .get_password()
+        {
+            Ok(_) => Ok(true),
+            Err(keyring::Error::NoEntry) => Ok(false),
+            Err(_) => Err("无法检查 Windows 凭据管理器 / Credential Manager unavailable".into()),
+        }
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = slot;
         Ok(false)
     }
 }
 pub fn secret(slot: &str) -> Result<String, String> {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
-        match keyring::Entry::new("app.vaovao.desktop", slot)
+        match keyring::Entry::new(env!("VAO_BUNDLE_ID"), slot)
             .map_err(|_| "凭据服务初始化失败")?
             .get_password()
         {
             Ok(s) => Ok(s),
             Err(keyring::Error::NoEntry) => Ok(String::new()),
-            Err(_) => Err("无法读取Vao的凭据；请检查钥匙串授权".into()),
+            Err(_) => Err("无法读取Vao的系统凭据 / System credential unavailable".into()),
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = slot;
         Err("Credential adapter not implemented".into())
     }
 }
 pub fn save_secret(slot: &str, value: &str) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
         let e =
-            keyring::Entry::new("app.vaovao.desktop", slot).map_err(|_| "凭据服务初始化失败")?;
+            keyring::Entry::new(env!("VAO_BUNDLE_ID"), slot).map_err(|_| "凭据服务初始化失败")?;
         if value.is_empty() {
             match e.delete_credential() {
                 Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
@@ -135,7 +155,7 @@ pub fn save_secret(slot: &str, value: &str) -> Result<(), String> {
             e.set_password(value).map_err(|_| "凭据保存失败".into())
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = (slot, value);
         Err("Credential adapter not implemented".into())

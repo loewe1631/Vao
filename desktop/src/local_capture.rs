@@ -1,4 +1,6 @@
 //! Shortcut entry inside Vao's focused window. No global input permission required.
+// Windows uses the focused WebView keydown handler.
+#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::Emitter;

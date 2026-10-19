@@ -375,7 +375,7 @@ fn report_ui_ready(window: tauri::WebviewWindow, state: State<AppState>) -> Resu
 fn bootstrap(state: State<AppState>) -> Result<Value, String> {
     let db = state.store.lock().unwrap();
     Ok(
-        json!({"settings":db.get::<Settings>("settings"),"profile":db.get::<Profile>("profile"),"history":db.history()?,"version":env!("VAO_RELEASE_VERSION"),"platform":std::env::consts::OS,"permissions":permissions::snapshot(),"trial":trial::local_status(&db.get::<Settings>("settings"))}),
+        json!({"settings":db.get::<Settings>("settings"),"profile":db.get::<Profile>("profile"),"history":db.history()?,"version":env!("VAO_RELEASE_VERSION"),"build":env!("VAO_BUILD_NUMBER"),"platform":std::env::consts::OS,"permissions":permissions::snapshot(),"trial":trial::local_status(&db.get::<Settings>("settings"))}),
     )
 }
 
@@ -654,6 +654,15 @@ fn restart_for_permissions(app: tauri::AppHandle) -> Result<(), String> {
 }
 #[tauri::command]
 fn reveal_application() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer.exe")
+            .arg(format!("/select,{}", std::env::current_exe().map_err(|e| e.to_string())?.display()))
+            .spawn().map_err(|_| "Could not reveal application")?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let bundle = exe
         .parent()
@@ -675,9 +684,22 @@ fn reveal_application() -> Result<(), String> {
                 Err("Could not reveal application".into())
             }
         })
+    }
 }
+
 #[tauri::command]
 fn open_permission(kind: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let url = match kind.as_str() {
+            "microphone" => "ms-settings:privacy-microphone",
+            "keyboard" => "ms-settings:easeofaccess-keyboard",
+            _ => return Err("Windows does not use macOS permissions".into()),
+        };
+        platform::windows::open_settings(url)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
     let url = match kind.as_str() {
         "input_monitoring" => {
             "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
@@ -696,6 +718,7 @@ fn open_permission(kind: String) -> Result<(), String> {
         .spawn()
         .map_err(|_| "无法打开系统设置")?;
     Ok(())
+    }
 }
 
 #[tauri::command]
@@ -773,10 +796,12 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
         }
         trial::routes(&settings)?;
         validate_settings(&settings)?;
+        #[cfg(target_os = "macos")]
         if permissions::snapshot()["microphone"] == "not_determined" {
             permissions::request(&app, "microphone").await?;
         }
         current(&app, id)?;
+        #[cfg(target_os = "macos")]
         if permissions::snapshot()["microphone"] != "granted" {
             return Err("请在设置中授予 Vao 麦克风权限 / Grant microphone access to Vao".into());
         }
@@ -785,12 +810,16 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
             .await
             .map_err(|_| FlowError::Notice(InputNotice::MicrophoneUnavailable))?
             .map_err(|_| {
+                #[cfg(target_os = "windows")]
+                permissions::microphone_checked(false);
                 FlowError::Notice(if audio::available() {
                     InputNotice::MicrophoneUnavailable
                 } else {
                     InputNotice::NoMicrophone
                 })
             })?;
+        #[cfg(target_os = "windows")]
+        permissions::microphone_checked(true);
         let state = app.state::<AppState>();
         let mut r = state.runtime.lock().unwrap();
         if !r.session.active(id) {
@@ -896,6 +925,7 @@ fn notify_input(app: &tauri::AppHandle, id: u64, notice: InputNotice) {
     });
 }
 /// Delivery failures preserve the result and detailed cause without opening Vao.
+#[cfg_attr(target_os = "windows", allow(dead_code))]
 fn delivery_notice(app: &tauri::AppHandle, id: u64, error: &str) {
     let serial = {
         let state = app.state::<AppState>();
@@ -969,9 +999,11 @@ fn fail(app: &tauri::AppHandle, id: u64, error: &str) {
     r.detail = "处理失败，转写结果如有已保留 / Failed".into();
     r.started = None;
     drop(r);
-    show_bar(app, false);
     escape_key(app, false);
-    show_main(app);
+    #[cfg(target_os = "windows")]
+    present_answer(app, id, error);
+    #[cfg(not(target_os = "windows"))]
+    { show_bar(app, false); show_main(app); }
 }
 
 async fn finish(app: tauri::AppHandle) -> Result<(), String> {
@@ -1065,6 +1097,15 @@ fn route_result(
     record: &ResultRecord,
     auto_input: bool,
 ) {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = (target, auto_input);
+        // W1 lacks a verified UIA target. Preserve focus and show the saved
+        // result in the nonactivating overlay; copying is explicit.
+        present_answer(app, id, &record.text);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
     let has_selection = !target["selection"].as_str().unwrap_or("").is_empty();
     let has_pid = target["pid"].is_number();
     let text = &record.text;
@@ -1093,7 +1134,9 @@ fn route_result(
     } else {
         show_main(app);
     }
+    }
 }
+
 fn present_answer(app: &tauri::AppHandle, id: u64, text: &str) {
     {
         let state = app.state::<AppState>();
@@ -1396,6 +1439,13 @@ async fn probe_input_feedback(app: tauri::AppHandle) -> Result<Value, String> {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    let build_info = json!({"version":env!("VAO_RELEASE_VERSION"),"build":env!("VAO_BUILD_NUMBER"),"bundle":env!("VAO_BUNDLE_ID"),"platform":std::env::consts::OS,"architecture":std::env::consts::ARCH});
+    if args.iter().any(|a| a == "--version") { println!("{build_info}"); return; }
+    if let Some(index) = args.iter().position(|a| a == "--build-info") {
+        let Some(path) = args.get(index + 1) else { std::process::exit(2); };
+        if std::fs::write(path, build_info.to_string()).is_err() { std::process::exit(3); }
+        return;
+    }
     if let Some(index) = args.iter().position(|a| a == "--verify-writing-fixtures") {
         let argument = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1));
         let Some(path) = args.get(index + 1) else { eprintln!("Expected a JSON fixture path"); std::process::exit(2); };
@@ -1475,9 +1525,11 @@ fn main() {
             show_main(app)
         }))
         .setup(|app| {
+            #[cfg(target_os = "windows")]
+            if let Some(main) = app.get_webview_window("main") { main.set_title("Vao Windows Preview")?; }
             let args: Vec<String> = std::env::args().collect();
             // UI regression tests must never mutate the user's preferences/history.
-            let path = if args.iter().any(|a| a == "--verify-ui") {
+            let path = if args.iter().any(|a| a == "--verify-ui" || (cfg!(target_os = "windows") && a == "--windows-smoke")) {
                 let index = args.iter().position(|a| a == "--smoke-test").ok_or("--verify-ui requires --smoke-test output")?;
                 let output = args.get(index + 1).ok_or("Missing smoke output path")?;
                 std::path::Path::new(output).parent().ok_or("Invalid smoke output path")?.join("isolated-native-state")

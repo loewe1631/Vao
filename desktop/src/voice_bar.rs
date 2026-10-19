@@ -26,7 +26,16 @@ pub fn initialize(window: &tauri::WebviewWindow) -> Result<(), String> {
             return Err("Could not initialize the voice overlay".into());
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW};
+        let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as windows_sys::Win32::Foundation::HWND;
+        unsafe {
+            let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style | (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW) as isize);
+        }
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     window.set_focusable(false).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -35,7 +44,12 @@ pub fn set_visible(window: &tauri::WebviewWindow, visible: bool) {
     if let Ok(ptr) = window.ns_window() {
         unsafe { vao_set_voice_bar_visible(ptr, i32::from(visible)) };
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    if let Ok(hwnd) = window.hwnd() {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE, SW_HIDE};
+        unsafe { ShowWindow(hwnd.0 as _, if visible {SW_SHOWNOACTIVATE} else {SW_HIDE}); }
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     { let _ = if visible { window.show() } else { window.hide() }; }
 }
 pub async fn is_visible(window: tauri::WebviewWindow) -> Result<bool, String> {
@@ -89,6 +103,8 @@ pub async fn probe_event(window: tauri::WebviewWindow, x: f64, y: f64, kind: i32
     if rx.await.unwrap_or(false) { Ok(()) } else { Err("Could not post overlay test event".into()) }
 }
 pub async fn probe_positions(app: &tauri::AppHandle, begin: bool) -> Result<(), String> {
+    #[cfg(not(target_os = "macos"))]
+    let _ = begin;
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.run_on_main_thread(move || {
         #[cfg(target_os = "macos")]
@@ -111,18 +127,19 @@ pub async fn capture(app: &tauri::AppHandle, pid: i32) -> u32 {
         }
         rx.await.unwrap_or(0)
     }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (app, pid);
-        0
-    }
+    #[cfg(target_os = "windows")]
+    { let _ = app; crate::platform::windows::monitor(pid as u32) }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    { let _ = (app, pid); 0 }
 }
 pub fn place(window: &tauri::WebviewWindow, display: u32, expanded: bool) {
     #[cfg(target_os = "macos")]
     if let Ok(ptr) = window.ns_window() {
         unsafe { vao_place_voice_bar(ptr, display, i32::from(expanded)) }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    { let _ = display; let _ = crate::platform::windows::place(window, expanded); }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let _ = (window, display, expanded);
 }
 pub async fn drag(window: tauri::WebviewWindow) -> Result<(), String> {
@@ -131,7 +148,9 @@ pub async fn drag(window: tauri::WebviewWindow) -> Result<(), String> {
     window.run_on_main_thread(move || {
         #[cfg(target_os = "macos")]
         let dragged = target.ns_window().is_ok_and(|ptr| unsafe { vao_drag_voice_bar(ptr) != 0 });
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        let dragged = target.start_dragging().is_ok();
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         let dragged = { let _ = target; false };
         let _ = tx.send(dragged);
     }).map_err(|e| e.to_string())?;
@@ -156,7 +175,7 @@ pub async fn probe(window: tauri::WebviewWindow) -> Result<Value, String> {
                 result
             })();
             #[cfg(not(target_os = "macos"))]
-            let result = Err("Platform not supported".into());
+            let result = { let _ = target; Err("Platform not supported".into()) };
             let _ = tx.send(result);
         })
         .map_err(|e| e.to_string())?;

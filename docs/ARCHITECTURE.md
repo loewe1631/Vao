@@ -1,6 +1,6 @@
 # Architecture
 
-The Mac beta uses a Rust shared core, Tauri UI and native platform adapters. Windows integration is planned and is not implemented by this release. This is the direct-download desktop client, without App Sandbox; store distribution needs separate capability and license review.
+The Mac beta uses a Rust shared core, Tauri UI and native platform adapters. The `codex/windows` branch adds a first Windows candidate with WASAPI recording, Credential Manager, ordinary global shortcuts and a nonactivating result overlay. Windows UIA selection and validated original-target insertion remain pending; see [Windows scope](WINDOWS.md). This is the direct-download desktop client, without App Sandbox; store distribution needs separate capability and license review.
 
 ## Code map
 

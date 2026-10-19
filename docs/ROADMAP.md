@@ -2,7 +2,7 @@
 
 ## Available in the Mac beta
 
-The Rust core, Tauri UI and macOS adapters implement dictation, selected-text questions/edits, translation segments, original-target insertion, custom model connections, optional trial access, local history and reversible explicit layout preferences. Synthetic core/network/UI tests and local build checks are included. Windows and Intel Mac are not shipped.
+The Rust core, Tauri UI and macOS adapters implement dictation, selected-text questions/edits, translation segments, original-target insertion, custom model connections, optional trial access, local history and reversible explicit layout preferences. Synthetic core/network/UI tests and local build checks are included. Windows and Intel Mac are not shipped. The Windows development branch has a first [candidate path](WINDOWS.md); its native desktop acceptance remains separate from CI.
 
 ## Priorities
 

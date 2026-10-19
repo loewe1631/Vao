@@ -1,15 +1,22 @@
 fn main() {
     let windows = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows");
-    let release_path = if windows { "../release.windows.json" } else { "../release.json" };
-    let config_path = if windows { "tauri.windows.conf.json" } else { "tauri.conf.json" };
+    let release_path = if windows {
+        "../release.windows.json"
+    } else {
+        "../release.json"
+    };
+    let config_path = if windows {
+        "tauri.windows.conf.json"
+    } else {
+        "tauri.conf.json"
+    };
     let release: serde_json::Value = serde_json::from_str(
         &std::fs::read_to_string(release_path).expect("Read release metadata"),
     )
     .expect("Valid release metadata");
-    let config: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(config_path).expect("Read host metadata"),
-    )
-    .expect("Valid host metadata");
+    let config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(config_path).expect("Read host metadata"))
+            .expect("Valid host metadata");
     assert_eq!(
         release["bundle"], config["identifier"],
         "Bundle identity differs between release and host"

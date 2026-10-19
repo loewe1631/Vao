@@ -12,7 +12,8 @@
       "../PROVENANCE.md": "PROVENANCE.md",
       "../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
       "../licenses/": "licenses/",
-      "../docs/WINDOWS.md": "WINDOWS.md"
+      "../docs/WINDOWS.md": "WINDOWS.md",
+      "../docs/WINDOWS_NOTICES.md": "WINDOWS_NOTICES.md"
     },
     "shortDescription": "Windows dictation preview",
     "windows": {

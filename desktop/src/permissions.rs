@@ -1,4 +1,11 @@
 use serde_json::{json, Value};
+#[cfg(target_os = "windows")]
+static MICROPHONE_CHECKED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+#[cfg(target_os = "windows")]
+pub fn microphone_checked(available: bool) {
+    MICROPHONE_CHECKED.store(available, std::sync::atomic::Ordering::Relaxed);
+}
 #[cfg(target_os = "macos")]
 unsafe extern "C" {
     fn vao_permission_identity() -> *mut std::ffi::c_char;
@@ -48,7 +55,17 @@ pub fn snapshot() -> Value {
         });
         json!({"microphone":match mic{0=>"not_determined",1=>"restricted",2=>"denied",3=>"granted",_=>"unknown"},"accessibility":if unsafe{vao_accessibility_status()}==1{"granted"}else{"not_granted"},"input_monitoring":if unsafe{vao_input_status()}==1{"granted"}else{"not_granted"},"application":"Vao","bundle":identity["bundle"],"expected_bundle":env!("VAO_BUNDLE_ID"),"build":env!("VAO_BUILD_NUMBER"),"identity":identity,"application_path":application_path,"executable":executable})
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        let ready = MICROPHONE_CHECKED.load(std::sync::atomic::Ordering::Relaxed)
+            && crate::audio::available();
+        json!({"microphone":if ready {"granted"} else {"not_determined"},
+               "accessibility":"not_supported","input_monitoring":"not_required",
+               "application":"Vao Windows Preview","bundle":env!("VAO_BUNDLE_ID"),
+               "build":env!("VAO_BUILD_NUMBER"),"executable":std::env::current_exe().ok(),
+               "delivery_supported":false,"microphone_status_source":"stream_probe"})
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         json!({"microphone":"unknown","accessibility":"unknown","input_monitoring":"unknown"})
     }
@@ -98,7 +115,23 @@ pub async fn request(app: &tauri::AppHandle, kind: &str) -> Result<Value, String
         }
         Ok(snapshot())
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        let _ = app;
+        if kind != "microphone" {
+            return Err("Windows does not use macOS permissions".into());
+        }
+        // Explicit open/start/close checks actual WASAPI access. Samples stay in
+        // memory and are dropped. This does not change OS privacy settings.
+        let result =
+            tauri::async_runtime::spawn_blocking(|| crate::audio::Capture::start().map(drop))
+                .await
+                .map_err(|_| "Microphone check interrupted")?;
+        microphone_checked(result.is_ok());
+        result.map_err(|_| "无法访问麦克风，请检查 Windows 麦克风与桌面应用访问 / Check Windows microphone privacy and desktop app access")?;
+        Ok(snapshot())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = (app, kind);
         Err("Permission adapter is not implemented on this platform".into())

@@ -1,5 +1,6 @@
 //! Native macOS Fn recognition. No text is stored; only configured shortcuts or
 //! an explicitly armed, time-limited shortcut capture can emit events.
+#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,

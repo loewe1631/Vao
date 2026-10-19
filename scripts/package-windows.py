@@ -31,6 +31,7 @@ def main():
     files = [(binary, 'vao.exe')]
     files += [(ROOT / name, name) for name in ['LICENSE', 'PROVENANCE.md', 'THIRD_PARTY_NOTICES.md']]
     files += [(ROOT / 'docs/WINDOWS.md', 'WINDOWS.md')]
+    files += [(ROOT / 'docs/WINDOWS_NOTICES.md', 'WINDOWS_NOTICES.md')]
     files += [(p, p.relative_to(ROOT).as_posix()) for p in sorted((ROOT / 'licenses').rglob('*')) if p.is_file()]
     with zipfile.ZipFile(portable, 'w', zipfile.ZIP_DEFLATED) as archive:
         for path, name in files:
@@ -42,7 +43,11 @@ def main():
               'files': {p.name: digest(p) for p in [installer, portable]}}
     report_path = out / 'candidate.json'
     report_path.write_text(json.dumps(report, indent=2) + '\n')
-    entries = {**report['files'], report_path.name: digest(report_path)}
+    evidence = [out / name for name in ['build-info.json', 'runner-startup.json']]
+    if not all(path.is_file() for path in evidence):
+        raise SystemExit('Run the Windows startup probe before packaging')
+    entries = {**report['files'], report_path.name: digest(report_path),
+               **{path.name: digest(path) for path in evidence}}
     (out / 'SHA256SUMS').write_text(''.join(f'{sha}  {name}\n' for name, sha in entries.items()))
     print(json.dumps(report, indent=2))
 
