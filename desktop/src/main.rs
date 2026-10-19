@@ -96,7 +96,7 @@ struct AppState {
     store: Mutex<Store>,
 }
 struct Hotkeys {
-    manager: global_hotkey::GlobalHotKeyManager,
+    manager: hotkeys::HotkeyManager,
     bindings: Mutex<ShortcutBindings>,
 }
 struct ShortcutBindings {
@@ -1586,8 +1586,7 @@ fn main() {
             local_capture::install(app.handle());
             let handle = app.handle().clone();
             let registration = (|| {
-                use global_hotkey::GlobalHotKeyManager;
-                let manager = GlobalHotKeyManager::new().map_err(|e| e.to_string())?;
+                let manager = hotkeys::HotkeyManager::new().map_err(|e| e.to_string())?;
                 let config=app.state::<AppState>().store.lock().unwrap().get::<Settings>("settings").shortcuts;
                 let parsed=config.bindings()?;
                 let mut registered=vec![];

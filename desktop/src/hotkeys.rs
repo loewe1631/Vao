@@ -4,6 +4,57 @@ use global_hotkey::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(target_os = "windows"))]
+pub type HotkeyManager = GlobalHotKeyManager;
+
+// The Windows manager owns an HWND and must live on the event-loop thread.
+// Tauri state is shared with IPC workers, so it only keeps the owner's identity.
+#[cfg(target_os = "windows")]
+thread_local! {
+    static WINDOWS_MANAGER: std::cell::RefCell<Option<GlobalHotKeyManager>> = const {
+        std::cell::RefCell::new(None)
+    };
+}
+
+#[cfg(target_os = "windows")]
+pub struct HotkeyManager {
+    owner: std::thread::ThreadId,
+}
+
+#[cfg(target_os = "windows")]
+impl HotkeyManager {
+    pub fn new() -> Result<Self, String> {
+        WINDOWS_MANAGER.with_borrow_mut(|slot| {
+            if slot.is_some() {
+                return Err("Shortcut manager already initialized on this thread".into());
+            }
+            *slot = Some(GlobalHotKeyManager::new().map_err(|e| e.to_string())?);
+            Ok(Self {
+                owner: std::thread::current().id(),
+            })
+        })
+    }
+
+    fn with_manager<T>(
+        &self,
+        operation: impl FnOnce(&GlobalHotKeyManager) -> Result<T, String>,
+    ) -> Result<T, String> {
+        if std::thread::current().id() != self.owner {
+            return Err("Shortcut registration requires its owner thread".into());
+        }
+        WINDOWS_MANAGER
+            .with_borrow(|slot| operation(slot.as_ref().ok_or("Shortcut manager unavailable")?))
+    }
+
+    pub fn register(&self, key: HotKey) -> Result<(), String> {
+        self.with_manager(|manager| manager.register(key).map_err(|e| e.to_string()))
+    }
+
+    pub fn unregister(&self, key: HotKey) -> Result<(), String> {
+        self.with_manager(|manager| manager.unregister(key).map_err(|e| e.to_string()))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Shortcuts {
@@ -170,13 +221,11 @@ mod readiness_tests {
     use super::*;
     #[test]
     fn pending_fn_cannot_be_reported_active_after_another_failure() {
-        let keys = Shortcuts {
-            record: "Fn".into(),
-            translate: "Fn+Space".into(),
-            cancel: "Escape".into(),
-        }
-        .bindings()
-        .unwrap();
+        let keys = [
+            Binding::Fn("Fn".into()),
+            Binding::Fn("Fn+Space".into()),
+            Binding::Global("Escape".parse().unwrap()),
+        ];
         assert!(!ready(&keys, &[], false));
         assert!(ready(&keys, &[], true));
         let ordinary = Shortcuts::default().bindings().unwrap();
@@ -193,6 +242,36 @@ impl Registration for GlobalHotKeyManager {
     }
     fn unregister(&self, k: HotKey) -> Result<(), String> {
         GlobalHotKeyManager::unregister(self, k).map_err(|e| e.to_string())
+    }
+}
+#[cfg(target_os = "windows")]
+impl Registration for HotkeyManager {
+    fn register(&self, k: HotKey) -> Result<(), String> {
+        HotkeyManager::register(self, k)
+    }
+    fn unregister(&self, k: HotKey) -> Result<(), String> {
+        HotkeyManager::unregister(self, k)
+    }
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod windows_manager_tests {
+    use super::*;
+
+    #[test]
+    fn registration_stays_on_the_owner_thread() {
+        let manager = HotkeyManager::new().unwrap();
+        let key = "Control+Alt+Shift+F24".parse().unwrap();
+        std::thread::scope(|scope| {
+            let error = scope
+                .spawn(|| manager.register(key))
+                .join()
+                .unwrap()
+                .unwrap_err();
+            assert!(error.contains("owner thread"));
+        });
+        manager.register(key).unwrap();
+        manager.unregister(key).unwrap();
     }
 }
 /// Acquire additions before releasing old keys. Track every successful OS operation.
@@ -394,19 +473,24 @@ mod delivery_tests {
         assert_eq!(delivery_key_events(&Shortcuts::default(), 2).unwrap(), 3);
         #[cfg(target_os = "macos")]
         {
-        let fn_keys = Shortcuts {
-            record: "Fn".into(),
-            translate: "Fn+Space".into(),
-            cancel: "Escape".into(),
-        };
-        assert_eq!(delivery_key_events(&fn_keys, 3).unwrap(), 0);
-        let mixed = Shortcuts {
-            record: "Control+Alt+Space".into(),
-            ..fn_keys
-        };
-        assert_eq!(delivery_key_events(&mixed, 2).unwrap(), 1);
+            let fn_keys = Shortcuts {
+                record: "Fn".into(),
+                translate: "Fn+Space".into(),
+                cancel: "Escape".into(),
+            };
+            assert_eq!(delivery_key_events(&fn_keys, 3).unwrap(), 0);
+            let mixed = Shortcuts {
+                record: "Control+Alt+Space".into(),
+                ..fn_keys
+            };
+            assert_eq!(delivery_key_events(&mixed, 2).unwrap(), 1);
         }
         #[cfg(not(target_os = "macos"))]
-        assert!(Shortcuts { record: "Fn".into(), ..Shortcuts::default() }.bindings().is_err());
+        assert!(Shortcuts {
+            record: "Fn".into(),
+            ..Shortcuts::default()
+        }
+        .bindings()
+        .is_err());
     }
 }
