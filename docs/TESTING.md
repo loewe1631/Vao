@@ -1,0 +1,55 @@
+# Testing
+
+## Repeatable local checks
+
+```sh
+cargo fetch --locked --target aarch64-apple-darwin
+cargo test --offline --workspace --locked
+cargo clippy --offline --workspace --all-targets --locked -- -D warnings
+npm ci
+npx playwright install chromium
+npm run test:ui
+npm run test:source
+npm run check:source
+```
+
+Rust tests use generated audio, loopback mock HTTP and temporary/in-memory databases. Browser tests use explicit IPC doubles and write screenshots/results under `artifacts/checks/`. They do not call production models, capture a microphone, grant permissions or send messages. `VAO_PLAYWRIGHT_MODULE` can select an existing Playwright installation; normal contributors should use the locked npm dependency.
+
+`check-source.py` inspects the same inventory as `package-source.py`. Boundary tests exercise private files, symlink escapes, redacted reports and deterministic archives. Dependency vulnerability reports are time-dependent and should be checked again before releases.
+
+## Build validation
+
+```sh
+VAO_ALLOW_ADHOC=1 bash scripts/build-macos.sh
+python3 scripts/package-source.py
+```
+
+The build packages and signs `dist/Vao.app`, checks its metadata/helper identity and creates a ZIP. It does not install or launch it. `CARGO_TARGET_DIR` may select a separate cache. Ad-hoc signing is for local development; a self-signed persistent identity is still not Apple notarization.
+
+With full Xcode installed, also verify the shared build entry:
+
+```sh
+xcodebuild -project xcode/Vao.xcodeproj -scheme 'Vao Direct' -configuration Release build
+```
+
+It builds the same source and output; it does not provide an App Store archive. See [Xcode builds](XCODE.md) for toolchain/signing setup and Run behavior.
+
+## Native desktop diagnostics
+
+These are opt-in interactive integration tests, not unit tests. They can activate synthetic windows, temporarily register shortcuts, exercise the clipboard, move/click the overlay and save/restore its position. Run in a test account, quit other Vao copies and close sensitive work first. Diagnostics do not grant macOS permissions.
+
+Prepare an empty output directory and fixtures:
+
+```sh
+mkdir -p artifacts/native
+python3 scripts/prepare-native-fixtures.py artifacts/native
+open -n dist/Vao.app --args --smoke-test "$PWD/artifacts/native/result.json" --verify-ui
+```
+
+`--verify-ui` requires `--smoke-test` and uses an isolated database beside the output. Credential namespace and app identity still belong to that signed app; do not supply real model configuration to the harness. Missing Accessibility access causes explicit skips, not a pass for physical Fn or cross-app input. Output and progress go to `result.json` and `result.json.trace`. Inspect failed/skipped checks and restore/quit the test app before normal use.
+
+Real microphone, physical shortcut, another Mac's initial installation and actual target receipt each need separate acceptance. Use synthetic text, never a live chat as a paste target.
+
+## Explicit model replay
+
+[Writing presets](WRITING_PRESETS.md) documents the opt-in fixed-text replay. It opens settings read-only but sends fixture text to the selected model and consumes quota. A local/synthetic test pass cannot establish provider quality or universal semantic preservation.

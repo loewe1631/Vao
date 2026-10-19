@@ -1,0 +1,87 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {
+        A10000000000000000000001 = {
+            isa = PBXProject;
+            attributes = { BuildIndependentTargetsInParallel = YES; };
+            buildConfigurationList = A10000000000000000000004;
+            compatibilityVersion = "Xcode 14.0";
+            developmentRegion = en;
+            hasScannedForEncodings = 0;
+            knownRegions = (en, Base);
+            mainGroup = A10000000000000000000002;
+            projectDirPath = "";
+            projectRoot = "";
+            targets = (A10000000000000000000003);
+        };
+        A10000000000000000000002 = {
+            isa = PBXGroup;
+            children = (
+                A10000000000000000000010,
+                A10000000000000000000011,
+                A10000000000000000000012,
+                A10000000000000000000013,
+                A10000000000000000000014,
+                A10000000000000000000015,
+                A10000000000000000000016,
+                A10000000000000000000017,
+                A10000000000000000000018,
+                A10000000000000000000019,
+            );
+            sourceTree = "<group>";
+        };
+        A10000000000000000000003 = {
+            isa = PBXLegacyTarget;
+            buildArgumentsString = "\"$(SRCROOT)/../scripts/build-xcode.sh\" $(ACTION)";
+            buildConfigurationList = A10000000000000000000005;
+            buildToolPath = /bin/bash;
+            name = "Vao Direct";
+            passBuildSettingsInEnvironment = 1;
+            productName = Vao;
+        };
+        A10000000000000000000004 = {
+            isa = XCConfigurationList;
+            buildConfigurations = (A10000000000000000000006);
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+        A10000000000000000000005 = {
+            isa = XCConfigurationList;
+            buildConfigurations = (A10000000000000000000007);
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
+        A10000000000000000000006 = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGNING_ALLOWED = NO;
+                MACOSX_DEPLOYMENT_TARGET = 12.0;
+                SDKROOT = macosx;
+                SUPPORTED_PLATFORMS = macosx;
+            };
+            name = Release;
+        };
+        A10000000000000000000007 = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGNING_ALLOWED = NO;
+                PRODUCT_NAME = Vao;
+            };
+            name = Release;
+        };
+        A10000000000000000000010 = { isa = PBXFileReference; lastKnownFileType = folder; name = crates; path = ../crates; sourceTree = "<group>"; };
+        A10000000000000000000011 = { isa = PBXFileReference; lastKnownFileType = folder; name = desktop; path = ../desktop; sourceTree = "<group>"; };
+        A10000000000000000000012 = { isa = PBXFileReference; lastKnownFileType = folder; name = platform; path = ../platform; sourceTree = "<group>"; };
+        A10000000000000000000013 = { isa = PBXFileReference; lastKnownFileType = folder; name = ui; path = ../ui; sourceTree = "<group>"; };
+        A10000000000000000000014 = { isa = PBXFileReference; lastKnownFileType = folder; name = scripts; path = ../scripts; sourceTree = "<group>"; };
+        A10000000000000000000015 = { isa = PBXFileReference; lastKnownFileType = folder; name = docs; path = ../docs; sourceTree = "<group>"; };
+        A10000000000000000000016 = { isa = PBXFileReference; lastKnownFileType = text; name = README.md; path = ../README.md; sourceTree = "<group>"; };
+        A10000000000000000000017 = { isa = PBXFileReference; lastKnownFileType = text; name = README.zh-CN.md; path = ../README.zh-CN.md; sourceTree = "<group>"; };
+        A10000000000000000000018 = { isa = PBXFileReference; lastKnownFileType = text; name = Cargo.toml; path = ../Cargo.toml; sourceTree = "<group>"; };
+        A10000000000000000000019 = { isa = PBXFileReference; lastKnownFileType = text.json; name = release.json; path = ../release.json; sourceTree = "<group>"; };
+    };
+    rootObject = A10000000000000000000001;
+}

@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = ["crates/vao-core", "desktop"]
+[workspace.package]
+version = "0.1.0-beta.5"
+edition = "2021"
+license = "AGPL-3.0-only"
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+debug = 0

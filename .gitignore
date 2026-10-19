@@ -1,0 +1,41 @@
+# Local build and editor state
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+*.local.xcconfig
+# Local secrets and recordings
+.env
+.env.*
+*.key
+*.p12
+*.mobileprovision
+*.wav
+*.m4a
+*.mp3
+# Generated local output
+artifacts/
+logs/
+target/
+dist/
+node_modules/
+
+# Local scene hints, never publish
+task-apps.txt
+services/
+
+# Generated schemas
+desktop/gen/
+
+# Python caches, private signing material and local diagnostics
+__pycache__/
+*.pyc
+*.pem
+*.pfx
+*.keychain*
+*.sqlite*
+configured-llm.json

@@ -1,0 +1,10 @@
+{
+  "product": "Vao",
+  "version": "0.1.0-beta.5",
+  "build": "20261019.1011",
+  "bundle": "app.vaovao.desktop",
+  "binary": "vao",
+  "channel": "public-beta",
+  "minimum_macos": "12.0",
+  "architecture": "arm64"
+}

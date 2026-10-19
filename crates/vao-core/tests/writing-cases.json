@@ -1,0 +1,769 @@
+[
+  {
+    "id": "work_codex",
+    "app": "Codex",
+    "text": "明天先把会议材料发给小林，然后跟他沟通演示方案，最后确定开会时间。时间没定之前，先别发通知。",
+    "scene": "tasks",
+    "preset": "plan",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "小林",
+        "演示方案",
+        "开会时间",
+        "通知"
+      ],
+      "any": [
+        [
+          "先别",
+          "不要",
+          "不发"
+        ]
+      ],
+      "list_items": 3,
+      "min_paragraphs": 2
+    }
+  },
+  {
+    "id": "work_telegram",
+    "app": "Telegram",
+    "text": "明天先把会议材料发给小林，然后跟他沟通演示方案，最后确定开会时间。时间没定之前，先别发通知。",
+    "scene": "chat",
+    "preset": "message",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "小林",
+        "演示方案",
+        "开会时间",
+        "通知"
+      ],
+      "any": [
+        [
+          "先别",
+          "不要",
+          "不发"
+        ]
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "life_hermes",
+    "app": "Hermes",
+    "text": "周日上午，我打算先取眼镜，再去市场买菜，最后去接爸爸。",
+    "scene": "tasks",
+    "preset": "plan",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "周日",
+        "上午",
+        "眼镜",
+        "买菜",
+        "爸爸"
+      ],
+      "list_items": 3
+    }
+  },
+  {
+    "id": "life_discord",
+    "app": "Discord",
+    "text": "周日上午，我打算先取眼镜，再去市场买菜，最后去接爸爸。",
+    "scene": "chat",
+    "preset": "message",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "周日",
+        "上午",
+        "眼镜",
+        "买菜",
+        "爸爸"
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "technical_spoken",
+    "app": "Codex",
+    "text": "目前开发机上的 System D 服务测试正常，版本是 2.4.1，线上还没验证，日志里有 Time Out 报错，可能是网络问题，但还不能下结论，先记录下来。",
+    "scene": "technical",
+    "preset": "technical_record",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "systemd",
+        "2.4.1",
+        "timeout",
+        "网络",
+        "记录"
+      ],
+      "any": [
+        [
+          "尚未验证",
+          "还没验证",
+          "未验证"
+        ],
+        [
+          "可能",
+          "怀疑"
+        ],
+        [
+          "不能下结论",
+          "无法下结论",
+          "尚不能下结论"
+        ]
+      ],
+      "none": [
+        "已修复",
+        "已经修复",
+        "已上线",
+        "已解决"
+      ],
+      "list_items": 0,
+      "min_paragraphs": 3
+    }
+  },
+  {
+    "id": "technical_asr",
+    "app": "Codex",
+    "text": "目前开发机上的 System D 服务测试正常版本是二点四点一，线上还没验验证日志里有 Time Out 报错，可能是网络问题，但还不能下结论，先记录下来。",
+    "scene": "technical",
+    "preset": "technical_record",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "systemd",
+        "2.4.1",
+        "timeout",
+        "记录"
+      ],
+      "any": [
+        [
+          "尚未验证",
+          "还没验证",
+          "未验证"
+        ],
+        [
+          "可能",
+          "怀疑"
+        ]
+      ],
+      "none": [
+        "已修复",
+        "已上线",
+        "已经确定"
+      ],
+      "min_paragraphs": 3
+    }
+  },
+  {
+    "id": "technical_without_error_word",
+    "app": "Notes",
+    "text": "开发机测试正常，线上未验证。可能是网络问题，但还不能下结论，先记录下来。",
+    "scene": "technical",
+    "preset": "technical_record",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "开发机",
+        "线上",
+        "网络",
+        "记录"
+      ],
+      "any": [
+        [
+          "未验证",
+          "尚未验证"
+        ],
+        [
+          "可能",
+          "怀疑"
+        ]
+      ],
+      "none": [
+        "已修复",
+        "已上线"
+      ],
+      "min_paragraphs": 2
+    }
+  },
+  {
+    "id": "document_notes",
+    "app": "Notes",
+    "text": "会议纪要：今天讨论了演示方案，版本还没定。小林先整理反馈，等我确认之后再通知大家。",
+    "scene": "technical",
+    "preset": "document",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "会议纪要",
+        "演示方案",
+        "小林",
+        "反馈",
+        "确认",
+        "通知"
+      ],
+      "any": [
+        [
+          "尚未确定",
+          "还没定",
+          "未定",
+          "未确定"
+        ]
+      ],
+      "none": [
+        "会议决定",
+        "已通过",
+        "已通知"
+      ],
+      "min_paragraphs": 2
+    }
+  },
+  {
+    "id": "tasks_in_social",
+    "app": "Discord",
+    "text": "先检查进程状态，然后核对错误日志，再把异常时间发我。这三项都只看，先别修。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "进程状态",
+        "错误日志",
+        "异常时间"
+      ],
+      "any": [
+        [
+          "只看",
+          "只能查看",
+          "只读",
+          "只查看",
+          "仅查看"
+        ],
+        [
+          "先别修",
+          "不要修",
+          "不修"
+        ]
+      ],
+      "list_items": 3,
+      "min_paragraphs": 2
+    }
+  },
+  {
+    "id": "medical_chat",
+    "app": "WeChat",
+    "text": "明天去医院检查身体，然后回家休息。",
+    "scene": "chat",
+    "preset": "message",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "医院",
+        "检查身体",
+        "休息"
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "casual_in_agent",
+    "app": "Codex",
+    "text": "这几天有点忙，你周末有空吗？我想跟你吃个饭，还没定哪天。",
+    "scene": "chat",
+    "preset": "message",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "周末",
+        "有空吗",
+        "吃",
+        "还没定"
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "single_task_attributes",
+    "app": "Codex",
+    "text": "周五去照相馆取两张五寸照片，预算三十元。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "周五",
+        "照相馆",
+        "照片"
+      ],
+      "any": [
+        [
+          "两张",
+          "2 张",
+          "2张"
+        ],
+        [
+          "五寸",
+          "5 寸",
+          "5寸"
+        ],
+        [
+          "30",
+          "三十"
+        ]
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "multi_object_limits",
+    "app": "Codex",
+    "text": "甲组查看甲机器的日志，乙组查看乙机器的日志。两边都只读，等我确认再改。另外乙组不能复制日志出去。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "甲组",
+        "乙组",
+        "甲机器",
+        "乙机器",
+        "确认",
+        "复制"
+      ],
+      "any": [
+        [
+          "只读",
+          "只能查看"
+        ],
+        [
+          "不能复制",
+          "不得复制",
+          "不要复制"
+        ]
+      ],
+      "min_paragraphs": 3
+    }
+  },
+  {
+    "id": "final_correction",
+    "app": "Codex",
+    "text": "明天下午三点开会，不对，改成后天下午四点，地点还是原来的会议室。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "后天",
+        "会议室"
+      ],
+      "any": [
+        [
+          "四点",
+          "4点",
+          "4 点"
+        ]
+      ],
+      "none": [
+        "明天",
+        "三点",
+        "3点"
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "retain_price_history",
+    "app": "Codex",
+    "text": "原来预算是 3000 元，现在调整到 5000 元，请把调整前后的金额都写上。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "3000",
+        "5000"
+      ],
+      "none": [
+        "美元",
+        "USDT"
+      ]
+    }
+  },
+  {
+    "id": "retain_currencies",
+    "app": "Codex",
+    "text": "甲项目预算 20 USD，乙项目预算 30 USDT，丙项目预算 80 元人民币，不要统一币种。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "20",
+        "USD",
+        "30",
+        "USDT",
+        "80"
+      ],
+      "any": [
+        [
+          "人民币",
+          "元",
+          "CNY"
+        ]
+      ],
+      "none": [
+        "汇率",
+        "合计",
+        "总计"
+      ],
+      "regex": [
+        "20\\s*USD(?!T)",
+        "30\\s*USDT"
+      ]
+    }
+  },
+  {
+    "id": "verbatim_whole",
+    "app": "Codex",
+    "text": "整段原样保留：先去东门，不对，西门，再拿一份一份资料，然后去吃饭。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "先去东门，不对，西门，再拿一份一份资料，然后去吃饭。"
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "verbatim_quote",
+    "app": "Codex",
+    "text": "请原样保留引号内的话：“先打印五份，不对，七份。这是一个一个例句。”引号外面这句是说明。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "“先打印五份，不对，七份。这是一个一个例句。”",
+        "说明"
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "cancelled_action",
+    "app": "Codex",
+    "text": "先上传图片，刷新缓存这一步取消。上传后等我确认才能发通知。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "上传图片",
+        "缓存",
+        "确认",
+        "通知"
+      ],
+      "any": [
+        [
+          "不刷新",
+          "取消刷新",
+          "刷新缓存这一步取消",
+          "刷新缓存取消",
+          "不执行刷新缓存"
+        ]
+      ],
+      "list_items": 0,
+      "min_paragraphs": 2
+    }
+  },
+  {
+    "id": "uncertain_plan",
+    "app": "Codex",
+    "text": "我可能明天去散步，然后喝咖啡，再买水果，还没定，先别替我约人。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "可能",
+        "散步",
+        "咖啡",
+        "水果"
+      ],
+      "any": [
+        [
+          "还没定",
+          "尚未确定",
+          "未确定"
+        ],
+        [
+          "先别",
+          "不要",
+          "不替"
+        ]
+      ],
+      "none": [
+        "已预约",
+        "已安排",
+        "确定明天"
+      ]
+    }
+  },
+  {
+    "id": "question_not_answer",
+    "app": "Gemini",
+    "text": "你认为应该如何处理这个报错？",
+    "scene": "technical",
+    "preset": "technical_record",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "你认为",
+        "报错",
+        "？"
+      ],
+      "none": [
+        "建议",
+        "首先",
+        "可以尝试",
+        "这是因为"
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "english_question",
+    "app": "Gemini",
+    "text": "Can I publish my app after registering?",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "exact": "Can I publish my app after registering?"
+    }
+  },
+  {
+    "id": "translation_question",
+    "app": "Gemini",
+    "text": "我们明天还能见面吗？",
+    "translation": "English",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "tomorrow",
+        "?"
+      ],
+      "any": [
+        [
+          "meet",
+          "see"
+        ]
+      ],
+      "none": [
+        "我们",
+        "Yes,",
+        "No,"
+      ]
+    }
+  },
+  {
+    "id": "selection_answer",
+    "app": "Codex",
+    "text": "会议是什么时候？",
+    "selection": "会议定在周五下午三点。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "周五",
+        "下午"
+      ],
+      "any": [
+        [
+          "三点",
+          "3点",
+          "3 点"
+        ]
+      ],
+      "none": [
+        "会议是什么时候",
+        "不知道"
+      ]
+    }
+  },
+  {
+    "id": "unseen_work_agent",
+    "app": "Codex",
+    "text": "星期二先把合同寄给小周，再同他确认签收，最后更新交接表。没收到回执之前不要归档。",
+    "scene": "tasks",
+    "preset": "plan",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "星期二",
+        "合同",
+        "小周",
+        "签收",
+        "交接表",
+        "回执",
+        "归档"
+      ],
+      "any": [
+        [
+          "不要归档",
+          "不能归档",
+          "不得归档"
+        ]
+      ],
+      "list_items": 3,
+      "min_paragraphs": 2
+    }
+  },
+  {
+    "id": "unseen_work_social",
+    "app": "Telegram",
+    "text": "星期二先把合同寄给小周，再同他确认签收，最后更新交接表。没收到回执之前不要归档。",
+    "scene": "chat",
+    "preset": "message",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "星期二",
+        "合同",
+        "小周",
+        "签收",
+        "交接表",
+        "回执",
+        "归档"
+      ],
+      "any": [
+        [
+          "不要归档",
+          "不能归档",
+          "不得归档"
+        ]
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "unseen_life_agent",
+    "app": "Hermes",
+    "text": "周六下午我打算先修手表，再买面包，最后接外婆。",
+    "scene": "tasks",
+    "preset": "plan",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "周六",
+        "下午",
+        "手表",
+        "面包",
+        "外婆"
+      ],
+      "list_items": 3
+    }
+  },
+  {
+    "id": "unseen_technical_record",
+    "app": "Notes",
+    "text": "预发布环境健康检查通过，版本为 5.8.2。生产环境还没有验证。错误日志出现 connection reset，暂时怀疑是代理连接中断，但没有证据，先记录。",
+    "scene": "technical",
+    "preset": "technical_record",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "5.8.2",
+        "生产环境",
+        "connection reset",
+        "代理",
+        "记录"
+      ],
+      "any": [
+        [
+          "未验证",
+          "没有验证",
+          "尚未验证"
+        ],
+        [
+          "怀疑",
+          "可能"
+        ],
+        [
+          "没有证据",
+          "缺乏证据",
+          "尚无证据"
+        ]
+      ],
+      "none": [
+        "已修复",
+        "确定是",
+        "已恢复"
+      ],
+      "min_paragraphs": 3
+    }
+  },
+  {
+    "id": "unseen_completed_observation",
+    "app": "Notes",
+    "text": "服务已经重启完成，日志暂时正常，但是否彻底恢复还需要观察。",
+    "scene": "technical",
+    "preset": "technical_record",
+    "layout": "paragraph",
+    "check": {
+      "all": [
+        "服务",
+        "重启",
+        "日志",
+        "观察"
+      ],
+      "any": [
+        [
+          "需要观察",
+          "仍需观察",
+          "有待观察"
+        ]
+      ],
+      "none": [
+        "已彻底恢复",
+        "已解决"
+      ],
+      "list_items": 0
+    }
+  },
+  {
+    "id": "unseen_original_request",
+    "app": "Codex",
+    "text": "帮我写一份关于旅行的文档，先讨论提纲，不要直接写正文。",
+    "scene": "tasks",
+    "preset": "actions",
+    "layout": "numbered",
+    "check": {
+      "all": [
+        "文档",
+        "提纲",
+        "正文"
+      ],
+      "any": [
+        [
+          "不要直接写",
+          "先不写",
+          "不直接写"
+        ]
+      ],
+      "none": [
+        "第一章",
+        "旅行指南",
+        "出发前准备"
+      ]
+    }
+  }
+]

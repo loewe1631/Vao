@@ -1,0 +1,25 @@
+name: Architecture proposal
+description: A focused contract question or design change
+title: "[Architecture] "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and scope
+      description: Identify the module and a concrete counterexample. Use synthetic data.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal and alternatives
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation and data impact
+      description: Explain acceptance evidence, privacy, deletion and migration effects.
+    validations:
+      required: true

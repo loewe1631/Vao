@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100" fill="none">
+  <title>Vao — Echo V</title>
+  <rect x="1" y="1" width="98" height="98" rx="24" fill="#1677F2"/>
+  <rect x="1.35" y="1.35" width="97.3" height="97.3" rx="23.65" stroke="#FFFFFF" stroke-opacity=".18" stroke-width=".7"/>
+  <path d="M28 36 L46.7 72.4 Q48.9 76.7 51.1 72.4 L73.3 26.5" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M80 47.5 L84.5 38.2" stroke="#FFFFFF" stroke-opacity=".7" stroke-width="8" stroke-linecap="round"/>
+</svg>
