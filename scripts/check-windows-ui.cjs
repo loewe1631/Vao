@@ -75,6 +75,10 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  check('overlay_copy_is_explicit',await page.evaluate(()=>!fake.calls.some(c=>c.command==='copy_result')));
  await page.locator('#bar-copy').click();
  check('overlay_copies_saved_result',await page.evaluate(()=>fake.calls.some(c=>c.command==='copy_result'&&c.args.id===3)));
+ await page.evaluate(()=>{fake.state.session.id=4;fake.state.result.id=4;fake.state.answer='A second result.';fake.listeners['session-updated']();});
+ await page.waitForFunction(()=>document.querySelector('#bar-message')?.textContent==='A second result.');
+ check('new_result_resets_copy_confirmation',await page.locator('#bar-copy').innerText()==='复制结果');
+
  await page.locator('.answer-handle').dispatchEvent('mousedown',{button:0});
  check('overlay_drag_does_not_open_main',await page.evaluate(()=>fake.calls.some(c=>c.command==='drag_voicebar')&&!fake.calls.some(c=>c.command==='show_main')));
  await page.screenshot({path:path.join(out,'windows-result-overlay.png')});

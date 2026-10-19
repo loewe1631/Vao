@@ -1001,7 +1001,11 @@ fn fail(app: &tauri::AppHandle, id: u64, error: &str) {
     drop(r);
     escape_key(app, false);
     #[cfg(target_os = "windows")]
-    present_answer(app, id, error);
+    {
+        let retained = app.state::<AppState>().runtime.lock().unwrap().result.as_ref().map(|r|r.text.clone());
+        let message = retained.filter(|s|!s.is_empty()).map(|text|format!("{error}\n\n已保留识别文字 / Retained transcription:\n{text}")).unwrap_or_else(||error.to_owned());
+        present_answer(app, id, &message);
+    }
     #[cfg(not(target_os = "windows"))]
     { show_bar(app, false); show_main(app); }
 }
