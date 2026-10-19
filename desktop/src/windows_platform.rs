@@ -183,38 +183,6 @@ pub fn monitor(pid: u32) -> u32 {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn unverified_targets_cannot_trigger_automatic_input() {
-        for action in ["deliver", "return_source"] {
-            assert!(call(json!({"action":action,"target":{"pid":1},"text":"synthetic"})).is_err());
-        }
-    }
-
-    #[test]
-    fn settings_uri_is_allowlisted() {
-        assert!(open_settings("https://settings.example/").is_err());
-    }
-
-    #[test]
-    fn windows_credentials_round_trip_and_delete() {
-        let mut nonce = [0u8; 16];
-        getrandom::fill(&mut nonce).unwrap();
-        let slot = format!("synthetic-test-{:x?}", nonce);
-        assert!(!crate::platform::has_secret(&slot).unwrap());
-        crate::platform::save_secret(&slot, "synthetic credential fixture").unwrap();
-        let result = crate::platform::secret(&slot);
-        let exists = crate::platform::has_secret(&slot);
-        let cleanup = crate::platform::save_secret(&slot, "");
-        cleanup.unwrap();
-        assert_eq!(result.unwrap(), "synthetic credential fixture");
-        assert!(exists.unwrap());
-        assert!(!crate::platform::has_secret(&slot).unwrap());
-    }
-}
 static MONITOR: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 pub fn place(window: &tauri::WebviewWindow, expanded: bool) -> Result<(), String> {
@@ -256,4 +224,37 @@ pub fn place(window: &tauri::WebviewWindow, expanded: bool) -> Result<(), String
         SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, height, SWP_NOACTIVATE);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unverified_targets_cannot_trigger_automatic_input() {
+        for action in ["deliver", "return_source"] {
+            assert!(call(json!({"action":action,"target":{"pid":1},"text":"synthetic"})).is_err());
+        }
+    }
+
+    #[test]
+    fn settings_uri_is_allowlisted() {
+        assert!(open_settings("https://settings.example/").is_err());
+    }
+
+    #[test]
+    fn windows_credentials_round_trip_and_delete() {
+        let mut nonce = [0u8; 16];
+        getrandom::fill(&mut nonce).unwrap();
+        let slot = format!("synthetic-test-{:x?}", nonce);
+        assert!(!crate::platform::has_secret(&slot).unwrap());
+        crate::platform::save_secret(&slot, "synthetic credential fixture").unwrap();
+        let result = crate::platform::secret(&slot);
+        let exists = crate::platform::has_secret(&slot);
+        let cleanup = crate::platform::save_secret(&slot, "");
+        cleanup.unwrap();
+        assert_eq!(result.unwrap(), "synthetic credential fixture");
+        assert!(exists.unwrap());
+        assert!(!crate::platform::has_secret(&slot).unwrap());
+    }
 }
