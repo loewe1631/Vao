@@ -46,6 +46,9 @@ def main():
     evidence = [out / name for name in ['build-info.json', 'runner-startup.json']]
     if not all(path.is_file() for path in evidence):
         raise SystemExit('Run the Windows startup probe before packaging')
+    trace = out / 'runner-startup.json.trace'
+    if trace.is_file():
+        evidence.append(trace)
     entries = {**report['files'], report_path.name: digest(report_path),
                **{path.name: digest(path) for path in evidence}}
     (out / 'SHA256SUMS').write_text(''.join(f'{sha}  {name}\n' for name, sha in entries.items()))

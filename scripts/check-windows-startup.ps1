@@ -26,12 +26,12 @@ function Run-Probe([string[]]$ProbeArgs, [string]$ReportPath) {
     }
 }
 
-$identity = Run-Probe @('--build-info', ('"' + $identityPath + '"')) $identityPath
+$identity = Run-Probe -ProbeArgs @('--build-info', ('"' + $identityPath + '"')) -ReportPath $identityPath
 if ($identity.version -ne $release.version -or $identity.build -ne $release.build -or
     $identity.bundle -ne $release.bundle -or $identity.platform -ne 'windows' -or $identity.architecture -ne 'x86_64') {
     throw 'Binary build identity mismatch'
 }
-$smoke = Run-Probe @('--windows-smoke', '--smoke-test', ('"' + $smokePath + '"')) $smokePath
+$smoke = Run-Probe -ProbeArgs @('--windows-smoke', '--smoke-test', ('"' + $smokePath + '"')) -ReportPath $smokePath
 if ($smoke.ipc -ne 'ready' -or $smoke.webview -ne 'main' -or $smoke.phase -ne 'idle' -or
     $smoke.bundle -ne $release.bundle -or $smoke.version -ne $release.version -or
     !$smoke.hotkeys -or $smoke.captured_audio -ne $false -or $smoke.trial.provisioned) {

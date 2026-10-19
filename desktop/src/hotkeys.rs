@@ -391,17 +391,22 @@ mod delivery_tests {
     use super::*;
     #[test]
     fn expected_key_events_exclude_consumed_fn_chords() {
+        assert_eq!(delivery_key_events(&Shortcuts::default(), 2).unwrap(), 3);
+        #[cfg(target_os = "macos")]
+        {
         let fn_keys = Shortcuts {
             record: "Fn".into(),
             translate: "Fn+Space".into(),
             cancel: "Escape".into(),
         };
         assert_eq!(delivery_key_events(&fn_keys, 3).unwrap(), 0);
-        assert_eq!(delivery_key_events(&Shortcuts::default(), 2).unwrap(), 3);
         let mixed = Shortcuts {
             record: "Control+Alt+Space".into(),
             ..fn_keys
         };
         assert_eq!(delivery_key_events(&mixed, 2).unwrap(), 1);
+        }
+        #[cfg(not(target_os = "macos"))]
+        assert!(Shortcuts { record: "Fn".into(), ..Shortcuts::default() }.bindings().is_err());
     }
 }
