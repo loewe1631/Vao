@@ -3,12 +3,12 @@ from pathlib import Path
 import os
 
 ROOT_FILES = (
-    'Cargo.toml', 'Cargo.lock', 'release.json', 'LICENSE', 'PROVENANCE.md',
+    'Cargo.toml', 'Cargo.lock', 'release.json', 'release.windows.json', 'LICENSE', 'PROVENANCE.md',
     'README.md', 'README.zh-CN.md', 'PRIVACY.md', 'RELEASE_NOTES.md',
     'THIRD_PARTY_NOTICES.md', 'CONTRIBUTING.md', 'GOVERNANCE.md', 'SECURITY.md',
     '.gitignore', 'package.json', 'package-lock.json',
 )
-DESKTOP_FILES = ('Cargo.toml', 'build.rs', 'tauri.conf.json', 'Info.plist', 'entitlements.plist')
+DESKTOP_FILES = ('Cargo.toml', 'build.rs', 'tauri.conf.json', 'tauri.windows.conf.json', 'Info.plist', 'entitlements.plist')
 TREES = ('crates', 'ui', 'platform', 'scripts', 'docs', '.github', 'licenses', 'xcode',
          'desktop/src', 'desktop/icons', 'desktop/capabilities')
 GENERATED = {'.git', '.build', '.swiftpm', 'DerivedData', 'target', 'dist',

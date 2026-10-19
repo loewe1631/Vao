@@ -23,7 +23,8 @@ PRIVATE_EXTENSIONS = {'.key', '.pem', '.p12', '.pfx', '.mobileprovision', '.keyc
 PRIVATE_NAMES = {'.env', 'AGENTS.md', 'CLAUDE.md', 'task-apps.txt', 'configured-llm.json'}
 BINARY_ASSETS = {'desktop/icons/32x32.png': b'\x89PNG\r\n\x1a\n',
                  'desktop/icons/128x128.png': b'\x89PNG\r\n\x1a\n',
-                 'desktop/icons/icon.icns': b'icns'}
+                 'desktop/icons/icon.icns': b'icns',
+                 'desktop/icons/icon.ico': b'\x00\x00\x01\x00'}
 
 
 def inspect(root):

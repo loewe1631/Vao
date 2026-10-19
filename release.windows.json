@@ -1,0 +1,10 @@
+{
+  "product": "Vao Windows Preview",
+  "version": "0.1.0-beta.5-windows.1",
+  "build": "20261019.3001",
+  "bundle": "app.vaovao.windows.preview",
+  "binary": "vao.exe",
+  "channel": "windows-preview",
+  "minimum_windows": "10 (1809)",
+  "architecture": "x64"
+}

@@ -1,10 +1,13 @@
 fn main() {
+    let windows = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows");
+    let release_path = if windows { "../release.windows.json" } else { "../release.json" };
+    let config_path = if windows { "tauri.windows.conf.json" } else { "tauri.conf.json" };
     let release: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string("../release.json").expect("Read release metadata"),
+        &std::fs::read_to_string(release_path).expect("Read release metadata"),
     )
     .expect("Valid release metadata");
     let config: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string("tauri.conf.json").expect("Read host metadata"),
+        &std::fs::read_to_string(config_path).expect("Read host metadata"),
     )
     .expect("Valid host metadata");
     assert_eq!(
@@ -16,6 +19,8 @@ fn main() {
         "Release version differs from host"
     );
     println!("cargo:rerun-if-changed=../release.json");
+    println!("cargo:rerun-if-changed=../release.windows.json");
+    println!("cargo:rerun-if-changed=tauri.windows.conf.json");
     for (field, variable) in [
         ("bundle", "VAO_BUNDLE_ID"),
         ("version", "VAO_RELEASE_VERSION"),
