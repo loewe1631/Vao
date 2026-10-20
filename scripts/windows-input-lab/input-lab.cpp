@@ -206,7 +206,13 @@ UINT submit(const Target& target, IUIAutomation* automation) {
     identity(target);
     if (!keys_up()) throw std::runtime_error("physical_key_held");
     // Never force a different child field or click coordinates to recover focus.
-    if (gui(target.root).hwndFocus != target.focus.hwndFocus)
+    GUITHREADINFO inactive{};
+    inactive.cbSize = sizeof(inactive);
+    if (!GetGUIThreadInfo(GetWindowThreadProcessId(target.root, nullptr), &inactive))
+        throw std::runtime_error("saved_native_focus_query_failed");
+    // Inactive threads can legitimately have no focus. A known different child
+    // is a conflict; after activation the original child/caret must match.
+    if (inactive.hwndFocus && inactive.hwndFocus != target.focus.hwndFocus)
         throw std::runtime_error("saved_native_focus_changed");
     if (IsIconic(target.root)) ShowWindow(target.root, SW_RESTORE);
     if (GetForegroundWindow() != target.root && !SetForegroundWindow(target.root))
@@ -258,6 +264,8 @@ WNDPROC edit_proc = nullptr;
 LONG enter_count = 0;
 DWORD fixture_controller = 0;
 LRESULT CALLBACK fixture_edit(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
+    if (msg == WM_SETFOCUS)
+        SetWindowLongPtrW(GetParent(hwnd), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(hwnd));
     if ((msg == WM_CHAR && (w == '\r' || w == '\n')) || (msg == WM_KEYDOWN && w == VK_RETURN))
         ++enter_count;
     return CallWindowProcW(edit_proc, hwnd, msg, w, l);
@@ -265,6 +273,12 @@ LRESULT CALLBACK fixture_edit(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
 LRESULT CALLBACK fixture_window(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
     if (msg == WM_ACTIVATE && LOWORD(w) != WA_INACTIVE && fixture_controller)
         AllowSetForegroundWindow(fixture_controller);
+    if (msg == WM_SETFOCUS) {
+        HWND last = reinterpret_cast<HWND>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+        if (!last) last = GetDlgItem(hwnd, 101);
+        if (last && IsWindowEnabled(last)) SetFocus(last);
+        return 0;
+    }
     if (msg == WM_CREATE) {
         for (int i = 0; i < 2; ++i) {
             HWND edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_MULTILINE,
