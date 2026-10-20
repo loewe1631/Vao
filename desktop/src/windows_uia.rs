@@ -524,16 +524,18 @@ unsafe fn snapshot(
     }
     let start = before.len().min(text.len());
     let end = through.len().min(text.len());
-    // A caret anchored beyond the document's single empty paragraph differs
-    // from a real in-document LF (including textarea '\n'). The browser may
-    // remove that empty paragraph marker on the first trusted insertion.
+    // A complete single-LF paragraph with a collapsed owned boundary caret
+    // can lose its empty paragraph marker on the first trusted insertion.
+    // Do not infer this from Value alone: a textarea's real LF also exposes
+    // another paragraph boundary in DocumentRange and must retain its receipt.
     let empty_paragraph = preview
-        && end_caret
         && text == [10]
         && document_text == [10]
-        && start == 1
-        && end == 1
-        && range_owned_by(automation, &document, element, command)?;
+        && order == 0
+        && start == end
+        && range_text(&selection)?.is_empty()
+        && range_owned_by(automation, &document, element, command)?
+        && range_owned_by(automation, &selection, element, command)?;
     if empty_paragraph {
         diagnostic(json!({"uia_stage":"owned_empty_paragraph"}));
     }

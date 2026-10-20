@@ -99,7 +99,7 @@ try{
  one.removeAttribute('aria-label');
  const {characterize}=await import('./windows-uia-shapes.js');
  observations=await characterize({call,check,delay});
- check('unicode_six_field_shapes_observed',observations.length===6);
+ check('unicode_seven_field_shapes_observed',observations.length===7);
  check('unicode_never_enter_or_submit',enters===0&&submits===0);
  await call('report',{passed:true,kind:'guarded Unicode; native WebView2; synthetic fields only',checks,observations,audio_captured:false,models_contacted:false});
  document.querySelector('#status').textContent='Passed';

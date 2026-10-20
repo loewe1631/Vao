@@ -28,7 +28,7 @@ changing it or the content invalidates delivery. Nonempty field values are
 never removed as labels. The existing whole-field Value adapter retains its
 previous requirements.
 
-A single empty-paragraph LF with an owned container caret beyond DocumentRange
+A complete single-LF empty paragraph with a collapsed owned boundary caret
 can disappear on the first native insertion. Its receipt accepts either the
 original exact expected text/caret or precisely the inserted text with the
 corresponding collapsed caret. Ordinary in-document LF, generated text and
@@ -36,7 +36,7 @@ other mismatches retain receipt warnings; no input is resent or caret moved.
 
 Native WebView2 regressions now require verified empty input/textarea fields
 with names/placeholders, empty editable containers and paragraph/BR containers,
-plus exact existing-text insertion. Generated pseudo-content still produces
+at both paragraph caret boundaries, plus exact existing-text insertion. Generated pseudo-content still produces
 an unconfirmed receipt. Changed empty-field contents/name, nonempty names and
 real LF normalization are checked separately. Desktop dsh/Edge acceptance and
 WPS text-context support remain unresolved until tested on the laptop.

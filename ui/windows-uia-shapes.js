@@ -10,6 +10,7 @@ export async function characterize({call,check,delay}){
   {id:'textarea_placeholder',tag:'textarea',placeholder:'提示文字呀',verified:true},
   {id:'editable_empty',tag:'div',html:'',verified:true},
   {id:'editable_paragraph_br',tag:'div',html:'<p><br></p>',verified:true},
+  {id:'editable_paragraph_start',tag:'div',html:'<p><br></p>',paragraphStart:true,verified:true},
   {id:'editable_generated_placeholder',tag:'div',html:'',generated:true,verified:false},
   {id:'editable_existing_text',tag:'div',html:'原文',offset:1,verified:true}
  ];
@@ -28,7 +29,7 @@ export async function characterize({call,check,delay}){
   if(item.tag==='div'){
    const range=document.createRange();
    if(item.offset)range.setStart(field.firstChild,item.offset);
-   else range.setStart(field.firstChild?.firstChild||field,0);
+   else range.setStart((item.paragraphStart?field.firstChild:field.firstChild?.firstChild)||field,0);
    range.collapse(true);window.getSelection().removeAllRanges();window.getSelection().addRange(range);
   }else field.setSelectionRange(0,0);
   await delay(220);
