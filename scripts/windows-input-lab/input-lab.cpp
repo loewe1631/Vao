@@ -297,6 +297,12 @@ LRESULT CALLBACK fixture_window(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
         CreateWindowExW(0, L"BUTTON", L"Synthetic pattern-less control", WS_CHILD | WS_VISIBLE | WS_TABSTOP,
             10, 175, 400, 25, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(103)),
             GetModuleHandleW(nullptr), nullptr);
+        // Native multiline Edit exposes TextPattern; use a single-line Edit
+        // for the positive ValuePattern regression rather than assuming both.
+        HWND single = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+            10, 205, 400, 25, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(104)),
+            GetModuleHandleW(nullptr), nullptr);
+        SetWindowLongPtrW(single, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(fixture_edit));
         return 0;
     }
     if (msg == kFocus) { SetFocus(GetDlgItem(hwnd, static_cast<int>(w))); return 1; }
@@ -317,7 +323,7 @@ int fixture(DWORD controller) {
     cls.lpszClassName = kFixture;
     if (!RegisterClassW(&cls)) return 2;
     HWND root = CreateWindowExW(0, kFixture, L"Synthetic scratch input", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-        100, 100, 460, 260, nullptr, nullptr, cls.hInstance, nullptr);
+        100, 100, 460, 290, nullptr, nullptr, cls.hInstance, nullptr);
     if (!root) return 3;
     MSG msg{};
     while (GetMessageW(&msg, nullptr, 0, 0) > 0) { TranslateMessage(&msg); DispatchMessageW(&msg); }
@@ -388,10 +394,10 @@ struct Child {
         SendMessageW(GetDlgItem(root, id), WM_GETTEXT, 256, reinterpret_cast<LPARAM>(buffer));
         return buffer;
     }
-    std::wstring await_text(const std::wstring& expected) {
+    std::wstring await_text(const std::wstring& expected, int id = 101) {
         std::wstring received;
         for (int attempt = 0; attempt < 100; ++attempt) {
-            received = text();
+            received = text(id);
             if (received == expected) return received;
             Sleep(20);
         }
@@ -468,17 +474,20 @@ int self_test(const std::filesystem::path& report) {
         Child c;
         c.focus(103);
         auto control = capture(automation.Get());
+        std::cout << "Owned unsupported-pattern fixture: {" << metadata(control) << "}\n";
         check("unsupported_value_pattern_is_absent", control.element &&
             control.control_type == UIA_ButtonControlTypeId && !control.uia_value);
         check("unsupported_text_pattern_is_absent", !control.uia_text);
-        c.focus();
+        c.focus(104);
         auto field = capture(automation.Get());
+        std::cout << "Owned single-line UIA fixture: {" << metadata(field) << "}\n";
         check("uia_edit_patterns_present", field.element && field.uia_focused &&
             field.control_type == UIA_EditControlTypeId && field.uia_value && field.uia_text);
         a.focus(102);
         const UINT uia_sent = submit(field, automation.Get());
         check("uia_capture_restoration_and_exact_receipt", uia_sent == 2 * (std::size(kText) - 1) &&
-            GetForegroundWindow() == c.root && c.await_text(kText) == kText && a.text(102).empty());
+            GetForegroundWindow() == c.root && c.await_text(kText, 104) == kText &&
+            c.text().empty() && a.text(102).empty());
         check("no_enter_or_linebreak", SendMessageW(a.root, kEnterCount, 0, 0) == 0 &&
             SendMessageW(c.root, kEnterCount, 0, 0) == 0);
         check("clipboard_untouched", GetClipboardSequenceNumber() == clipboard_before);
