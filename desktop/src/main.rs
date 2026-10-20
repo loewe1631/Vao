@@ -15,6 +15,8 @@ mod store;
 mod trial;
 mod voice_bar;
 mod writing_probe;
+#[cfg(target_os = "windows")]
+mod windows_input;
 
 use input_feedback::{FlowError, InputNotice};
 use serde_json::{json, Value};
@@ -356,15 +358,26 @@ fn report_frontend_state(stage: String) {
     }
 }
 #[tauri::command]
-fn report_ui_ready(window: tauri::WebviewWindow, state: State<AppState>) -> Result<bool, String> {
+async fn report_ui_ready(window: tauri::WebviewWindow, state: State<AppState>) -> Result<bool, String> {
     if window.label() != "main" {
         return Ok(false);
     }
     let args = std::env::args().collect::<Vec<_>>();
     if let Some(i) = args.iter().position(|s| s == "--smoke-test") {
         if let Some(path) = args.get(i + 1) {
+            #[cfg(target_os = "windows")]
+            let overlay = {
+                let bar = window.app_handle().get_webview_window("voicebar").ok_or("Missing overlay")?;
+                let target = bar.clone();
+                let (tx,rx) = tokio::sync::oneshot::channel();
+                bar.run_on_main_thread(move || {let _=tx.send(platform::windows::probe_overlay(&target));}).map_err(|e| e.to_string())?;
+                rx.await.map_err(|_| "Overlay probe interrupted")??
+            };
             let r = state.runtime.lock().unwrap();
-            let info = json!({"version":env!("VAO_RELEASE_VERSION"),"bundle":env!("VAO_BUNDLE_ID"),"webview":"main","ipc":"ready","phase":r.session.phase,"hotkeys":r.hotkeys,"size":window.inner_size().ok().map(|s|[s.width,s.height]),"captured_audio":false,"permissions":permissions::snapshot(),"trial":trial::local_status(&state.store.lock().unwrap().get::<Settings>("settings"))});
+            #[allow(unused_mut)]
+            let mut info = json!({"version":env!("VAO_RELEASE_VERSION"),"bundle":env!("VAO_BUNDLE_ID"),"webview":"main","ipc":"ready","phase":r.session.phase,"hotkeys":r.hotkeys,"size":window.inner_size().ok().map(|s|[s.width,s.height]),"captured_audio":false,"permissions":permissions::snapshot(),"trial":trial::local_status(&state.store.lock().unwrap().get::<Settings>("settings"))});
+            #[cfg(target_os = "windows")]
+            { info["overlay"] = overlay; }
             std::fs::write(path, serde_json::to_vec_pretty(&info).unwrap())
                 .map_err(|e| e.to_string())?;
         }
@@ -1103,9 +1116,18 @@ fn route_result(
 ) {
     #[cfg(target_os = "windows")]
     {
-        let _ = (target, auto_input);
-        // W1 lacks a verified UIA target. Preserve focus and show the saved
-        // result in the nonactivating overlay; copying is explicit.
+        let asks = !target["selection"].as_str().unwrap_or("").is_empty()
+            && vao_core::selection_asks(&record.original);
+        if auto_input && !asks && target["delivery_supported"] == true {
+            match deliver_inner(app, id) {
+                Ok(()) => { show_bar(app, false); return; }
+                Err(error) => { app.state::<AppState>().runtime.lock().unwrap().error = error; }
+            }
+        } else if asks {
+            let _ = platform::call(json!({"action":"return_source","target":target}));
+        } else if auto_input {
+            app.state::<AppState>().runtime.lock().unwrap().error = "此输入框暂不支持验证回填，请复制结果 / This field does not support verified insertion; copy the result".into();
+        }
         present_answer(app, id, &record.text);
     }
     #[cfg(not(target_os = "windows"))]
@@ -1148,6 +1170,19 @@ fn present_answer(app: &tauri::AppHandle, id: u64, text: &str) {
         if runtime.present_answer(id, text).is_err() { return; }
     }
     show_bar(app, true);
+}
+#[tauri::command]
+async fn fit_voicebar(window: tauri::WebviewWindow, height: f64) -> Result<(), String> {
+    if window.label() != "voicebar" { return Err("Voice bar only".into()); }
+    #[cfg(target_os = "windows")]
+    {
+        if !height.is_finite() || !(74.0..=360.0).contains(&height) { return Err("Invalid overlay height".into()); }
+        let target = window.clone();
+        window.run_on_main_thread(move || { let _ = platform::windows::fit(&target, height); }).map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    let _ = height;
+    Ok(())
 }
 #[tauri::command]
 async fn drag_voicebar(window: tauri::WebviewWindow) -> Result<(), String> {
@@ -1633,7 +1668,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             report_ui_ready,report_frontend_state,
             snapshot,
-            drag_voicebar,dismiss_answer,locked_target_probe::probe_locked_target,overlay_probe::probe_overlay,overlay_probe::probe_overlay_event,
+            fit_voicebar,drag_voicebar,dismiss_answer,locked_target_probe::probe_locked_target,overlay_probe::probe_overlay,overlay_probe::probe_overlay_event,
             bootstrap,
             save_settings,save_shortcuts,shortcut_status,shortcut_capture,
             save_key,

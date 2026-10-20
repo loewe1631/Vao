@@ -31,6 +31,11 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: vao-windows-x64-${{ github.sha }}
-          path: dist/windows/*
+          path: |
+            dist/windows/*.exe
+            dist/windows/*.zip
+            dist/windows/*.json
+            dist/windows/*.trace
+            dist/windows/SHA256SUMS
           if-no-files-found: error
           retention-days: 14

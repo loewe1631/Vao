@@ -28,12 +28,7 @@ pub fn initialize(window: &tauri::WebviewWindow) -> Result<(), String> {
     }
     #[cfg(target_os = "windows")]
     {
-        use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW};
-        let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as windows_sys::Win32::Foundation::HWND;
-        unsafe {
-            let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style | (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW) as isize);
-        }
+        crate::platform::windows::initialize_overlay(window)?;
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     window.set_focusable(false).map_err(|e| e.to_string())?;

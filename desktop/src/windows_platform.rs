@@ -1,5 +1,4 @@
-//! First Windows candidate: target metadata and explicit clipboard copy.
-//! Automatic insertion remains closed until a verifiable UIA target exists.
+//! Windows target, clipboard and overlay adapters.
 use serde_json::{json, Value};
 use std::sync::Mutex;
 use windows_sys::Win32::{
@@ -56,7 +55,8 @@ pub fn call(request: Value) -> Result<Value, String> {
             copy(request["text"].as_str().ok_or("Missing clipboard text")?)?;
             Ok(json!({"ok":true}))
         }
-        "deliver" | "return_source" => Err("Windows 原位回填尚未启用，结果已保留，请从历史复制 / Windows input delivery is pending; copy the saved result".into()),
+        "deliver" => crate::windows_input::deliver(&request, true),
+        "return_source" => crate::windows_input::deliver(&request, false),
         _ => Err("Windows adapter does not support this operation".into()),
     }
 }
@@ -87,11 +87,15 @@ fn target() -> Result<Value, String> {
         } else {
             String::new()
         };
-        // Do not read the window title, arbitrary input contents or clipboard.
-        Ok(
-            json!({"pid":pid,"hwnd":hwnd as usize,"app":app,"name":app,"bundle":app,
-                  "selection":"","length":0,"delivery_supported":false}),
-        )
+        let mut result = json!({"pid":pid,"hwnd":hwnd as usize,"app":app,"name":app,"bundle":app,
+                  "selection":"","length":0,"delivery_supported":false});
+        if let Ok(input) = crate::windows_input::capture(hwnd, pid) {
+            result
+                .as_object_mut()
+                .unwrap()
+                .extend(input.as_object().unwrap().clone());
+        }
+        Ok(result)
     }
 }
 
@@ -185,45 +189,157 @@ pub fn monitor(pid: u32) -> u32 {
 
 static MONITOR: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
-pub fn place(window: &tauri::WebviewWindow, expanded: bool) -> Result<(), String> {
+static OVERLAY_HEIGHT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(74);
+
+pub fn initialize_overlay(window: &tauri::WebviewWindow) -> Result<(), String> {
+    use windows_sys::Win32::{Graphics::Dwm::*, UI::WindowsAndMessaging::*};
+    window.set_shadow(false).map_err(|e| e.to_string())?;
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as HWND;
     unsafe {
-        use windows_sys::Win32::UI::WindowsAndMessaging::{
-            SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE,
+        let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+        SetWindowLongPtrW(
+            hwnd,
+            GWL_STYLE,
+            style & !((WS_CAPTION | WS_THICKFRAME | WS_BORDER | WS_DLGFRAME) as isize),
+        );
+        let extended = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        SetWindowLongPtrW(
+            hwnd,
+            GWL_EXSTYLE,
+            (extended | (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW) as isize)
+                & !((WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_DLGMODALFRAME) as isize),
+        );
+        let policy = DWMNCRP_DISABLED;
+        // Disabling non-client rendering removes the outline around transparent space.
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_NCRENDERING_POLICY as u32,
+            &policy as *const _ as _,
+            std::mem::size_of_val(&policy) as u32,
+        );
+        SetWindowPos(
+            hwnd,
+            std::ptr::null_mut(),
+            0,
+            0,
+            0,
+            0,
+            SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
+        );
+    }
+    Ok(())
+}
+fn overlay_area(
+    hwnd: HWND,
+    captured: bool,
+) -> Result<(windows_sys::Win32::Foundation::RECT, f64), String> {
+    unsafe {
+        let saved = MONITOR.load(std::sync::atomic::Ordering::Relaxed) as *mut std::ffi::c_void;
+        let monitor = if captured && !saved.is_null() {
+            saved
+        } else {
+            MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
         };
-        let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as HWND;
-        let mut monitor =
-            MONITOR.load(std::sync::atomic::Ordering::Relaxed) as *mut std::ffi::c_void;
-        if monitor.is_null() {
-            monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-        }
         let mut info: MONITORINFO = std::mem::zeroed();
         info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
         if GetMonitorInfoW(monitor, &mut info) == 0 {
             return Err("Display unavailable".into());
         }
-        // Work area is physical pixels; scale the WebView's logical dimensions.
-        let mut dpi_x = 96;
-        let mut dpi_y = 96;
-        let dpi_status = windows_sys::Win32::UI::HiDpi::GetDpiForMonitor(
+        let mut x = 96;
+        let mut y = 96;
+        let status = windows_sys::Win32::UI::HiDpi::GetDpiForMonitor(
             monitor,
             windows_sys::Win32::UI::HiDpi::MDT_EFFECTIVE_DPI,
-            &mut dpi_x,
-            &mut dpi_y,
+            &mut x,
+            &mut y,
         );
-        let scale = if dpi_status == 0 {
-            dpi_x as f64 / 96.0
-        } else {
-            window.scale_factor().unwrap_or(1.0)
-        };
-        let area = info.rcWork;
-        let width = ((380.0 * scale) as i32).min(area.right - area.left);
-        let height =
-            ((if expanded { 360.0 } else { 148.0 } * scale) as i32).min(area.bottom - area.top);
-        let x = area.left + (area.right - area.left - width) / 2;
-        let y = (area.bottom - height - (28.0 * scale) as i32).max(area.top);
-        SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, height, SWP_NOACTIVATE);
+        Ok((info.rcWork, if status == 0 { x as f64 / 96.0 } else { 1.0 }))
+    }
+}
+pub fn place(window: &tauri::WebviewWindow, _expanded: bool) -> Result<(), String> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE};
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as HWND;
+    let (area, scale) = overlay_area(hwnd, true)?;
+    let width = (380.0 * scale).round() as i32;
+    let height = OVERLAY_HEIGHT.load(std::sync::atomic::Ordering::Relaxed) as f64;
+    let (x, y, width, height) = geometry(area, scale, width, height, None);
+    if unsafe { SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, height, SWP_NOACTIVATE) } == 0 {
+        return Err("Overlay placement failed".into());
     }
     Ok(())
+}
+fn geometry(
+    area: windows_sys::Win32::Foundation::RECT,
+    scale: f64,
+    width: i32,
+    height: f64,
+    anchor: Option<(i32, i32)>,
+) -> (i32, i32, i32, i32) {
+    let width = width.min(area.right - area.left).max(1);
+    let height = ((height.clamp(74.0, 360.0) * scale).round() as i32)
+        .min(area.bottom - area.top)
+        .max(1);
+    let (left, bottom) = anchor.unwrap_or((
+        area.left + (area.right - area.left - width) / 2,
+        area.bottom - (28.0 * scale).round() as i32,
+    ));
+    (
+        left.clamp(area.left, area.right - width),
+        (bottom - height).clamp(area.top, area.bottom - height),
+        width,
+        height,
+    )
+}
+pub fn fit(window: &tauri::WebviewWindow, height: f64) -> Result<(), String> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetWindowRect, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE,
+    };
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as HWND;
+    let (area, scale) = overlay_area(hwnd, false)?;
+    let mut rect = windows_sys::Win32::Foundation::RECT::default();
+    if unsafe { GetWindowRect(hwnd, &mut rect) } == 0 {
+        return Err("Overlay unavailable".into());
+    }
+    let (x, y, width, pixels) = geometry(
+        area,
+        scale,
+        rect.right - rect.left,
+        height,
+        Some((rect.left, rect.bottom)),
+    );
+    OVERLAY_HEIGHT.store(height.round() as u32, std::sync::atomic::Ordering::Relaxed);
+    if rect.bottom - rect.top != pixels
+        && unsafe { SetWindowPos(hwnd, HWND_TOPMOST, x, y, width, pixels, SWP_NOACTIVATE) } == 0
+    {
+        return Err("Overlay sizing failed".into());
+    }
+    Ok(())
+}
+
+pub fn probe_overlay(window: &tauri::WebviewWindow) -> Result<Value, String> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::*;
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as HWND;
+    let mut before = windows_sys::Win32::Foundation::RECT::default();
+    let mut after = before;
+    let foreground = unsafe { GetForegroundWindow() };
+    place(window, false)?;
+    unsafe {
+        GetWindowRect(hwnd, &mut before);
+    }
+    fit(window, 120.0)?;
+    unsafe {
+        GetWindowRect(hwnd, &mut after);
+    }
+    let style = unsafe { GetWindowLongPtrW(hwnd, GWL_STYLE) } as u32;
+    let extended = unsafe { GetWindowLongPtrW(hwnd, GWL_EXSTYLE) } as u32;
+    let result = json!({"frame_free":style & (WS_CAPTION|WS_THICKFRAME|WS_BORDER|WS_DLGFRAME)==0,
+        "no_activate":extended & WS_EX_NOACTIVATE!=0,
+        "no_edge":extended & (WS_EX_WINDOWEDGE|WS_EX_CLIENTEDGE|WS_EX_DLGMODALFRAME)==0,
+        "bottom_retained":before.bottom==after.bottom && before.left==after.left,
+        "focus_preserved":foreground==unsafe{GetForegroundWindow()},
+        "content_height_changed":before.bottom-before.top!=after.bottom-after.top});
+    fit(window, 74.0)?;
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -235,6 +351,24 @@ mod tests {
         for action in ["deliver", "return_source"] {
             assert!(call(json!({"action":action,"target":{"pid":1},"text":"synthetic"})).is_err());
         }
+    }
+
+    #[test]
+    fn content_fit_retains_drag_anchor_and_clamps_negative_dpi_work_area() {
+        let area = windows_sys::Win32::Foundation::RECT {
+            left: -1920,
+            top: -200,
+            right: 0,
+            bottom: 880,
+        };
+        assert_eq!(
+            geometry(area, 1.5, 570, 100.0, Some((-1600, 700))),
+            (-1600, 550, 570, 150)
+        );
+        assert_eq!(
+            geometry(area, 1.5, 570, 360.0, Some((200, 1000))),
+            (-570, 340, 570, 540)
+        );
     }
 
     #[test]

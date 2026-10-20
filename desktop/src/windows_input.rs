@@ -1,0 +1,564 @@
+//! Verified, one-shot insertion into the focused native Edit/RichEdit control.
+//! Full field contents live only in this bounded in-memory snapshot, never JSON,
+//! history, diagnostics or model requests. Unknown controls fall back to copying.
+use serde_json::{json, Value};
+use std::sync::Mutex;
+use windows_sys::Win32::{
+    Foundation::{CloseHandle, FILETIME, HWND},
+    System::Threading::{GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
+    UI::{
+        Controls::{EM_GETPASSWORDCHAR, EM_GETSEL, EM_REPLACESEL},
+        Input::KeyboardAndMouse::IsWindowEnabled,
+        WindowsAndMessaging::{
+            GetAncestor, GetClassNameW, GetForegroundWindow, GetGUIThreadInfo, GetWindowLongPtrW,
+            GetWindowThreadProcessId, IsChild, IsIconic, IsWindow, SendMessageTimeoutW,
+            SetForegroundWindow, ShowWindow, ES_PASSWORD, ES_READONLY, GA_ROOT, GUITHREADINFO,
+            GWL_STYLE, SMTO_ABORTIFHUNG, SMTO_BLOCK, SW_RESTORE, WM_GETTEXT, WM_GETTEXTLENGTH,
+        },
+    },
+};
+
+const LIMIT: usize = 256 * 1024; // UTF-16 code units, single active recording only.
+const UNAVAILABLE: &str = "无法验证原输入框或光标，结果已保留供复制 / Original input or caret could not be verified; copy the result";
+static TARGET: Mutex<Option<Target>> = Mutex::new(None);
+
+struct Target {
+    token: String,
+    root: usize,
+    field: usize,
+    pid: u32,
+    created: u64,
+    class: String,
+    text: Vec<u16>,
+    start: usize,
+    end: usize,
+}
+
+fn message(hwnd: HWND, msg: u32, wparam: usize, lparam: isize) -> Result<usize, String> {
+    let mut result = 0;
+    if unsafe {
+        SendMessageTimeoutW(
+            hwnd,
+            msg,
+            wparam,
+            lparam,
+            SMTO_ABORTIFHUNG | SMTO_BLOCK,
+            300,
+            &mut result,
+        )
+    } == 0
+    {
+        return Err(UNAVAILABLE.into());
+    }
+    Ok(result)
+}
+fn process_created(pid: u32) -> Result<u64, String> {
+    unsafe {
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if process.is_null() {
+            return Err(UNAVAILABLE.into());
+        }
+        let [mut created, mut exited, mut kernel, mut user] = [FILETIME::default(); 4];
+        let ok = GetProcessTimes(process, &mut created, &mut exited, &mut kernel, &mut user);
+        CloseHandle(process);
+        if ok == 0 {
+            return Err(UNAVAILABLE.into());
+        }
+        Ok((u64::from(created.dwHighDateTime) << 32) | u64::from(created.dwLowDateTime))
+    }
+}
+fn class(hwnd: HWND) -> String {
+    let mut name = [0u16; 128];
+    let length = unsafe { GetClassNameW(hwnd, name.as_mut_ptr(), name.len() as i32) };
+    String::from_utf16_lossy(&name[..length.max(0) as usize])
+}
+fn supported(class: &str) -> bool {
+    ["edit", "richedit20w", "richedit50w", "richeditd2dpt"]
+        .contains(&class.to_ascii_lowercase().as_str())
+}
+fn focused(root: HWND, pid: u32) -> Result<HWND, String> {
+    unsafe {
+        let mut actual_pid = 0;
+        let thread = GetWindowThreadProcessId(root, &mut actual_pid);
+        if thread == 0 || actual_pid != pid {
+            return Err(UNAVAILABLE.into());
+        }
+        let mut gui: GUITHREADINFO = std::mem::zeroed();
+        gui.cbSize = std::mem::size_of::<GUITHREADINFO>() as u32;
+        if GetGUIThreadInfo(thread, &mut gui) == 0 || gui.hwndFocus.is_null() {
+            return Err(UNAVAILABLE.into());
+        }
+        let field = gui.hwndFocus;
+        GetWindowThreadProcessId(field, &mut actual_pid);
+        if actual_pid != pid
+            || (field != root && IsChild(root, field) == 0)
+            || GetAncestor(field, GA_ROOT) != root
+        {
+            return Err(UNAVAILABLE.into());
+        }
+        Ok(field)
+    }
+}
+fn editable(field: HWND, name: &str) -> Result<(), String> {
+    if !supported(name) || unsafe { IsWindow(field) } == 0 || unsafe { IsWindowEnabled(field) } == 0
+    {
+        return Err(UNAVAILABLE.into());
+    }
+    let style = unsafe { GetWindowLongPtrW(field, GWL_STYLE) } as u32;
+    if style & (ES_PASSWORD as u32 | ES_READONLY as u32) != 0
+        || message(field, EM_GETPASSWORDCHAR, 0, 0)? != 0
+    {
+        return Err(UNAVAILABLE.into());
+    }
+    Ok(())
+}
+fn contents(field: HWND, name: &str) -> Result<(Vec<u16>, usize, usize), String> {
+    editable(field, name)?;
+    let length = message(field, WM_GETTEXTLENGTH, 0, 0)?;
+    if length > LIMIT {
+        return Err(UNAVAILABLE.into());
+    }
+    let mut text = vec![0u16; length + 1];
+    let read = message(field, WM_GETTEXT, text.len(), text.as_mut_ptr() as isize)?;
+    if read > length || read != message(field, WM_GETTEXTLENGTH, 0, 0)? {
+        return Err(UNAVAILABLE.into());
+    }
+    text.truncate(read);
+    // RichEdit selection offsets count paragraph CRs, while WM_GETTEXT may return CRLF.
+    if !name.eq_ignore_ascii_case("edit") {
+        text = rich_text(&text);
+    }
+    let mut start = 0u32;
+    let mut end = 0u32;
+    message(
+        field,
+        EM_GETSEL,
+        &mut start as *mut u32 as usize,
+        &mut end as *mut u32 as isize,
+    )?;
+    if start > end || end as usize > text.len() {
+        return Err(UNAVAILABLE.into());
+    }
+    Ok((text, start as usize, end as usize))
+}
+fn rich_text(text: &[u16]) -> Vec<u16> {
+    let mut result = Vec::with_capacity(text.len());
+    let mut index = 0;
+    while index < text.len() {
+        let ch = text[index];
+        result.push(if ch == 10 { 13 } else { ch });
+        if ch == 13 && text.get(index + 1) == Some(&10) {
+            index += 1;
+        }
+        index += 1;
+    }
+    result
+}
+
+pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
+    let mut saved = TARGET.lock().map_err(|_| UNAVAILABLE)?;
+    *saved = None; // A new recording always invalidates the previous token.
+    let field = focused(root, pid)?;
+    let name = class(field);
+    let (text, start, end) = contents(field, &name)?;
+    if unsafe { GetForegroundWindow() } != root || focused(root, pid)? != field {
+        return Err(UNAVAILABLE.into());
+    }
+    let mut nonce = [0u8; 16];
+    getrandom::fill(&mut nonce).map_err(|_| UNAVAILABLE)?;
+    let token: String = nonce.iter().map(|b| format!("{b:02x}")).collect();
+    String::from_utf16(&text[..start]).map_err(|_| UNAVAILABLE)?;
+    String::from_utf16(&text[end..]).map_err(|_| UNAVAILABLE)?;
+    let selection = String::from_utf16(&text[start..end]).map_err(|_| UNAVAILABLE)?;
+    let result = json!({"input_token":token,"delivery_supported":true,"selection":selection,"length":end-start});
+    *saved = Some(Target {
+        token,
+        root: root as usize,
+        field: field as usize,
+        pid,
+        created: process_created(pid)?,
+        class: name,
+        text,
+        start,
+        end,
+    });
+    Ok(result)
+}
+
+impl Target {
+    fn verify(&self) -> Result<(), String> {
+        let root = self.root as HWND;
+        let field = self.field as HWND;
+        if unsafe { IsWindow(root) } == 0
+            || class(field) != self.class
+            || process_created(self.pid)? != self.created
+            || focused(root, self.pid)? != field
+        {
+            return Err(UNAVAILABLE.into());
+        }
+        let (text, start, end) = contents(field, &self.class)?;
+        if text != self.text || start != self.start || end != self.end {
+            return Err(UNAVAILABLE.into());
+        }
+        Ok(())
+    }
+    fn restore(&self) -> Result<(), String> {
+        self.verify()?;
+        let root = self.root as HWND;
+        unsafe {
+            if IsIconic(root) != 0 {
+                ShowWindow(root, SW_RESTORE);
+            }
+            if GetForegroundWindow() != root && SetForegroundWindow(root) == 0 {
+                return Err(UNAVAILABLE.into());
+            }
+        }
+        if unsafe { GetForegroundWindow() } != root {
+            return Err(UNAVAILABLE.into());
+        }
+        self.verify()
+    }
+}
+pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
+    let mut saved = TARGET.lock().map_err(|_| UNAVAILABLE)?;
+    let token = request["target"]["input_token"]
+        .as_str()
+        .ok_or(UNAVAILABLE)?;
+    if saved.as_ref().is_none_or(|target| target.token != token) {
+        return Err(UNAVAILABLE.into());
+    }
+    // Consume before any focus/write operation: a timeout/partial write cannot be retried.
+    let target = saved.take().ok_or(UNAVAILABLE)?;
+    let text = request["text"].as_str().unwrap_or("");
+    if write && (text.is_empty() || text.contains('\0') || text.encode_utf16().count() > LIMIT) {
+        return Err(UNAVAILABLE.into());
+    }
+    target.restore()?;
+    if !write {
+        return Ok(json!({"ok":true}));
+    }
+    let inserted: Vec<_> = text.encode_utf16().collect();
+    let inserted = if target.class.eq_ignore_ascii_case("edit") {
+        // Standard multiline Edit needs CRLF; single-line fields reject multiline input.
+        let normalized = String::from_utf16(&inserted)
+            .map_err(|_| UNAVAILABLE)?
+            .replace("\r\n", "\n")
+            .replace('\r', "\n");
+        let style = unsafe { GetWindowLongPtrW(target.field as HWND, GWL_STYLE) } as u32;
+        if normalized.contains('\n')
+            && style & windows_sys::Win32::UI::WindowsAndMessaging::ES_MULTILINE as u32 == 0
+        {
+            return Err(UNAVAILABLE.into());
+        }
+        normalized
+            .replace('\n', "\r\n")
+            .encode_utf16()
+            .collect::<Vec<_>>()
+    } else {
+        rich_text(&inserted)
+    };
+    let expected = [
+        &target.text[..target.start],
+        &inserted,
+        &target.text[target.end..],
+    ]
+    .concat();
+    if expected.len() > LIMIT {
+        return Err(UNAVAILABLE.into());
+    }
+    let terminated: Vec<_> = inserted.iter().copied().chain(Some(0)).collect();
+    target.verify()?;
+    // Directly address the verified control. No clipboard, keyboard events or Enter.
+    message(
+        target.field as HWND,
+        EM_REPLACESEL,
+        1,
+        terminated.as_ptr() as isize,
+    )?;
+    let (received, start, end) = contents(target.field as HWND, &target.class)?;
+    if received != expected || start != target.start + inserted.len() || end != start {
+        return Err("输入框未确认完整接收，请检查原文后复制，避免重复 / Receipt not confirmed; inspect the original field before copying to avoid duplication".into());
+    }
+    Ok(json!({"ok":true,"verified":true}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        path::PathBuf,
+        process::{Child, Command},
+        time::{Duration, Instant},
+    };
+    use windows_sys::{
+        core::w,
+        Win32::{
+            System::{DataExchange::GetClipboardSequenceNumber, LibraryLoader::LoadLibraryW},
+            UI::{
+                Input::KeyboardAndMouse::{EnableWindow, SetFocus},
+                WindowsAndMessaging::*,
+            },
+        },
+    };
+
+    struct Fixture {
+        child: Child,
+        path: PathBuf,
+        handles: Value,
+    }
+    impl Fixture {
+        fn start() -> Self {
+            let path =
+                std::env::temp_dir().join(format!("vao-edit-fixture-{}.json", std::process::id()));
+            let _ = std::fs::remove_file(&path);
+            let child = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--ignored",
+                    "--exact",
+                    "windows_input::tests::fixture_host",
+                    "--nocapture",
+                ])
+                .env("VAO_EDIT_FIXTURE", &path)
+                .env("VAO_EDIT_PARENT", std::process::id().to_string())
+                .spawn()
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(10);
+            let handles = loop {
+                if let Ok(bytes) = std::fs::read(&path) {
+                    if let Ok(value) = serde_json::from_slice(&bytes) {
+                        break value;
+                    }
+                }
+                assert!(Instant::now() < deadline, "fixture did not start");
+                std::thread::sleep(Duration::from_millis(20));
+            };
+            Self {
+                child,
+                path,
+                handles,
+            }
+        }
+        fn hwnd(&self, name: &str) -> HWND {
+            self.handles[name].as_u64().unwrap() as usize as HWND
+        }
+        fn focus(&self, name: &str) {
+            unsafe {
+                PostMessageW(self.hwnd("root"), WM_APP, self.hwnd(name) as usize, 0);
+            }
+            let deadline = Instant::now() + Duration::from_secs(3);
+            loop {
+                if unsafe { GetForegroundWindow() } == self.hwnd("root")
+                    && focused(self.hwnd("root"), self.child.id()).ok() == Some(self.hwnd(name))
+                {
+                    break;
+                }
+                assert!(Instant::now() < deadline, "fixture focus {name}");
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        }
+        fn text(&self, name: &str, value: &str) {
+            let wide: Vec<_> = value.encode_utf16().chain(Some(0)).collect();
+            message(self.hwnd(name), WM_SETTEXT, 0, wide.as_ptr() as isize).unwrap();
+        }
+        fn select(&self, name: &str, start: usize, end: usize) {
+            message(self.hwnd(name), EM_SETSEL, start, end as isize).unwrap();
+        }
+        fn target(&self, name: &str) -> Value {
+            self.focus(name);
+            capture(self.hwnd("root"), self.child.id()).unwrap()
+        }
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+    #[test]
+    #[ignore = "only spawned by the cross-process native test"]
+    fn fixture_host() {
+        let Ok(path) = std::env::var("VAO_EDIT_FIXTURE") else {
+            return;
+        };
+        unsafe {
+            assert!(!LoadLibraryW(w!("Msftedit.dll")).is_null());
+            let root = CreateWindowExW(
+                0,
+                w!("STATIC"),
+                w!("Vao synthetic input test"),
+                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                30,
+                30,
+                600,
+                400,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null(),
+            );
+            assert!(!root.is_null());
+            let make = |class, style, y| {
+                CreateWindowExW(
+                    0,
+                    class,
+                    w!(""),
+                    WS_CHILD | WS_VISIBLE | WS_TABSTOP | style,
+                    10,
+                    y,
+                    500,
+                    45,
+                    root,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null(),
+                )
+            };
+            let edit = make(w!("EDIT"), ES_MULTILINE as u32, 10);
+            let rich = make(w!("RICHEDIT50W"), ES_MULTILINE as u32, 70);
+            let next = make(w!("EDIT"), 0, 130);
+            let password = make(w!("EDIT"), ES_PASSWORD as u32, 190);
+            let readonly = make(w!("EDIT"), ES_READONLY as u32, 250);
+            let unknown = make(w!("STATIC"), 0, 310);
+            assert!(!edit.is_null() && !rich.is_null() && !next.is_null());
+            SetForegroundWindow(root);
+            SetFocus(edit);
+            AllowSetForegroundWindow(std::env::var("VAO_EDIT_PARENT").unwrap().parse().unwrap());
+            std::fs::write(path,json!({"root":root as usize,"edit":edit as usize,"rich":rich as usize,"next":next as usize,"password":password as usize,"readonly":readonly as usize,"unknown":unknown as usize}).to_string()).unwrap();
+            let mut msg: MSG = std::mem::zeroed();
+            while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
+                if msg.message == WM_APP {
+                    SetForegroundWindow(root);
+                    SetFocus(msg.wParam as HWND);
+                } else {
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
+            }
+        }
+    }
+    #[test]
+    fn native_cross_process_receipt_conflicts_and_selection() {
+        let mut f = Fixture::start();
+        let sequence = unsafe { GetClipboardSequenceNumber() };
+        for name in ["edit", "rich"] {
+            f.text(name, "前😀后");
+            f.select(name, 1, 3);
+            let target = f.target(name);
+            assert_eq!(target["selection"], "😀");
+            assert!(target.get("text").is_none());
+            let request = json!({"target":target,"text":"中文\nsecond 😀"});
+            assert_eq!(deliver(&request, true).unwrap()["verified"], true);
+            let value = contents(f.hwnd(name), &class(f.hwnd(name))).unwrap().0;
+            let expected = if name == "edit" {
+                "前中文\r\nsecond 😀后"
+            } else {
+                "前中文\rsecond 😀后"
+            };
+            assert_eq!(String::from_utf16(&value).unwrap(), expected);
+            assert!(deliver(&request, true).is_err(), "one-shot token");
+            // A second insertion after multiline content checks RichEdit offset conversion.
+            let target = f.target(name);
+            assert!(deliver(&json!({"target":target,"text":"!"}), true).is_ok());
+            f.text(name, "baseline");
+            f.select(name, 3, 3);
+            let target = f.target(name);
+            f.text(name, "changed");
+            assert!(deliver(&json!({"target":target,"text":"NO"}), true).is_err());
+            assert_eq!(
+                String::from_utf16(&contents(f.hwnd(name), &class(f.hwnd(name))).unwrap().0)
+                    .unwrap(),
+                "changed"
+            );
+            f.text(name, "baseline");
+            f.select(name, 3, 3);
+            let target = f.target(name);
+            f.select(name, 1, 1);
+            assert!(
+                deliver(&json!({"target":target,"text":"NO"}), true).is_err(),
+                "caret conflict"
+            );
+            let target = f.target(name);
+            f.focus("next");
+            assert!(
+                deliver(&json!({"target":target,"text":"NO"}), true).is_err(),
+                "other field"
+            );
+            f.focus(name);
+            f.select(name, 0, 4);
+            let target = f.target(name);
+            let original = contents(f.hwnd(name), &class(f.hwnd(name))).unwrap();
+            assert!(deliver(&json!({"target":target}), false).is_ok());
+            assert_eq!(
+                contents(f.hwnd(name), &class(f.hwnd(name))).unwrap(),
+                original,
+                "question preserves selection"
+            );
+        }
+        for name in ["password", "readonly", "unknown"] {
+            f.focus(name);
+            assert!(
+                capture(f.hwnd("root"), f.child.id()).is_err(),
+                "reject {name}"
+            );
+        }
+        f.text("next", "unchanged");
+        f.select("next", 0, 0);
+        let target = f.target("next");
+        assert!(
+            deliver(&json!({"target":target,"text":"line1\nline2"}), true).is_err(),
+            "single line protects against newline"
+        );
+        f.text("edit", &"x".repeat(LIMIT + 1));
+        f.focus("edit");
+        assert!(
+            capture(f.hwnd("root"), f.child.id()).is_err(),
+            "oversized field"
+        );
+        f.text("edit", "baseline");
+        f.select("edit", 0, 0);
+        let target = f.target("edit");
+        assert!(
+            deliver(&json!({"target":target,"text":"\0"}), true).is_err(),
+            "NUL rejected"
+        );
+        let old = f.target("edit");
+        let _new = f.target("edit");
+        assert!(
+            deliver(&json!({"target":old,"text":"NO"}), true).is_err(),
+            "stale token"
+        );
+        let target = f.target("edit");
+        unsafe {
+            EnableWindow(f.hwnd("edit"), 0);
+        }
+        assert!(
+            deliver(&json!({"target":target,"text":"NO"}), true).is_err(),
+            "disabled"
+        );
+        unsafe {
+            EnableWindow(f.hwnd("edit"), 1);
+        }
+        // Another process becomes foreground; permitted restoration returns to the captured control.
+        let target = f.target("edit");
+        let other = Fixture::start();
+        other.focus("edit");
+        assert!(
+            deliver(&json!({"target":target,"text":" restored"}), true).is_ok(),
+            "restore original app"
+        );
+        drop(other);
+        let target = f.target("edit");
+        f.child.kill().unwrap();
+        f.child.wait().unwrap();
+        assert!(
+            deliver(&json!({"target":target,"text":"NO"}), true).is_err(),
+            "closed process"
+        );
+        assert_eq!(
+            unsafe { GetClipboardSequenceNumber() },
+            sequence,
+            "insertion does not touch clipboard"
+        );
+    }
+}
