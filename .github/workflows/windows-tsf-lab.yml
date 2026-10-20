@@ -1,0 +1,75 @@
+name: Windows owned TSF lab
+on:
+  push:
+    branches: [codex/windows]
+    paths:
+      - scripts/windows-tsf-lab/**
+      - .github/workflows/windows-tsf-lab.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-tsf-lab-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  owned-text-store:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python scripts/check-source.py
+      - name: Compile independent owned TSF lab
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (!$installation) { throw 'MSVC installation unavailable' }
+          $vcvars = Join-Path $installation 'VC/Auxiliary/Build/vcvarsall.bat'
+          New-Item -ItemType Directory -Force dist/tsf-lab | Out-Null
+          @(
+            ('call "' + $vcvars + '" x64'),
+            ('cl /nologo /std:c++17 /permissive- /W4 /WX /EHsc /O2 /MT /utf-8 /DUNICODE /D_UNICODE /D_WIN32_WINNT=0x0A00 /DVAO_TSF_COMMIT=\"${{ github.sha }}\" scripts/windows-tsf-lab/tsf-lab.cpp /Fe:dist/tsf-lab/vao-tsf-lab.exe /Fo:dist/tsf-lab/tsf-lab.obj /link user32.lib ole32.lib oleaut32.lib msctf.lib uuid.lib')
+          ) | Set-Content dist/tsf-lab/build.cmd -Encoding ascii
+          & cmd.exe /d /c dist\tsf-lab\build.cmd
+          if ($LASTEXITCODE -ne 0) { throw 'TSF lab compilation failed' }
+      - name: Verify real owned context, cookies, conflicts and receipts
+        shell: pwsh
+        run: |
+          & ./dist/tsf-lab/vao-tsf-lab.exe --build-info dist/tsf-lab/build-info.json
+          if ($LASTEXITCODE -ne 0) { throw 'TSF lab identity failed' }
+          $binary = Join-Path $PWD 'dist/tsf-lab/vao-tsf-lab.exe'
+          $output = Join-Path $PWD 'dist/tsf-lab/runner-tsf.json'
+          $process = Start-Process $binary -ArgumentList @('--self-test', ('"'+$output+'"')) -PassThru
+          try {
+            if (!$process.WaitForExit(30000)) { throw 'Owned TSF test timeout' }
+            if ($process.ExitCode -ne 0) {
+              if (Test-Path $output) { Get-Content $output -Raw }
+              throw 'Owned TSF test failed'
+            }
+          } finally { if (!$process.HasExited) { Stop-Process -Id $process.Id -Force } }
+          $report = Get-Content $output -Raw | ConvertFrom-Json
+          if (!$report.passed -or !$report.synthetic_fixture_only -or $report.commit -ne '${{ github.sha }}' -or $report.checks.Count -ne 28) { throw 'Unexpected owned TSF evidence' }
+          if ($report.profile_registered -or $report.dll_registered -or $report.external_app_context -or $report.ipc_implemented -or $report.field_text_exported -or $report.input_events -ne 0) { throw 'TSF prototype scope violation' }
+          if (@($report.checks | Where-Object { !$_.passed }).Count -ne 0) { throw 'TSF assertion failed' }
+      - name: Package internal evidence
+        shell: pwsh
+        run: |
+          Copy-Item scripts/windows-tsf-lab/README.zh-CN.md, LICENSE dist/tsf-lab/
+          Remove-Item dist/tsf-lab/build.cmd, dist/tsf-lab/*.obj
+          $files = @{}
+          Get-ChildItem dist/tsf-lab -File | ForEach-Object { $files[$_.Name] = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          @{commit='${{ github.sha }}';run_id='${{ github.run_id }}';tool='owned TSF foundation only';desktop_wps='unverified';files=$files} | ConvertTo-Json -Depth 5 | Set-Content dist/tsf-lab/tsf-candidate.json -Encoding utf8NoBOM
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: vao-tsf-lab-x64-${{ github.sha }}
+          path: |
+            dist/tsf-lab/*.exe
+            dist/tsf-lab/*.json
+            dist/tsf-lab/*.md
+            dist/tsf-lab/LICENSE
+          retention-days: 14
+          if-no-files-found: warn
