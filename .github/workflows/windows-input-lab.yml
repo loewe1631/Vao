@@ -44,7 +44,45 @@ jobs:
           & ./dist/input-lab/vao-input-lab.exe --self-test dist/input-lab/runner-input-lab.json
           if ($LASTEXITCODE -ne 0) { throw 'Synthetic input lab tests failed' }
           $report = Get-Content dist/input-lab/runner-input-lab.json -Raw | ConvertFrom-Json
-          if (!$report.passed -or $report.commit -ne '${{ github.sha }}' -or $report.checks.Count -lt 13) { throw 'Unexpected lab evidence' }
+          if (!$report.passed -or $report.commit -ne '${{ github.sha }}' -or $report.checks.Count -ne 18) { throw 'Unexpected lab evidence' }
+          $required = @('unsupported_value_pattern_is_absent', 'unsupported_text_pattern_is_absent', 'uia_edit_patterns_present', 'uia_capture_restoration_and_exact_receipt')
+          foreach ($name in $required) {
+            if (!($report.checks | Where-Object { $_.name -eq $name -and $_.passed })) { throw "Missing real UIA regression: $name" }
+          }
+      - name: Verify startup readiness and hotkey failure reports without submitting text
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $directory = Join-Path $PWD 'dist/input-lab/startup-probe'
+          New-Item -ItemType Directory -Force $directory | Out-Null
+          $binary = Join-Path $PWD 'dist/input-lab/vao-input-lab.exe'
+          $first = $null
+          $second = $null
+          try {
+            $first = Start-Process $binary -ArgumentList @('--interactive', ('"' + $directory + '/first"')) -PassThru -RedirectStandardOutput "$directory/first.out" -RedirectStandardError "$directory/first.err"
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 200; $attempt++) {
+              if ($first.HasExited) { throw 'Interactive startup exited before ready' }
+              $file = Get-ChildItem "$directory/first/startup-*.json" -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($file) {
+                try { $ready = (Get-Content $file.FullName -Raw | ConvertFrom-Json).stage -eq 'ready' } catch { $ready = $false }
+              }
+              if ($ready) { break }
+              Start-Sleep -Milliseconds 100
+            }
+            if (!$ready) { throw 'Startup ready report unavailable' }
+            if ((Get-Content "$directory/first.out" -Raw -Encoding utf8) -notmatch '已就绪') { throw 'Visible readiness missing' }
+            $second = Start-Process $binary -ArgumentList @('--interactive', ('"' + $directory + '/second"')) -PassThru -RedirectStandardOutput "$directory/second.out" -RedirectStandardError "$directory/second.err"
+            if (!$second.WaitForExit(10000) -or $second.ExitCode -ne 1) { throw 'Duplicate lab must fail at hotkey registration' }
+            $fatal = Get-ChildItem "$directory/second/fatal-*.json" | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
+            if ($fatal.error -ne 'hotkey_registration_failed_id_1_win32_1409') { throw 'Precise hotkey failure missing' }
+            if (@(Get-ChildItem $directory -Recurse -Filter 'input-*.json').Count -ne 0) { throw 'Startup probe must not enter an input action' }
+            @{commit='${{ github.sha }}';passed=$true;ready_report=$true;visible_chinese_ready=$true;hotkey_conflict_reported=$true;input_actions=0;field_text_read=$false} | ConvertTo-Json | Set-Content dist/input-lab/runner-startup.json -Encoding utf8NoBOM
+          } finally {
+            foreach ($process in @($second, $first)) {
+              if ($process -and !$process.HasExited) { Stop-Process -Id $process.Id -Force }
+            }
+          }
       - name: Package lab and provenance
         shell: pwsh
         run: |

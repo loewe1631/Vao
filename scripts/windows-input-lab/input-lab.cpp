@@ -148,7 +148,9 @@ Target capture(IUIAutomation* automation) {
     target.field_class = window_class(target.focus.hwndFocus);
     target.app = process_name(target.pid);
     // Capability/identity metadata only. Never call CurrentValue, GetText or Name.
-    if (automation && SUCCEEDED(automation->GetFocusedElement(&target.element))) {
+    if (automation) {
+        if (FAILED(automation->GetFocusedElement(&target.element)) || !target.element)
+            throw std::runtime_error("uia_focused_element_unavailable");
         BOOL password = FALSE, enabled = FALSE, focused = FALSE;
         if (FAILED(target.element->get_CurrentIsPassword(&password)) || password ||
             FAILED(target.element->get_CurrentIsEnabled(&enabled)) || !enabled)
@@ -157,9 +159,11 @@ Target capture(IUIAutomation* automation) {
             target.uia_focused = focused != FALSE;
         target.element->get_CurrentControlType(&target.control_type);
         ComPtr<IUIAutomationTextPattern> text;
-        target.uia_text = SUCCEEDED(target.element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(&text)));
+        // UIA can return S_OK with a null interface for an unsupported pattern.
+        // HRESULT alone is neither a capability check nor permission to dereference.
+        target.uia_text = SUCCEEDED(target.element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(&text))) && text;
         ComPtr<IUIAutomationValuePattern> value;
-        target.uia_value = SUCCEEDED(target.element->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&value)));
+        target.uia_value = SUCCEEDED(target.element->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&value))) && value;
         if (target.uia_value) {
             BOOL readonly = TRUE;
             if (FAILED(value->get_CurrentIsReadOnly(&readonly)) || readonly)
@@ -195,7 +199,7 @@ void verify_focus(const Target& target, IUIAutomation* automation) {
     if (automation && target.element && target.uia_focused) {
         ComPtr<IUIAutomationElement> current;
         BOOL same = FALSE, password = TRUE, enabled = FALSE;
-        if (FAILED(automation->GetFocusedElement(&current)) ||
+        if (FAILED(automation->GetFocusedElement(&current)) || !current ||
             FAILED(automation->CompareElements(target.element.Get(), current.Get(), &same)) || !same ||
             FAILED(current->get_CurrentIsPassword(&password)) || password ||
             FAILED(current->get_CurrentIsEnabled(&enabled)) || !enabled)
@@ -288,6 +292,11 @@ LRESULT CALLBACK fixture_window(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
                 reinterpret_cast<LONG_PTR>(fixture_edit)));
             if (!edit_proc) edit_proc = previous;
         }
+        // An owned UIA element with no Value/Text patterns reproduces the
+        // interactive crash that native-only receipt tests could not exercise.
+        CreateWindowExW(0, L"BUTTON", L"Synthetic pattern-less control", WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+            10, 175, 400, 25, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(103)),
+            GetModuleHandleW(nullptr), nullptr);
         return 0;
     }
     if (msg == kFocus) { SetFocus(GetDlgItem(hwnd, static_cast<int>(w))); return 1; }
@@ -389,6 +398,24 @@ struct Child {
         return received;
     }
 };
+struct ComApartment {
+    ComApartment() {
+        if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
+            throw std::runtime_error("COM_initialization_failed");
+    }
+    ~ComApartment() { CoUninitialize(); }
+    ComApartment(const ComApartment&) = delete;
+    ComApartment& operator=(const ComApartment&) = delete;
+};
+ComPtr<IUIAutomation> automation_client() {
+    ComPtr<IUIAutomation2> client;
+    ComPtr<IUIAutomation> automation;
+    if (SUCCEEDED(CoCreateInstance(CLSID_CUIAutomation8, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&client))) &&
+        client && SUCCEEDED(client->put_ConnectionTimeout(750)) &&
+        SUCCEEDED(client->put_TransactionTimeout(1000)))
+        client.As(&automation);
+    return automation;
+}
 int self_test(const std::filesystem::path& report) {
     std::vector<std::pair<std::string, bool>> checks;
     std::string error, synthetic_received;
@@ -436,7 +463,24 @@ int self_test(const std::filesystem::path& report) {
         rejected = false;
         try { submit(target, nullptr); } catch (...) { rejected = true; }
         check("closed_target_rejected", rejected);
-        check("no_enter_or_linebreak", SendMessageW(a.root, kEnterCount, 0, 0) == 0);
+        auto automation = automation_client();
+        check("real_uia_client_available", automation.Get() != nullptr);
+        Child c;
+        c.focus(103);
+        auto control = capture(automation.Get());
+        check("unsupported_value_pattern_is_absent", control.element &&
+            control.control_type == UIA_ButtonControlTypeId && !control.uia_value);
+        check("unsupported_text_pattern_is_absent", !control.uia_text);
+        c.focus();
+        auto field = capture(automation.Get());
+        check("uia_edit_patterns_present", field.element && field.uia_focused &&
+            field.control_type == UIA_EditControlTypeId && field.uia_value && field.uia_text);
+        a.focus(102);
+        const UINT uia_sent = submit(field, automation.Get());
+        check("uia_capture_restoration_and_exact_receipt", uia_sent == 2 * (std::size(kText) - 1) &&
+            GetForegroundWindow() == c.root && c.await_text(kText) == kText && a.text(102).empty());
+        check("no_enter_or_linebreak", SendMessageW(a.root, kEnterCount, 0, 0) == 0 &&
+            SendMessageW(c.root, kEnterCount, 0, 0) == 0);
         check("clipboard_untouched", GetClipboardSequenceNumber() == clipboard_before);
     } catch (const std::exception& e) { error = e.what(); }
     std::ostringstream out;
@@ -452,26 +496,52 @@ int self_test(const std::filesystem::path& report) {
     std::cout << out.str() << '\n';
     return error.empty() ? 0 : 1;
 }
+std::filesystem::path event_path(const std::filesystem::path& directory, const std::string& prefix) {
+    const auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    return directory / (prefix + "-" + std::to_string(GetCurrentProcessId()) + "-" +
+        std::to_string(timestamp) + ".json");
+}
 int interactive(const std::filesystem::path& directory) {
-    std::cout << "SYNTHETIC INPUT LAB - use an EMPTY, UNSAVED SCRATCH field only.\n"
-        "No microphone/model/clipboard. Does not read field text. Never sends Enter.\n"
-        "This is NOT the normal Vao input mode. It does NOT protect against text edits.\n"
-        "Close Vao before testing. Keep all target apps at normal privilege.\n\n"
-        "Ctrl+Alt+F8: remember the focused window/field (valid for 60 seconds).\n"
-        "Ctrl+Alt+F9: return there and insert ONE FIXED TEST PHRASE, then disarm.\n"
-        "Ctrl+Alt+F10: cancel. Close this console to quit.\n"
-        "You may switch apps between F8 and F9. Do not edit the original scratch field.\n"
-        "A queued event is NOT confirmation that the target received text. Inspect it.\n\n";
-    if (!RegisterHotKey(nullptr, 1, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_F8) ||
-        !RegisterHotKey(nullptr, 2, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_F9) ||
-        !RegisterHotKey(nullptr, 3, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_F10))
-        throw std::runtime_error("lab_hotkey_conflict_close_lab_and_retry");
-    struct Hotkeys { ~Hotkeys() { for (int id = 1; id <= 3; ++id) UnregisterHotKey(nullptr, id); } } hotkeys;
-    ComPtr<IUIAutomation2> client;
-    ComPtr<IUIAutomation> automation;
-    if (SUCCEEDED(CoCreateInstance(CLSID_CUIAutomation8, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&client))) &&
-        SUCCEEDED(client->put_ConnectionTimeout(750)) && SUCCEEDED(client->put_TransactionTimeout(1000)))
-        client.As(&automation);
+    const auto startup = event_path(directory, "startup");
+    auto stage = [&](const std::string& name, bool uia = false) {
+        write_report(startup, "{\"commit\":\"" VAO_LAB_COMMIT "\",\"action\":\"startup\",\"stage\":" +
+            quoted(name) + ",\"pid\":" + std::to_string(GetCurrentProcessId()) +
+            ",\"uia_available\":" + (uia ? "true" : "false") + ",\"field_text_read\":false}");
+    };
+    stage("initializing");
+    SetConsoleTitleW(L"Vao 文字入口验证器 - 保持此窗口打开");
+    DWORD mode = 0;
+    const HANDLE console_input = GetStdHandle(STD_INPUT_HANDLE);
+    if (GetConsoleMode(console_input, &mode))
+        SetConsoleMode(console_input, (mode | ENABLE_EXTENDED_FLAGS) & ~ENABLE_QUICK_EDIT_MODE);
+    std::cout << "Vao 文字入口验证器：正在启动……\n"
+        "先退出 Vao，只在空白、未保存的测试草稿中操作。\n"
+        "不接麦克风/模型，不读取正文，不操作剪贴板，不按 Enter。\n"
+        "它没有正文变化保护，不要在真实会话或密码框内使用。\n\n";
+    struct Hotkeys {
+        std::vector<int> ids;
+        ~Hotkeys() { for (const int id : ids) UnregisterHotKey(nullptr, id); }
+    } hotkeys;
+    for (int id = 1; id <= 3; ++id) {
+        stage("registering_hotkey_" + std::to_string(id));
+        if (!RegisterHotKey(nullptr, id, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_F8 + id - 1)) {
+            const DWORD error = GetLastError();
+            throw std::runtime_error("hotkey_registration_failed_id_" + std::to_string(id) +
+                "_win32_" + std::to_string(error));
+        }
+        hotkeys.ids.push_back(id);
+    }
+    stage("initializing_uia");
+    auto automation = automation_client();
+    stage("ready", automation.Get() != nullptr);
+    std::cout << "已就绪，保持本窗口打开，有效运行 10 分钟。\n"
+        "Ctrl+Alt+F8：在测试输入框内记住目标，有效 60 秒。\n"
+        "Ctrl+Alt+F9：返回原处，输入一次固定短句，随后解除目标。\n"
+        "Ctrl+Alt+F10：取消。关闭本窗口退出。\n"
+        "F8 到 F9 之间可切换应用，请勿编辑原草稿或移动原光标。\n"
+        "事件入队不代表应用已收到文字，请查看原输入框。\n\n";
+    if (!automation) std::cout << "提示：UIA 不可用，此次只有原生窗口/光标定位证据。\n";
     std::unique_ptr<Target> saved;
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::minutes(10);
     MSG msg{};
@@ -479,59 +549,83 @@ int interactive(const std::filesystem::path& directory) {
         if (!PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) { Sleep(20); continue; }
         if (msg.message == WM_QUIT) break;
         if (msg.message != WM_HOTKEY) { TranslateMessage(&msg); DispatchMessageW(&msg); continue; }
+        if (msg.wParam < 1 || msg.wParam > 3) continue;
+        const std::string action = msg.wParam == 1 ? "capture" : msg.wParam == 2 ? "submit" : "cancel";
+        const auto report = event_path(directory, "input");
+        // Persist before querying an external UIA provider, so a native crash
+        // still leaves the last entered action instead of an empty reports folder.
+        write_report(report, "{\"commit\":\"" VAO_LAB_COMMIT "\",\"action\":" +
+            quoted(action) + ",\"stage\":\"started\",\"field_text_read\":false}");
         std::string details, error;
         UINT sent = 0;
-        if (msg.wParam == 3) { saved.reset(); std::cout << "Cancelled.\n"; continue; }
         try {
-            if (msg.wParam == 1) {
+            if (msg.wParam == 3) {
+                saved.reset();
+                std::cout << "已取消，不提交文字。\n";
+            } else if (msg.wParam == 1) {
                 saved.reset();
                 auto target = capture(automation.Get());
                 details = metadata(target);
                 saved = std::make_unique<Target>(std::move(target));
-                std::cout << "Armed for " << utf8(saved->app) << ". F9 inserts; F10 cancels.\n";
+                std::cout << "已记住 " << utf8(saved->app) << "。Ctrl+Alt+F9 提交；F10 取消。\n";
             } else if (msg.wParam == 2) {
                 // Consume BEFORE restoration/dispatch. Nothing retries a partial result.
                 auto target = std::move(saved);
-                if (!target) throw std::runtime_error("no_armed_target_press_F8_first");
+                if (!target) throw std::runtime_error("no_armed_target_press_Ctrl_Alt_F8_first");
                 details = metadata(*target);
                 for (int i = 0; i < 100 && !keys_up(); ++i) Sleep(20);
                 sent = submit(*target, automation.Get());
-                std::cout << "Disarmed. Queued " << sent << " events. CHECK THE ORIGINAL FIELD.\n";
+                if (sent != 2 * (std::size(kText) - 1))
+                    throw std::runtime_error("synthetic_queue_incomplete_no_retry");
+                std::cout << "已提交一次固定短句并解除目标，请检查原输入框。\n";
             }
-        } catch (const std::exception& e) { saved.reset(); error = e.what(); std::cout << "Stopped: " << error << '\n'; }
+        } catch (const std::exception& e) {
+            saved.reset(); error = e.what();
+            std::cout << "此次操作已停止，未重试。原因：" << error << '\n';
+        }
         std::ostringstream out;
-        out << "{\"commit\":\"" VAO_LAB_COMMIT "\",\"action\":\"" << (msg.wParam == 1 ? "capture" : "submit")
-            << "\",\"synthetic_fixed_text_only\":true,\"field_text_read\":false,\"clipboard_accessed\":false,"
+        out << "{\"commit\":\"" VAO_LAB_COMMIT "\",\"action\":" << quoted(action)
+            << ",\"stage\":\"finished\",\"synthetic_fixed_text_only\":true,\"field_text_read\":false,\"clipboard_accessed\":false,"
             "\"receipt_verified\":false,\"queue_complete\":"
             << (sent == 2 * (std::size(kText) - 1) ? "true" : "false")
             << ",\"queued_events\":" << sent << ",\"expected_events\":"
             << 2 * (std::size(kText) - 1) << ",\"error\":" << quoted(error);
         if (!details.empty()) out << ',' << details;
         out << '}';
-        const auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count();
-        write_report(directory / ("input-" + std::to_string(timestamp) + ".json"), out.str());
+        write_report(report, out.str());
     }
+    stage("exited", automation.Get() != nullptr);
+    std::cout << "验证器已结束；若需继续，请重新双击启动脚本。\n";
     return 0;
 }
 int wmain(int argc, wchar_t** argv) {
     try {
         SetConsoleOutputCP(CP_UTF8);
+        std::cout << std::unitbuf;
         if (argc == 3 && std::wstring(argv[1]) == L"--fixture")
             return fixture(static_cast<DWORD>(std::stoul(argv[2])));
         if (argc == 3 && std::wstring(argv[1]) == L"--build-info") {
             write_report(argv[2], "{\"tool\":\"Vao synthetic Unicode input lab\",\"version\":1,\"commit\":\"" VAO_LAB_COMMIT "\",\"architecture\":\"x64\",\"gui_started\":false}");
             return 0;
         }
-        if (argc == 3 && std::wstring(argv[1]) == L"--self-test") return self_test(argv[2]);
+        if (argc == 3 && std::wstring(argv[1]) == L"--self-test") {
+            ComApartment apartment;
+            return self_test(argv[2]);
+        }
         if (argc == 3 && std::wstring(argv[1]) == L"--interactive") {
-            const HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-            if (FAILED(hr)) throw std::runtime_error("COM_initialization_failed");
-            const int result = interactive(argv[2]);
-            CoUninitialize();
-            return result;
+            ComApartment apartment;
+            return interactive(argv[2]);
         }
         std::cout << "Use the supplied Start-Input-Lab.cmd. No input was dispatched.\n";
         return 2;
-    } catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
+    } catch (const std::exception& e) {
+        std::cerr << "验证器启动/运行失败：" << e.what() << '\n';
+        if (argc == 3 && std::wstring(argv[1]) == L"--interactive") {
+            try {
+                write_report(event_path(argv[2], "fatal"), "{\"commit\":\"" VAO_LAB_COMMIT
+                    "\",\"action\":\"fatal\",\"error\":" + quoted(e.what()) + ",\"field_text_read\":false}");
+            } catch (...) { std::cerr << "错误报告无法写入，请保留本窗口。\n"; }
+        }
+        return 1;
+    }
 }
