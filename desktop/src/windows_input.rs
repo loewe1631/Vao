@@ -489,7 +489,7 @@ mod tests {
                 400,
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                window_class.hInstance,
                 std::ptr::null(),
             );
             assert!(!root.is_null());
