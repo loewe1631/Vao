@@ -214,6 +214,7 @@ void verify_focus(const Target& target, IUIAutomation* automation) {
 struct RestoreTrace {
     ULONGLONG elapsed_ms = 0;
     unsigned null_focus_samples = 0;
+    unsigned missing_caret_samples = 0;
     bool uia_request_attempted = false;
     HRESULT uia_request_result = E_PENDING;
     bool original_focus_confirmed = false;
@@ -224,6 +225,7 @@ std::string restore_metadata(const RestoreTrace& trace) {
     out << "\"restore_stage\":" << quoted(trace.stage)
         << ",\"focus_wait_ms\":" << trace.elapsed_ms
         << ",\"null_focus_samples\":" << trace.null_focus_samples
+        << ",\"missing_caret_samples\":" << trace.missing_caret_samples
         << ",\"uia_focus_request_attempted\":" << (trace.uia_request_attempted ? "true" : "false")
         << ",\"uia_focus_request_hresult\":" << trace.uia_request_result
         << ",\"original_focus_confirmed\":" << (trace.original_focus_confirmed ? "true" : "false");
@@ -243,18 +245,23 @@ void await_original_focus(const Target& target, IUIAutomation* automation, Resto
             // Never wait out a known different field or replace its focus.
             if (now.hwndFocus != target.focus.hwndFocus)
                 throw std::runtime_error("native_focused_field_changed");
-            verify_focus(target, automation);
-            trace.original_focus_confirmed = true;
-            trace.stage = "original_focus_confirmed";
-            return;
-        }
-        ++trace.null_focus_samples;
+            // A child can acquire focus before its WM_SETFOCUS handler has
+            // recreated the caret. Absence can settle; a different known
+            // owner/geometry remains a conflict in verify_focus.
+            if (target.focus.hwndCaret && !now.hwndCaret) ++trace.missing_caret_samples;
+            else {
+                verify_focus(target, automation);
+                trace.original_focus_confirmed = true;
+                trace.stage = "original_focus_confirmed";
+                return;
+            }
+        } else ++trace.null_focus_samples;
         if (trace.elapsed_ms >= 1500)
-            throw std::runtime_error("native_focus_restore_timeout");
+            throw std::runtime_error(now.hwndFocus ? "native_caret_restore_timeout" : "native_focus_restore_timeout");
         // Some apps restore their child asynchronously; others need the
         // standard UIA focus request. Request only the retained original
         // element, once, while the original window has no native focus.
-        if (trace.elapsed_ms >= 250 && !trace.uia_request_attempted &&
+        if (!now.hwndFocus && trace.elapsed_ms >= 250 && !trace.uia_request_attempted &&
             automation && target.element && target.uia_focused) {
             BOOL password = TRUE, enabled = FALSE;
             if (FAILED(target.element->get_CurrentIsPassword(&password)) || password ||
@@ -586,6 +593,7 @@ int self_test(const std::filesystem::path& report) {
             SendMessageW(c.root, kRestoreMode, 0, 0);
             c.focus(104);
             SendMessageW(GetDlgItem(c.root, 104), WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L""));
+            SendMessageW(GetDlgItem(c.root, 104), EM_SETSEL, 0, 0);
             return capture(client);
         };
         field = prepare_restore(nullptr);
