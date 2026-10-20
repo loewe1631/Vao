@@ -408,6 +408,8 @@ mod tests {
         }
         fn text(&self, name: &str, value: &str) {
             let wide: Vec<_> = value.encode_utf16().chain(Some(0)).collect();
+            let started = Instant::now();
+            println!("Native fixture: seed {name}, {} UTF16 units", wide.len() - 1);
             let mut result = 0;
             // First-time font initialization on a fresh runner can exceed the
             // production read budget. This only seeds the synthetic fixture.
@@ -425,7 +427,9 @@ mod tests {
             assert_ne!(
                 ok,
                 0,
-                "fixture WM_SETTEXT {name}: class={}, window={}, process={:?}, error={}",
+                "fixture WM_SETTEXT {name}: units={}, elapsed={:?}, class={}, window={}, process={:?}, error={}",
+                wide.len() - 1,
+                started.elapsed(),
                 class(self.hwnd(name)),
                 unsafe { IsWindow(self.hwnd(name)) },
                 process_created(self.child.id()),
@@ -602,6 +606,7 @@ mod tests {
             );
         }
         for name in ["password", "readonly", "unknown"] {
+            println!("Native fixture: reject {name}");
             f.focus(name);
             assert!(
                 capture(f.hwnd("root"), f.child.id()).is_err(),
