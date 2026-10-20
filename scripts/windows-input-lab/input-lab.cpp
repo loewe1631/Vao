@@ -306,16 +306,26 @@ struct Child {
         info.cb = sizeof(info);
         if (!CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &info, &process))
             throw std::runtime_error("fixture_start_failed");
-        WaitForInputIdle(process.hProcess, 5000);
-        EnumWindows([](HWND hwnd, LPARAM data) -> BOOL {
-            auto self = reinterpret_cast<Child*>(data);
-            DWORD pid = 0;
-            GetWindowThreadProcessId(hwnd, &pid);
-            if (pid == self->process.dwProcessId && window_class(hwnd) == kFixture) {
-                self->root = hwnd; return FALSE;
+        // Console-subsystem children can return from WaitForInputIdle before
+        // their GUI queue exists. Wait for our actual child window instead.
+        for (int attempt = 0; attempt < 100 && !root; ++attempt) {
+            EnumWindows([](HWND hwnd, LPARAM data) -> BOOL {
+                auto self = reinterpret_cast<Child*>(data);
+                DWORD pid = 0;
+                GetWindowThreadProcessId(hwnd, &pid);
+                if (pid == self->process.dwProcessId && window_class(hwnd) == kFixture) {
+                    self->root = hwnd; return FALSE;
+                }
+                return TRUE;
+            }, reinterpret_cast<LPARAM>(this));
+            DWORD code = STILL_ACTIVE;
+            GetExitCodeProcess(process.hProcess, &code);
+            if (code != STILL_ACTIVE) {
+                cleanup();
+                throw std::runtime_error("fixture_exited_" + std::to_string(code));
             }
-            return TRUE;
-        }, reinterpret_cast<LPARAM>(this));
+            if (!root) Sleep(50);
+        }
         if (!root) { cleanup(); throw std::runtime_error("fixture_root_unavailable"); }
     }
     void cleanup() {
