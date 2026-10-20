@@ -43,7 +43,7 @@ fn message(hwnd: HWND, msg: u32, wparam: usize, lparam: isize) -> Result<usize, 
             wparam,
             lparam,
             SMTO_ABORTIFHUNG | SMTO_BLOCK,
-            300,
+            1_000,
             &mut result,
         )
     } == 0
@@ -359,7 +359,30 @@ mod tests {
         }
         fn text(&self, name: &str, value: &str) {
             let wide: Vec<_> = value.encode_utf16().chain(Some(0)).collect();
-            message(self.hwnd(name), WM_SETTEXT, 0, wide.as_ptr() as isize).unwrap();
+            let mut result = 0;
+            // First-time font initialization on a fresh runner can exceed the
+            // production read budget. This only seeds the synthetic fixture.
+            let ok = unsafe {
+                SendMessageTimeoutW(
+                    self.hwnd(name),
+                    WM_SETTEXT,
+                    0,
+                    wide.as_ptr() as isize,
+                    SMTO_ABORTIFHUNG | SMTO_BLOCK,
+                    5_000,
+                    &mut result,
+                )
+            };
+            assert_ne!(
+                ok,
+                0,
+                "fixture WM_SETTEXT {name}: class={}, window={}, process={:?}, error={}",
+                class(self.hwnd(name)),
+                unsafe { IsWindow(self.hwnd(name)) },
+                process_created(self.child.id()),
+                unsafe { windows_sys::Win32::Foundation::GetLastError() }
+            );
+            assert_ne!(result, 0, "fixture WM_SETTEXT rejected {name}");
         }
         fn select(&self, name: &str, start: usize, end: usize) {
             message(self.hwnd(name), EM_SETSEL, start, end as isize).unwrap();
