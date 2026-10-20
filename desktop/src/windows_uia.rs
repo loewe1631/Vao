@@ -277,6 +277,7 @@ unsafe fn patterns(
 }
 unsafe fn value(pattern: &IUIAutomationValuePattern) -> Result<Vec<u16>, String> {
     let value = unavailable(pattern.CurrentValue())?;
+    diagnostic(json!({"uia_stage":"value_length","utf16_units":value.len()}));
     if value.len() > LIMIT {
         return Err(UNAVAILABLE.into());
     }

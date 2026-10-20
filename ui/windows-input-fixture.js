@@ -52,9 +52,16 @@
   check('unsupported_capture_fails',await rejected(capture()));
   check('unsupported_capture_clears_old_token',await rejected(deliver(old,'NO'))&&one.value==='A');
   await focus(one,'x'.repeat(256*1024+1),0);
+  // Allow the renderer to publish the large programmatically seeded value.
+  // Production delivery independently checks the current value before writing.
+  await delay(1000);
+  check('oversized_fixture_exceeds_bound',one.value.length>256*1024);
   check('oversized_field_rejected',await rejected(capture()));
   await focus(one,'front😀e\u0301back',9);target=await capture();
   check('emoji_and_combining_prefix_caret',(await deliver(target,'中')).verified===true&&one.value==='front😀e\u0301中back'&&one.selectionStart===10);
+  await focus(one,'',0);target=await capture();const emptyInputs=inputs;
+  check('empty_field_receives',(await deliver(target,'空白输入')).verified===true&&one.value==='空白输入');
+  check('empty_field_caret_and_one_event',one.selectionStart===4&&one.selectionEnd===4&&inputs===emptyInputs+1);
   check('never_enter_or_submit',enters===0&&submits===0);
   await call('report',{passed:true,kind:'native WebView2 UI Automation receipt; synthetic fields only',checks,audio_captured:false,models_contacted:false});
   document.querySelector('#status').textContent='Passed';
