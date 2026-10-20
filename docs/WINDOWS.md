@@ -19,7 +19,23 @@ Keep candidate data separate: `app.vaovao.windows.preview`. Do not import anothe
 
 CI compilation is not microphone, hotkey, selection, focus or input-delivery acceptance. Test these in a logged-in desktop session. SSH belongs to a different session. Current platform gaps and desktop test instructions will be updated with each candidate.
 
-## Candidate 3005: guarded Unicode preview
+## Candidate 3006: guarded Unicode diagnostics
+
+Desktop feedback for 3005 includes visible dsh input followed by a receipt
+warning, an Edge Value/Text mismatch at capture, and a WPS pane without the
+required text/selection interfaces. These are unresolved compatibility issues.
+3006 adds structural diagnostics (lengths, offsets, newline/object-marker flags
+and equality results) to distinguish them without exporting field text or
+hashes. It preserves all capture, delivery and receipt requirements.
+
+CI also observes six owned field shapes: input/textarea placeholders, empty
+contenteditable, an empty paragraph with BR, generated placeholder content and
+existing editable text. Observations explicitly distinguish capture refusal,
+visible insertion and verified receipt; completing an observation does not
+mean that shape supports delivery. A normalization regression checks that a
+changed field produces a receipt warning and its consumed token cannot replay.
+
+### Explicit preview launch
 
 The portable archive includes `Start-Unicode-Preview.cmd`. Exit any running Vao
 before launching it. This explicitly enables a Unicode input preview for the
@@ -42,7 +58,7 @@ undo/redo, conflict and window-restoration tests. CI success does not establish
 physical desktop recording acceptance.
 
 The preview launcher writes `input-preview.trace` beside the executable with
-stage names, HRESULTs and numeric metadata only. Field contents, selections,
+stage names, HRESULTs and numeric/boolean metadata only. Field contents, selections,
 window titles and provider error descriptions are excluded. Only explicitly
 selected text enters the existing selection feature; complete field snapshots
 remain transient in the existing UIA worker.

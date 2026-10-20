@@ -1,6 +1,7 @@
 // Native, opt-in Unicode transport tests. All fields contain synthetic text.
 const invoke=window.__TAURI__.core.invoke;
 const checks=[];
+let observations=[];
 let enters=0,submits=0,inputs=0,trustedInputs=0,model='';
 const one=document.querySelector('#one'),two=document.querySelector('#two');
 document.addEventListener('keydown',e=>{if(e.key==='Enter')enters++;});
@@ -70,10 +71,24 @@ try{
  await focus(one,'original',8);target=await capture();
  await call('cover');await delay(250);
  check('unicode_returns_from_other_window',(await deliver(target,'恢复')).verified===true&&one.value==='original恢复'&&document.hasFocus());
+ // A web editor may normalize its own empty line after an input event. The
+ // transport must report an unconfirmed receipt and consume the token even
+ // when the inserted phrase is visible; it must never resend automatically.
+ await focus(many,'\n',0);target=await capture();
+ const normalize=()=>{many.value=many.value.replaceAll('\n','');};
+ many.addEventListener('input',normalize);
+ let normalizedError='';try{await deliver(target,'已输入🙂');}catch(error){normalizedError=String(error);}
+ many.removeEventListener('input',normalize);
+ check('unicode_normalized_field_received_phrase',many.value==='已输入🙂');
+ check('unicode_normalized_field_keeps_receipt_warning',normalizedError.includes('Receipt not confirmed'));
+ check('unicode_normalized_field_token_cannot_replay',await rejected(deliver(target,'NO'))&&many.value==='已输入🙂');
+ const {characterize}=await import('./windows-uia-shapes.js');
+ observations=await characterize({call,check,delay});
+ check('unicode_six_field_shapes_observed',observations.length===6);
  check('unicode_never_enter_or_submit',enters===0&&submits===0);
- await call('report',{passed:true,kind:'guarded Unicode; native WebView2; synthetic fields only',checks,audio_captured:false,models_contacted:false});
+ await call('report',{passed:true,kind:'guarded Unicode; native WebView2; synthetic fields only',checks,observations,audio_captured:false,models_contacted:false});
  document.querySelector('#status').textContent='Passed';
 }catch(error){
- await call('report',{passed:false,kind:'guarded Unicode; native WebView2; synthetic fields only',checks,error:String(error),audio_captured:false,models_contacted:false});
+ await call('report',{passed:false,kind:'guarded Unicode; native WebView2; synthetic fields only',checks,observations,error:String(error),audio_captured:false,models_contacted:false});
  document.querySelector('#status').textContent='Failed: '+String(error);
 }

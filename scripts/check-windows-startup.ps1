@@ -52,12 +52,18 @@ if ($inputProbe.passed -ne $true -or $inputProbe.audio_captured -ne $false -or
 Write-Output 'Generic UI Automation WebView2 receipt, target/caret conflicts and non-sending checks passed.'
 $unicodePath = Join-Path $output 'runner-unicode.json'
 $unicodeProbe = Run-Probe -ProbeArgs @('--windows-input-probe', '--windows-unicode-preview', '--smoke-test', ('"' + $unicodePath + '"')) -ReportPath $unicodePath
-$requiredUnicode = @('unicode_uses_verified_uia_snapshot', 'unicode_changed_content_rejected', 'unicode_changed_caret_rejected', 'unicode_changed_selection_rejected', 'unicode_trusted_input_updates_web_model', 'unicode_one_undo_restores_selection_text', 'unicode_redo_restores_inserted_text', 'unicode_multiline_does_not_guess_enter_semantics', 'unicode_returns_from_other_window', 'unicode_never_enter_or_submit')
+$requiredUnicode = @('unicode_uses_verified_uia_snapshot', 'unicode_changed_content_rejected', 'unicode_changed_caret_rejected', 'unicode_changed_selection_rejected', 'unicode_trusted_input_updates_web_model', 'unicode_one_undo_restores_selection_text', 'unicode_redo_restores_inserted_text', 'unicode_multiline_does_not_guess_enter_semantics', 'unicode_returns_from_other_window', 'unicode_normalized_field_received_phrase', 'unicode_normalized_field_keeps_receipt_warning', 'unicode_normalized_field_token_cannot_replay', 'unicode_six_field_shapes_observed', 'unicode_never_enter_or_submit')
 if (!$unicodeProbe.passed -or $unicodeProbe.audio_captured -ne $false -or $unicodeProbe.models_contacted -ne $false -or
-    $unicodeProbe.checks.Count -lt 34 -or @($unicodeProbe.checks | Where-Object { $_.passed -ne $true }).Count -ne 0) {
+    $unicodeProbe.checks.Count -lt 44 -or @($unicodeProbe.checks | Where-Object { $_.passed -ne $true }).Count -ne 0) {
     throw ('Guarded Unicode input failed: ' + ($unicodeProbe | ConvertTo-Json -Depth 8 -Compress))
 }
 foreach ($name in $requiredUnicode) {
     if (!($unicodeProbe.checks | Where-Object { $_.name -eq $name -and $_.passed })) { throw "Missing guarded Unicode regression: $name" }
+}
+foreach ($shape in @('input_placeholder', 'textarea_placeholder', 'editable_empty', 'editable_paragraph_br', 'editable_generated_placeholder', 'editable_existing_text')) {
+    $observation = @($unicodeProbe.observations | Where-Object { $_.shape -eq $shape })
+    if ($observation.Count -ne 1 -or ($observation[0].receipt_verified -and !$observation[0].text_received_exactly)) {
+        throw "Missing or inconsistent field-shape observation: $shape"
+    }
 }
 Write-Output 'Guarded Unicode snapshot, native receipt, input events, undo and conflict checks passed.'

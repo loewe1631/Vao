@@ -389,6 +389,13 @@ unsafe fn snapshot(
     let text = value(&value_pattern)?;
     let document = unavailable(text_pattern.DocumentRange())?;
     let document_text = canonical(&range_text(&document)?);
+    // Structural facts only. In particular, do not log even a one-character
+    // value: a single unit may be user content rather than an empty-line marker.
+    diagnostic(
+        json!({"uia_stage":"snapshot_shape","value_units":text.len(),
+        "document_units":document_text.len(),"value_single_lf":text == [10],
+        "value_single_object":text == [0xfffc],"document_single_object":document_text == [0xfffc]}),
+    );
     // An empty control may expose one U+FFFC object boundary to accessibility
     // navigation. It is not field text. Accept only that exact representation,
     // an empty Value, and ranges owned by this Edit; require a collapsed caret
@@ -477,6 +484,7 @@ unsafe fn snapshot(
     }
     let start = before.len().min(text.len());
     let end = through.len().min(text.len());
+    diagnostic(json!({"uia_stage":"snapshot_offsets","start":start,"end":end}));
     String::from_utf16(&text[..start]).map_err(|_| UNAVAILABLE)?;
     String::from_utf16(&text[start..end]).map_err(|_| UNAVAILABLE)?;
     String::from_utf16(&text[end..]).map_err(|_| UNAVAILABLE)?;
@@ -700,6 +708,11 @@ impl Target {
             if !keys_released() || GetForegroundWindow() != self.root as HWND {
                 return Err(UNAVAILABLE.into());
             }
+            diagnostic(
+                json!({"uia_stage":"unicode_expected","captured_units":self.snapshot.text.len(),
+                "start":self.snapshot.start,"end":self.snapshot.end,"inserted_units":inserted.len(),
+                "expected_units":expected.len(),"expected_caret":self.snapshot.start + inserted.len()}),
+            );
             diagnostic(json!({"uia_stage":"unicode_dispatch_once","events":events.len()}));
             let queued = SendInput(
                 events.len() as u32,
@@ -714,9 +727,13 @@ impl Target {
                 return Err(RECEIPT.into());
             }
             let receipt_deadline = Instant::now() + Duration::from_millis(1500);
+            let mut last_mismatch = None;
             loop {
                 self.verify_focus_identity(automation, command)
-                    .map_err(|_| RECEIPT)?;
+                    .map_err(|_| {
+                        diagnostic(json!({"uia_stage":"unicode_receipt_identity_rejected"}));
+                        RECEIPT
+                    })?;
                 if let Ok(received) = snapshot(automation, &self.element, command) {
                     let caret = self.snapshot.start + inserted.len();
                     if received.text == expected && received.start == caret && received.end == caret
@@ -726,9 +743,25 @@ impl Target {
                             json!({"ok":true,"verified":true,"input_adapter":"uia_unicode"}),
                         );
                     }
+                    // Keep only lengths, offsets and equality results. This
+                    // distinguishes text loss/normalization from caret changes
+                    // without exporting text, hashes or provider descriptions.
+                    let mismatch = json!({"uia_stage":"unicode_receipt_mismatch",
+                        "received_units":received.text.len(),"start":received.start,"end":received.end,
+                        "text_matches":received.text == expected,
+                        "caret_matches":received.start == caret && received.end == caret,
+                        "received_equals_insertion":received.text == inserted});
+                    if last_mismatch.as_ref() != Some(&mismatch) {
+                        diagnostic(mismatch.clone());
+                        last_mismatch = Some(mismatch);
+                    }
                 }
-                command.current().map_err(|_| RECEIPT)?;
+                command.current().map_err(|_| {
+                    diagnostic(json!({"uia_stage":"unicode_receipt_budget_rejected"}));
+                    RECEIPT
+                })?;
                 if Instant::now() >= receipt_deadline {
+                    diagnostic(json!({"uia_stage":"unicode_receipt_timeout"}));
                     return Err(RECEIPT.into());
                 }
                 std::thread::sleep(Duration::from_millis(15));
