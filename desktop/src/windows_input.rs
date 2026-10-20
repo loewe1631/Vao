@@ -330,7 +330,11 @@ mod tests {
     use windows_sys::{
         core::w,
         Win32::{
-            System::{DataExchange::GetClipboardSequenceNumber, LibraryLoader::LoadLibraryW},
+            Foundation::{LPARAM, LRESULT, WPARAM},
+            System::{
+                DataExchange::GetClipboardSequenceNumber,
+                LibraryLoader::{GetModuleHandleW, LoadLibraryW},
+            },
             UI::{
                 Controls::EM_SETSEL,
                 Input::KeyboardAndMouse::{EnableWindow, SetFocus},
@@ -443,6 +447,24 @@ mod tests {
             let _ = std::fs::remove_file(&self.path);
         }
     }
+    unsafe extern "system" fn fixture_window(
+        hwnd: HWND,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT {
+        if msg == WM_SETFOCUS {
+            // Real editor hosts restore their own last focused child on activation.
+            // A bare STATIC root does not; model that application behavior here,
+            // inside the target process. Production never sets a foreign child focus.
+            let field = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as HWND;
+            if !field.is_null() && IsWindowEnabled(field) != 0 {
+                SetFocus(field);
+            }
+            return 0;
+        }
+        DefWindowProcW(hwnd, msg, wparam, lparam)
+    }
     #[test]
     #[ignore = "only spawned by the cross-process native test"]
     fn fixture_host() {
@@ -451,9 +473,14 @@ mod tests {
         };
         unsafe {
             assert!(!LoadLibraryW(w!("Msftedit.dll")).is_null());
+            let mut window_class: WNDCLASSW = std::mem::zeroed();
+            window_class.lpfnWndProc = Some(fixture_window);
+            window_class.hInstance = GetModuleHandleW(std::ptr::null());
+            window_class.lpszClassName = w!("VaoSyntheticInputTest");
+            assert_ne!(RegisterClassW(&window_class), 0);
             let root = CreateWindowExW(
                 0,
-                w!("STATIC"),
+                window_class.lpszClassName,
                 w!("Vao synthetic input test"),
                 WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                 30,
@@ -489,6 +516,7 @@ mod tests {
             let readonly = make(w!("EDIT"), ES_READONLY as u32, 250);
             let unknown = make(w!("STATIC"), 0, 310);
             assert!(!edit.is_null() && !rich.is_null() && !next.is_null());
+            SetWindowLongPtrW(root, GWLP_USERDATA, edit as isize);
             SetForegroundWindow(root);
             SetFocus(edit);
             AllowSetForegroundWindow(std::env::var("VAO_EDIT_PARENT").unwrap().parse().unwrap());
@@ -496,6 +524,7 @@ mod tests {
             let mut msg: MSG = std::mem::zeroed();
             while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
                 if msg.message == WM_APP {
+                    SetWindowLongPtrW(root, GWLP_USERDATA, msg.wParam as isize);
                     SetForegroundWindow(root);
                     SetFocus(msg.wParam as HWND);
                 } else {
@@ -613,7 +642,14 @@ mod tests {
         let other = Fixture::start();
         other.focus("edit");
         let restored = deliver(&json!({"target":target,"text":" restored"}), true);
-        assert!(restored.is_ok(), "restore original app: {restored:?}");
+        assert!(
+            restored.is_ok(),
+            "restore original app: {restored:?}; foreground={}, expected root={}, focus={:?}, expected field={}",
+            unsafe { GetForegroundWindow() } as usize,
+            f.hwnd("root") as usize,
+            focused(f.hwnd("root"), f.child.id()).map(|hwnd| hwnd as usize),
+            f.hwnd("edit") as usize,
+        );
         drop(other);
         let target = f.target("edit");
         f.child.kill().unwrap();
