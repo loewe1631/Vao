@@ -189,10 +189,18 @@ impl Target {
     fn verify(&self) -> Result<(), String> {
         let root = self.root as HWND;
         let field = self.field as HWND;
+        let mut root_pid = 0;
+        let mut field_pid = 0;
+        unsafe {
+            GetWindowThreadProcessId(root, &mut root_pid);
+            GetWindowThreadProcessId(field, &mut field_pid);
+        }
         if unsafe { IsWindow(root) } == 0
+            || root_pid != self.pid
+            || field_pid != self.pid
+            || unsafe { GetAncestor(field, GA_ROOT) } != root
             || class(field) != self.class
             || process_created(self.pid)? != self.created
-            || focused(root, self.pid)? != field
         {
             return Err(UNAVAILABLE.into());
         }
@@ -203,22 +211,51 @@ impl Target {
         Ok(())
     }
     fn restore(&self) -> Result<(), String> {
-        self.verify()?;
+        self.verify()
+            .map_err(|_| format!("{UNAVAILABLE} (snapshot changed)"))?;
         let root = self.root as HWND;
+        let field = self.field as HWND;
+        // An inactive GUI thread may report no focus. A known different field
+        // is a conflict; otherwise the exact field must be confirmed after the
+        // system accepts activation. Never set another process's child focus.
+        if focused(root, self.pid).is_ok_and(|current| current != field) {
+            return Err(format!("{UNAVAILABLE} (focused field changed)"));
+        }
         unsafe {
             if IsIconic(root) != 0 {
                 ShowWindow(root, SW_RESTORE);
             }
             if GetForegroundWindow() != root && SetForegroundWindow(root) == 0 {
-                return Err(UNAVAILABLE.into());
+                return Err(format!("{UNAVAILABLE} (Windows denied activation)"));
             }
         }
-        if unsafe { GetForegroundWindow() } != root {
-            return Err(UNAVAILABLE.into());
+        // Cross-thread foreground activation can finish after SetForegroundWindow
+        // returns. Wait a bounded interval, without synthetic input or focus tricks.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+        loop {
+            if unsafe { GetForegroundWindow() } == root
+                && focused(root, self.pid).ok() == Some(field)
+            {
+                break;
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(format!("{UNAVAILABLE} (activation not confirmed)"));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
         self.verify()
     }
+    fn verify_focused(&self) -> Result<(), String> {
+        self.verify()?;
+        if unsafe { GetForegroundWindow() } != self.root as HWND
+            || focused(self.root as HWND, self.pid)? != self.field as HWND
+        {
+            return Err(UNAVAILABLE.into());
+        }
+        Ok(())
+    }
 }
+
 pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
     let mut saved = TARGET.lock().map_err(|_| UNAVAILABLE)?;
     let token = request["target"]["input_token"]
@@ -267,7 +304,7 @@ pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
         return Err(UNAVAILABLE.into());
     }
     let terminated: Vec<_> = inserted.iter().copied().chain(Some(0)).collect();
-    target.verify()?;
+    target.verify_focused()?;
     // Directly address the verified control. No clipboard, keyboard events or Enter.
     message(
         target.field as HWND,
@@ -575,10 +612,8 @@ mod tests {
         let target = f.target("edit");
         let other = Fixture::start();
         other.focus("edit");
-        assert!(
-            deliver(&json!({"target":target,"text":" restored"}), true).is_ok(),
-            "restore original app"
-        );
+        let restored = deliver(&json!({"target":target,"text":" restored"}), true);
+        assert!(restored.is_ok(), "restore original app: {restored:?}");
         drop(other);
         let target = f.target("edit");
         f.child.kill().unwrap();
