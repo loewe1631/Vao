@@ -3,6 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <olectl.h>
 #include <msctf.h>
 #include <textstor.h>
 #include <wrl/client.h>
@@ -62,6 +63,7 @@ public:
             pending_ = ((pending_ | flags) & TS_LF_READWRITE) == TS_LF_READWRITE ? TS_LF_READWRITE : TS_LF_READ;
             PostMessageW(window, kPendingLock, 0, 0); *session = TS_S_ASYNC; return S_OK;
         }
+        if (flags & TS_LF_SYNC) pending_ = 0; // A granted synchronous request supersedes pending asynchronous work.
         lock_ = flags & TS_LF_READWRITE; ++granted_locks;
         *session = sink_->OnLockGranted(flags);
         lock_ = 0; return S_OK;
