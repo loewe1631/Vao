@@ -57,6 +57,8 @@
   await delay(1000);
   check('oversized_fixture_exceeds_bound',one.value.length>256*1024);
   check('oversized_field_rejected',await rejected(capture()));
+  await focus(one,'中'.repeat(4000),0);await delay(500);
+  check('truncated_multibyte_value_rejected',await rejected(capture())&&one.value.length===4000);
   await focus(one,'front😀e\u0301back',9);target=await capture();
   check('emoji_and_combining_prefix_caret',(await deliver(target,'中')).verified===true&&one.value==='front😀e\u0301中back'&&one.selectionStart===10);
   await focus(one,'',0);target=await capture();const emptyInputs=inputs;

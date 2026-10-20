@@ -32,6 +32,10 @@ use windows_sys::Win32::{
 static EPOCH: AtomicU64 = AtomicU64::new(0);
 static WORKER: OnceLock<Option<mpsc::SyncSender<Command>>> = OnceLock::new();
 const BUDGET: Duration = Duration::from_secs(5);
+// UIA providers can truncate both Value and Text consistently. Chromium's
+// serializer truncates string values at 10,000 UTF-8 bytes. Stay below 8 KiB
+// for every provider, including produced values; no application-name rule.
+const VALUE_UTF8_LIMIT: usize = 8 * 1024;
 const RECEIPT: &str = "输入框未确认完整接收，请检查原文后复制，避免重复 / Receipt not confirmed; inspect the original field before copying to avoid duplication";
 
 enum Action {
@@ -279,6 +283,11 @@ unsafe fn value(pattern: &IUIAutomationValuePattern) -> Result<Vec<u16>, String>
     let value = unavailable(pattern.CurrentValue())?;
     diagnostic(json!({"uia_stage":"value_length","utf16_units":value.len()}));
     if value.len() > LIMIT {
+        return Err(UNAVAILABLE.into());
+    }
+    let raw = String::from_utf16(&value).map_err(|_| UNAVAILABLE)?;
+    if raw.len() >= VALUE_UTF8_LIMIT {
+        diagnostic(json!({"uia_stage":"value_byte_bound_rejected","utf8_bytes":raw.len()}));
         return Err(UNAVAILABLE.into());
     }
     let text = canonical(&value);
@@ -587,6 +596,13 @@ impl Target {
             return Err(UNAVAILABLE.into());
         }
         let expected_string = String::from_utf16(&expected).map_err(|_| UNAVAILABLE)?;
+        // Include possible provider expansion of canonical LF to CRLF. Reject
+        // before dispatch, rather than discover a truncated receipt after writing.
+        if expected_string.len() + expected.iter().filter(|ch| **ch == 10).count()
+            >= VALUE_UTF8_LIMIT
+        {
+            return Err(UNAVAILABLE.into());
+        }
         self.verify_focused(automation, command)?;
         // Plain ValuePattern Edit controls only: direct provider operation, no
         // paste shortcut/Enter and no document formatting replacement fallback.
