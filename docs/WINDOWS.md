@@ -19,7 +19,29 @@ Keep candidate data separate: `app.vaovao.windows.preview`. Do not import anothe
 
 CI compilation is not microphone, hotkey, selection, focus or input-delivery acceptance. Test these in a logged-in desktop session. SSH belongs to a different session. Current platform gaps and desktop test instructions will be updated with each candidate.
 
-## Candidate 3006: guarded Unicode diagnostics
+## Candidate 3007: empty Edit representations
+
+The opt-in Unicode adapter now recognizes an empty writable Edit whose owned
+Text range exactly equals its bounded accessible name, with a collapsed owned
+caret at a proven boundary. The name remains only in the transient snapshot;
+changing it or the content invalidates delivery. Nonempty field values are
+never removed as labels. The existing whole-field Value adapter retains its
+previous requirements.
+
+A single empty-paragraph LF with an owned container caret beyond DocumentRange
+can disappear on the first native insertion. Its receipt accepts either the
+original exact expected text/caret or precisely the inserted text with the
+corresponding collapsed caret. Ordinary in-document LF, generated text and
+other mismatches retain receipt warnings; no input is resent or caret moved.
+
+Native WebView2 regressions now require verified empty input/textarea fields
+with names/placeholders, empty editable containers and paragraph/BR containers,
+plus exact existing-text insertion. Generated pseudo-content still produces
+an unconfirmed receipt. Changed empty-field contents/name, nonempty names and
+real LF normalization are checked separately. Desktop dsh/Edge acceptance and
+WPS text-context support remain unresolved until tested on the laptop.
+
+### Structural diagnostics introduced in 3006
 
 Desktop feedback for 3005 includes visible dsh input followed by a receipt
 warning, an Edge Value/Text mismatch at capture, and a WPS pane without the

@@ -6,12 +6,12 @@ export async function characterize({call,check,delay}){
  style.textContent='[data-uia-placeholder]:empty::before{content:attr(data-uia-placeholder);pointer-events:none}';
  document.head.append(style);
  const cases=[
-  {id:'input_placeholder',tag:'input',placeholder:'提示文字呀'},
-  {id:'textarea_placeholder',tag:'textarea',placeholder:'提示文字呀'},
-  {id:'editable_empty',tag:'div',html:''},
-  {id:'editable_paragraph_br',tag:'div',html:'<p><br></p>'},
-  {id:'editable_generated_placeholder',tag:'div',html:'',generated:true},
-  {id:'editable_existing_text',tag:'div',html:'原文',offset:1}
+  {id:'input_placeholder',tag:'input',placeholder:'提示文字呀',verified:true},
+  {id:'textarea_placeholder',tag:'textarea',placeholder:'提示文字呀',verified:true},
+  {id:'editable_empty',tag:'div',html:'',verified:true},
+  {id:'editable_paragraph_br',tag:'div',html:'<p><br></p>',verified:true},
+  {id:'editable_generated_placeholder',tag:'div',html:'',generated:true,verified:false},
+  {id:'editable_existing_text',tag:'div',html:'原文',offset:1,verified:true}
  ];
  const inserted='中🙂';
  for(const item of cases){
@@ -46,6 +46,7 @@ export async function characterize({call,check,delay}){
    let replayRejected=false;try{await call('deliver',{target,text:'NO'});}catch{replayRejected=true;}
    check('shape_'+item.id+'_does_not_replay',replayRejected&&read()===prior&&inputs===count);
   }else check('shape_'+item.id+'_capture_refusal_sends_nothing',read()===original&&inputs===0);
+  check('shape_'+item.id+'_expected_outcome',observation.capture_supported&&observation.text_received_exactly&&observation.receipt_verified===item.verified);
   observations.push(observation);field.remove();
  }
  style.remove();

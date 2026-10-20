@@ -82,6 +82,21 @@ try{
  check('unicode_normalized_field_received_phrase',many.value==='已输入🙂');
  check('unicode_normalized_field_keeps_receipt_warning',normalizedError.includes('Receipt not confirmed'));
  check('unicode_normalized_field_token_cannot_replay',await rejected(deliver(target,'NO'))&&many.value==='已输入🙂');
+ await focus(many,'\n',1);target=await capture();
+ many.addEventListener('input',normalize);
+ let endLfError='';try{await deliver(target,'末尾🙂');}catch(error){endLfError=String(error);}
+ many.removeEventListener('input',normalize);
+ check('unicode_real_lf_at_end_is_not_empty_paragraph',endLfError.includes('Receipt not confirmed')&&many.value==='末尾🙂');
+ // The accessible-name exception is for an empty Value only, and is part of
+ // the snapshot: neither actual text nor a changed representation is ignored.
+ one.setAttribute('aria-label','Synthetic empty name A');
+ await focus(one,'',0);target=await capture();one.value='actual';await delay(180);
+ check('unicode_empty_name_content_change_rejected',await rejected(deliver(target,'NO'))&&one.value==='actual');
+ await focus(one,'',0);target=await capture();one.setAttribute('aria-label','Synthetic empty name B');await delay(180);
+ check('unicode_empty_name_change_rejected',await rejected(deliver(target,'NO'))&&one.value==='');
+ await focus(one,'Synthetic empty name B',0);target=await capture();
+ check('unicode_nonempty_name_is_preserved',(await deliver(target,'中')).verified===true&&one.value==='中Synthetic empty name B');
+ one.removeAttribute('aria-label');
  const {characterize}=await import('./windows-uia-shapes.js');
  observations=await characterize({call,check,delay});
  check('unicode_six_field_shapes_observed',observations.length===6);

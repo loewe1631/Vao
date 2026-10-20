@@ -278,6 +278,10 @@ struct Snapshot {
     text: Vec<u16>,
     start: usize,
     end: usize,
+    // An empty Edit may expose its accessible name as its Text range. Keep it
+    // transiently so a changed representation also invalidates the capture.
+    empty_name: Option<Vec<u16>>,
+    empty_paragraph: bool,
 }
 struct Target {
     epoch: u64,
@@ -383,6 +387,7 @@ unsafe fn snapshot(
     automation: &IUIAutomation,
     element: &IUIAutomationElement,
     command: &Command,
+    preview: bool,
 ) -> Result<Snapshot, String> {
     diagnostic(json!({"uia_stage":"snapshot_patterns"}));
     let (value_pattern, text_pattern) = patterns(element)?;
@@ -399,11 +404,43 @@ unsafe fn snapshot(
     // An empty control may expose one U+FFFC object boundary to accessibility
     // navigation. It is not field text. Accept only that exact representation,
     // an empty Value, and ranges owned by this Edit; require a collapsed caret
-    // below. Never normalize other document/value mismatches or placeholders.
+    // below. Never normalize arbitrary document/value mismatches.
     let empty_object = text.is_empty()
         && document_text == [0xfffc]
         && range_owned_by(automation, &document, element, command)?;
-    if !document_matches(&document_text, &text) && !empty_object {
+    // Chromium's empty leaf Edit can expose its accessible name to text
+    // navigation. Only the Unicode transport may accept this exact owned
+    // representation with an empty Value and collapsed owned caret. Never
+    // export the name or use this exception for whole-field SetValue.
+    let empty_name = if preview
+        && text.is_empty()
+        && !empty_object
+        && !document_matches(&document_text, &text)
+    {
+        let raw_name = unavailable(element.CurrentName())?;
+        if raw_name.len() > LIMIT + 1
+            || String::from_utf16(&raw_name)
+                .map_err(|_| UNAVAILABLE)?
+                .len()
+                >= VALUE_UTF8_LIMIT
+        {
+            return Err(UNAVAILABLE.into());
+        }
+        let name = canonical(&raw_name);
+        if !name.is_empty()
+            && name == document_text
+            && range_owned_by(automation, &document, element, command)?
+        {
+            diagnostic(json!({"uia_stage":"owned_empty_name"}));
+            Some(name)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let empty_representation = empty_object || empty_name.is_some();
+    if !document_matches(&document_text, &text) && !empty_representation {
         diagnostic(
             json!({"uia_stage":"snapshot_document_mismatch","document_units":document_text.len(),"value_units":text.len()}),
         );
@@ -431,7 +468,7 @@ unsafe fn snapshot(
         &selection,
         TextPatternRangeEndpoint_End,
     ))?;
-    if empty_object
+    if empty_representation
         && (order != 0
             || !range_text(&selection)?.is_empty()
             || !range_owned_by(automation, &selection, element, command)?)
@@ -468,7 +505,10 @@ unsafe fn snapshot(
         TextPatternRangeEndpoint_End,
     ))?;
     let through = canonical(&range_text(&prefix_end)?);
-    let valid_prefixes = if end_caret {
+    let valid_prefixes = if empty_name.is_some() {
+        // A virtual caret can be before or after the name, never in its middle.
+        before == through && (before.is_empty() || before == document_text)
+    } else if end_caret {
         diagnostic(json!({"uia_stage":"owned_end_caret"}));
         document_matches(&before, &text) && document_matches(&through, &text)
     } else {
@@ -484,6 +524,19 @@ unsafe fn snapshot(
     }
     let start = before.len().min(text.len());
     let end = through.len().min(text.len());
+    // A caret anchored beyond the document's single empty paragraph differs
+    // from a real in-document LF (including textarea '\n'). The browser may
+    // remove that empty paragraph marker on the first trusted insertion.
+    let empty_paragraph = preview
+        && end_caret
+        && text == [10]
+        && document_text == [10]
+        && start == 1
+        && end == 1
+        && range_owned_by(automation, &document, element, command)?;
+    if empty_paragraph {
+        diagnostic(json!({"uia_stage":"owned_empty_paragraph"}));
+    }
     diagnostic(json!({"uia_stage":"snapshot_offsets","start":start,"end":end}));
     String::from_utf16(&text[..start]).map_err(|_| UNAVAILABLE)?;
     String::from_utf16(&text[start..end]).map_err(|_| UNAVAILABLE)?;
@@ -493,7 +546,13 @@ unsafe fn snapshot(
         diagnostic(json!({"uia_stage":"snapshot_value_changed"}));
         return Err(UNAVAILABLE.into());
     }
-    Ok(Snapshot { text, start, end })
+    Ok(Snapshot {
+        text,
+        start,
+        end,
+        empty_name,
+        empty_paragraph,
+    })
 }
 unsafe fn within(
     automation: &IUIAutomation,
@@ -536,7 +595,7 @@ impl Target {
             );
             if unavailable(element.CurrentHasKeyboardFocus())?.as_bool() {
                 within(automation, &element, root, command)?;
-                if let Ok(snapshot) = snapshot(automation, &element, command) {
+                if let Ok(snapshot) = snapshot(automation, &element, command, unicode_preview()) {
                     let element_pid = unavailable(element.CurrentProcessId())? as u32;
                     let saved = Self {
                         epoch: command.epoch,
@@ -584,7 +643,7 @@ impl Target {
         command: &Command,
     ) -> Result<(), String> {
         self.verify_focus_identity(automation, command)?;
-        if snapshot(automation, &self.element, command)? != self.snapshot {
+        if snapshot(automation, &self.element, command, self.unicode)? != self.snapshot {
             return Err(UNAVAILABLE.into());
         }
         command.current()
@@ -734,11 +793,20 @@ impl Target {
                         diagnostic(json!({"uia_stage":"unicode_receipt_identity_rejected"}));
                         RECEIPT
                     })?;
-                if let Ok(received) = snapshot(automation, &self.element, command) {
+                if let Ok(received) = snapshot(automation, &self.element, command, self.unicode) {
                     let caret = self.snapshot.start + inserted.len();
-                    if received.text == expected && received.start == caret && received.end == caret
+                    let normalized_empty_paragraph = self.snapshot.empty_paragraph
+                        && received.text == inserted
+                        && received.start == inserted.len()
+                        && received.end == inserted.len();
+                    if (received.text == expected
+                        && received.start == caret
+                        && received.end == caret)
+                        || normalized_empty_paragraph
                     {
-                        diagnostic(json!({"uia_stage":"unicode_receipt_verified"}));
+                        diagnostic(
+                            json!({"uia_stage":"unicode_receipt_verified","normalized_empty_paragraph":normalized_empty_paragraph}),
+                        );
                         return Ok(
                             json!({"ok":true,"verified":true,"input_adapter":"uia_unicode"}),
                         );
@@ -798,7 +866,7 @@ impl Target {
             let caret_deadline = Instant::now() + Duration::from_millis(750);
             loop {
                 self.verify_focus_identity(automation, command)?;
-                if let Ok(received) = snapshot(automation, &self.element, command) {
+                if let Ok(received) = snapshot(automation, &self.element, command, false) {
                     if received.text != expected {
                         return Err(RECEIPT.into());
                     }
