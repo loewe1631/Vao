@@ -393,6 +393,11 @@ mod tests {
         }
         fn focus(&self, name: &str) {
             unsafe {
+                // Model the user choosing the next application. The foreground
+                // fixture grants this test driver activation rights; a background
+                // target process must not be expected to activate itself after
+                // another application has received focus.
+                SetForegroundWindow(self.hwnd("root"));
                 PostMessageW(self.hwnd("root"), WM_APP, self.hwnd(name) as usize, 0);
             }
             let deadline = Instant::now() + Duration::from_secs(3);
@@ -402,7 +407,14 @@ mod tests {
                 {
                     break;
                 }
-                assert!(Instant::now() < deadline, "fixture focus {name}");
+                assert!(
+                    Instant::now() < deadline,
+                    "fixture focus {name}: root={}, foreground={}, field={}, focus={:?}",
+                    self.hwnd("root") as usize,
+                    unsafe { GetForegroundWindow() } as usize,
+                    self.hwnd(name) as usize,
+                    focused(self.hwnd("root"), self.child.id()).map(|hwnd| hwnd as usize)
+                );
                 std::thread::sleep(Duration::from_millis(20));
             }
         }
@@ -686,9 +698,9 @@ mod tests {
         assert!(deliver(&json!({"target":previous,"text":"NO"}), true).is_err());
 
         // Exercise UIA against an actual foreign process as well as WebView2.
-        f.text("edit", "前😀后");
-        f.select("edit", 1, 3);
-        f.focus("edit");
+        f.text("next", "前😀后");
+        f.select("next", 1, 3);
+        f.focus("next");
         let epoch = crate::windows_uia::invalidate();
         let uia = crate::windows_uia::capture(f.hwnd("root"), f.child.id(), epoch)
             .expect("foreign Edit UIA capture");
@@ -699,13 +711,13 @@ mod tests {
             "UIA restores original process"
         );
         assert_eq!(
-            String::from_utf16(&contents(f.hwnd("edit"), "edit").unwrap().0).unwrap(),
+            String::from_utf16(&contents(f.hwnd("next"), "edit").unwrap().0).unwrap(),
             "前新后"
         );
-        f.select("edit", 0, 0);
+        f.select("next", 0, 0);
         let epoch = crate::windows_uia::invalidate();
         let uia = crate::windows_uia::capture(f.hwnd("root"), f.child.id(), epoch).unwrap();
-        f.select("edit", 1, 1);
+        f.select("next", 1, 1);
         assert!(
             deliver(&json!({"target":uia,"text":"NO"}), true).is_err(),
             "UIA caret conflict"
