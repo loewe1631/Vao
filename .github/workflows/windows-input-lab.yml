@@ -1,0 +1,69 @@
+name: Windows input lab
+on:
+  push:
+    branches: [codex/windows]
+    paths:
+      - scripts/windows-input-lab/**
+      - .github/workflows/windows-input-lab.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-input-lab-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unicode-entry:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python scripts/check-source.py
+      - name: Compile independent x64 input lab
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (!$installation) { throw 'MSVC installation unavailable' }
+          $vcvars = Join-Path $installation 'VC/Auxiliary/Build/vcvarsall.bat'
+          New-Item -ItemType Directory -Force dist/input-lab | Out-Null
+          $commands = @(
+            ('call "' + $vcvars + '" x64'),
+            ('cl /nologo /std:c++17 /permissive- /W4 /WX /EHsc /O2 /MT /utf-8 /DUNICODE /D_UNICODE /D_WIN32_WINNT=0x0A00 /DVAO_LAB_COMMIT=\"${{ github.sha }}\" scripts/windows-input-lab/input-lab.cpp /Fe:dist/input-lab/vao-input-lab.exe /Fo:dist/input-lab/input-lab.obj /link user32.lib advapi32.lib ole32.lib oleaut32.lib uiautomationcore.lib')
+          )
+          $commands | Set-Content dist/input-lab/build.cmd -Encoding ascii
+          & cmd.exe /d /c dist/input-lab/build.cmd
+          if ($LASTEXITCODE -ne 0) { throw 'Input lab compilation failed' }
+      - name: Verify synthetic cross-process input and identity
+        shell: pwsh
+        run: |
+          & ./dist/input-lab/vao-input-lab.exe --build-info dist/input-lab/build-info.json
+          if ($LASTEXITCODE -ne 0) { throw 'Lab identity failed' }
+          & ./dist/input-lab/vao-input-lab.exe --self-test dist/input-lab/runner-input-lab.json
+          if ($LASTEXITCODE -ne 0) { throw 'Synthetic input lab tests failed' }
+          $report = Get-Content dist/input-lab/runner-input-lab.json -Raw | ConvertFrom-Json
+          if (!$report.passed -or $report.commit -ne '${{ github.sha }}' -or $report.checks.Count -lt 13) { throw 'Unexpected lab evidence' }
+      - name: Package lab and provenance
+        shell: pwsh
+        run: |
+          Copy-Item scripts/windows-input-lab/Start-Input-Lab.cmd dist/input-lab/
+          Copy-Item scripts/windows-input-lab/README.zh-CN.md dist/input-lab/
+          Copy-Item LICENSE dist/input-lab/
+          Remove-Item dist/input-lab/build.cmd, dist/input-lab/input-lab.obj
+          $files = @{}
+          Get-ChildItem dist/input-lab -File | ForEach-Object { $files[$_.Name] = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          @{commit='${{ github.sha }}';run_id='${{ github.run_id }}';tool='synthetic Unicode input lab';signed=$false;desktop_acceptance='pending';files=$files} | ConvertTo-Json -Depth 5 | Set-Content dist/input-lab/lab-candidate.json -Encoding utf8NoBOM
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: vao-input-lab-x64-${{ github.sha }}
+          path: |
+            dist/input-lab/*.exe
+            dist/input-lab/*.json
+            dist/input-lab/*.cmd
+            dist/input-lab/*.md
+            dist/input-lab/LICENSE
+          retention-days: 14
+          if-no-files-found: warn
