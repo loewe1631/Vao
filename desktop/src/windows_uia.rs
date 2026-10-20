@@ -265,9 +265,12 @@ unsafe fn patterns(
         unavailable(element.GetCurrentPatternAs(UIA_ValuePatternId))?;
     let text: IUIAutomationTextPattern =
         unavailable(element.GetCurrentPatternAs(UIA_TextPatternId))?;
-    if unavailable(value.CurrentIsReadOnly())?.as_bool()
-        || unavailable(text.SupportedTextSelection())? != SupportedTextSelection_Single
-    {
+    let readonly = unavailable(value.CurrentIsReadOnly())?.as_bool();
+    let selection = unavailable(text.SupportedTextSelection())?;
+    if readonly || selection != SupportedTextSelection_Single {
+        diagnostic(
+            json!({"uia_stage":"patterns_rejected","readonly":readonly,"selection":selection.0}),
+        );
         return Err(UNAVAILABLE.into());
     }
     Ok((value, text))
@@ -302,26 +305,31 @@ unsafe fn snapshot(element: &IUIAutomationElement) -> Result<Snapshot, String> {
         return Err(UNAVAILABLE.into());
     }
     let selection = unavailable(text_pattern.GetSelection())?;
-    if unavailable(selection.Length())? != 1 {
+    let count = unavailable(selection.Length())?;
+    if count != 1 {
+        diagnostic(json!({"uia_stage":"selection_count_rejected","count":count}));
         return Err(UNAVAILABLE.into());
     }
     let selection = unavailable(selection.GetElement(0))?;
-    if unavailable(selection.CompareEndpoints(
+    let from_start = unavailable(selection.CompareEndpoints(
         TextPatternRangeEndpoint_Start,
         &document,
         TextPatternRangeEndpoint_Start,
-    ))? < 0
-        || unavailable(selection.CompareEndpoints(
-            TextPatternRangeEndpoint_End,
-            &document,
-            TextPatternRangeEndpoint_End,
-        ))? > 0
-        || unavailable(selection.CompareEndpoints(
-            TextPatternRangeEndpoint_Start,
-            &selection,
-            TextPatternRangeEndpoint_End,
-        ))? > 0
-    {
+    ))?;
+    let to_end = unavailable(selection.CompareEndpoints(
+        TextPatternRangeEndpoint_End,
+        &document,
+        TextPatternRangeEndpoint_End,
+    ))?;
+    let order = unavailable(selection.CompareEndpoints(
+        TextPatternRangeEndpoint_Start,
+        &selection,
+        TextPatternRangeEndpoint_End,
+    ))?;
+    if from_start < 0 || to_end > 0 || order > 0 {
+        diagnostic(
+            json!({"uia_stage":"selection_bounds_rejected","from_start":from_start,"to_end":to_end,"order":order}),
+        );
         return Err(UNAVAILABLE.into());
     }
     let prefix = unavailable(document.Clone())?;
@@ -342,6 +350,9 @@ unsafe fn snapshot(element: &IUIAutomationElement) -> Result<Snapshot, String> {
         || !document_text.starts_with(&through)
         || before.len() > through.len()
     {
+        diagnostic(
+            json!({"uia_stage":"selection_prefix_rejected","before":before.len(),"through":through.len(),"document":document_text.len(),"value":text.len()}),
+        );
         return Err(UNAVAILABLE.into());
     }
     let start = before.len().min(text.len());
@@ -351,6 +362,7 @@ unsafe fn snapshot(element: &IUIAutomationElement) -> Result<Snapshot, String> {
     String::from_utf16(&text[end..]).map_err(|_| UNAVAILABLE)?;
     // Reject inconsistent reads if the provider or user changed the field mid-capture.
     if value(&value_pattern)? != text {
+        diagnostic(json!({"uia_stage":"snapshot_value_changed"}));
         return Err(UNAVAILABLE.into());
     }
     Ok(Snapshot { text, start, end })
