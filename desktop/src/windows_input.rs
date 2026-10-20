@@ -295,6 +295,7 @@ mod tests {
         Win32::{
             System::{DataExchange::GetClipboardSequenceNumber, LibraryLoader::LoadLibraryW},
             UI::{
+                Controls::EM_SETSEL,
                 Input::KeyboardAndMouse::{EnableWindow, SetFocus},
                 WindowsAndMessaging::*,
             },
