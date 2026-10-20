@@ -12,7 +12,7 @@ function Run-Probe([string[]]$ProbeArgs, [string]$ReportPath) {
     if (Test-Path $ReportPath) { Remove-Item $ReportPath }
     $process = Start-Process -FilePath $binaryPath -ArgumentList $ProbeArgs -PassThru
     try {
-        $deadline = [DateTime]::UtcNow.AddSeconds(45)
+        $deadline = [DateTime]::UtcNow.AddSeconds(60)
         while (!(Test-Path $ReportPath) -and [DateTime]::UtcNow -lt $deadline) {
             if ($process.HasExited) { break }
             Start-Sleep -Milliseconds 250
@@ -23,6 +23,7 @@ function Run-Probe([string[]]$ProbeArgs, [string]$ReportPath) {
         return Get-Content $ReportPath -Raw | ConvertFrom-Json
     } finally {
         if (!$process.HasExited) { Stop-Process -Id $process.Id -Force }
+        if (!$process.WaitForExit(5000)) { throw 'Owned probe process did not exit' }
     }
 }
 
@@ -41,3 +42,11 @@ foreach ($check in @('frame_free', 'no_activate', 'no_edge', 'bottom_retained', 
     if ($smoke.overlay.$check -ne $true) { throw "Native overlay failed: $check" }
 }
 Write-Output 'Windows build identity, WebView IPC and shortcut registration passed; no audio/model request performed.'
+$inputPath = Join-Path $output 'runner-input.json'
+$inputProbe = Run-Probe -ProbeArgs @('--windows-input-probe', '--smoke-test', ('"' + $inputPath + '"')) -ReportPath $inputPath
+if ($inputProbe.passed -ne $true -or $inputProbe.audio_captured -ne $false -or
+    $inputProbe.models_contacted -ne $false -or $inputProbe.checks.Count -lt 20 -or
+    @($inputProbe.checks | Where-Object { $_.passed -ne $true }).Count -ne 0) {
+    throw ('Native WebView2 input receipt failed: ' + ($inputProbe | ConvertTo-Json -Depth 8 -Compress))
+}
+Write-Output 'Generic UI Automation WebView2 receipt, target/caret conflicts and non-sending checks passed.'

@@ -1,4 +1,4 @@
-//! Verified, one-shot insertion into the focused native Edit/RichEdit control.
+//! Verified, one-shot insertion selected by control capability, not app name.
 //! Full field contents live only in this bounded in-memory snapshot, never JSON,
 //! history, diagnostics or model requests. Unknown controls fall back to copying.
 use serde_json::{json, Value};
@@ -18,8 +18,8 @@ use windows_sys::Win32::{
     },
 };
 
-const LIMIT: usize = 256 * 1024; // UTF-16 code units, single active recording only.
-const UNAVAILABLE: &str = "无法验证原输入框或光标，结果已保留供复制 / Original input or caret could not be verified; copy the result";
+pub(super) const LIMIT: usize = 256 * 1024; // UTF-16 code units, single active recording only.
+pub(super) const UNAVAILABLE: &str = "无法验证原输入框或光标，结果已保留供复制 / Original input or caret could not be verified; copy the result";
 static TARGET: Mutex<Option<Target>> = Mutex::new(None);
 
 struct Target {
@@ -52,7 +52,7 @@ fn message(hwnd: HWND, msg: u32, wparam: usize, lparam: isize) -> Result<usize, 
     }
     Ok(result)
 }
-fn process_created(pid: u32) -> Result<u64, String> {
+pub(super) fn process_created(pid: u32) -> Result<u64, String> {
     unsafe {
         let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
         if process.is_null() {
@@ -156,6 +156,11 @@ fn rich_text(text: &[u16]) -> Vec<u16> {
 }
 
 pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
+    let epoch = crate::windows_uia::invalidate();
+    capture_native(root, pid).or_else(|_| crate::windows_uia::capture(root, pid, epoch))
+}
+
+fn capture_native(root: HWND, pid: u32) -> Result<Value, String> {
     let mut saved = TARGET.lock().map_err(|_| UNAVAILABLE)?;
     *saved = None; // A new recording always invalidates the previous token.
     let field = focused(root, pid)?;
@@ -170,7 +175,7 @@ pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
     String::from_utf16(&text[..start]).map_err(|_| UNAVAILABLE)?;
     String::from_utf16(&text[end..]).map_err(|_| UNAVAILABLE)?;
     let selection = String::from_utf16(&text[start..end]).map_err(|_| UNAVAILABLE)?;
-    let result = json!({"input_token":token,"delivery_supported":true,"selection":selection,"length":end-start});
+    let result = json!({"input_token":token,"input_adapter":"win32","delivery_supported":true,"selection":selection,"length":end-start});
     *saved = Some(Target {
         token,
         root: root as usize,
@@ -257,6 +262,9 @@ impl Target {
 }
 
 pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
+    if request["target"]["input_adapter"] == "uia_value" {
+        return crate::windows_uia::deliver(request.clone(), write);
+    }
     let mut saved = TARGET.lock().map_err(|_| UNAVAILABLE)?;
     let token = request["target"]["input_token"]
         .as_str()
@@ -649,6 +657,53 @@ mod tests {
             f.hwnd("root") as usize,
             focused(f.hwnd("root"), f.child.id()).map(|hwnd| hwnd as usize),
             f.hwnd("edit") as usize,
+        );
+        // New recordings must select their own process, including A -> B -> A.
+        f.text("edit", "A");
+        f.select("edit", 1, 1);
+        let first = f.target("edit");
+        other.text("edit", "B");
+        other.select("edit", 1, 1);
+        let second = other.target("edit");
+        assert!(deliver(&json!({"target":first,"text":"NO"}), true).is_err());
+        assert!(deliver(&json!({"target":second,"text":"2"}), true).is_ok());
+        assert_eq!(contents(f.hwnd("edit"), "edit").unwrap().0, vec![65]);
+        let third = f.target("edit");
+        assert!(deliver(&json!({"target":third,"text":"1"}), true).is_ok());
+        assert_eq!(contents(f.hwnd("edit"), "edit").unwrap().0, vec![65, 49]);
+        assert_eq!(
+            contents(other.hwnd("edit"), "edit").unwrap().0,
+            vec![66, 50]
+        );
+        let previous = f.target("edit");
+        f.focus("unknown");
+        assert!(capture(f.hwnd("root"), f.child.id()).is_err());
+        assert!(deliver(&json!({"target":previous,"text":"NO"}), true).is_err());
+
+        // Exercise UIA against an actual foreign process as well as WebView2.
+        f.text("edit", "前😀后");
+        f.select("edit", 1, 3);
+        f.focus("edit");
+        let epoch = crate::windows_uia::invalidate();
+        let uia = crate::windows_uia::capture(f.hwnd("root"), f.child.id(), epoch)
+            .expect("foreign Edit UIA capture");
+        assert_eq!(uia["selection"], "😀");
+        other.focus("edit");
+        assert!(
+            deliver(&json!({"target":uia,"text":"新"}), true).is_ok(),
+            "UIA restores original process"
+        );
+        assert_eq!(
+            String::from_utf16(&contents(f.hwnd("edit"), "edit").unwrap().0).unwrap(),
+            "前新后"
+        );
+        f.select("edit", 0, 0);
+        let epoch = crate::windows_uia::invalidate();
+        let uia = crate::windows_uia::capture(f.hwnd("root"), f.child.id(), epoch).unwrap();
+        f.select("edit", 1, 1);
+        assert!(
+            deliver(&json!({"target":uia,"text":"NO"}), true).is_err(),
+            "UIA caret conflict"
         );
         drop(other);
         let target = f.target("edit");

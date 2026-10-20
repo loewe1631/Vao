@@ -39,3 +39,13 @@ jobs:
             dist/windows/SHA256SUMS
           if-no-files-found: error
           retention-days: 14
+      - name: Preserve failed native probe metadata
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vao-windows-probes-${{ github.sha }}
+          path: |
+            dist/windows/*.json
+            dist/windows/*.trace
+          if-no-files-found: ignore
+          retention-days: 7

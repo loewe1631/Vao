@@ -17,6 +17,9 @@ mod voice_bar;
 mod writing_probe;
 #[cfg(target_os = "windows")]
 mod windows_input;
+#[cfg(target_os = "windows")]
+mod windows_uia;
+mod windows_input_probe;
 
 use input_feedback::{FlowError, InputNotice};
 use serde_json::{json, Value};
@@ -363,6 +366,7 @@ async fn report_ui_ready(window: tauri::WebviewWindow, state: State<'_, AppState
         return Ok(false);
     }
     let args = std::env::args().collect::<Vec<_>>();
+    if args.iter().any(|arg| arg == "--windows-input-probe") { return Ok(false); }
     if let Some(i) = args.iter().position(|s| s == "--smoke-test") {
         if let Some(path) = args.get(i + 1) {
             #[cfg(target_os = "windows")]
@@ -1568,7 +1572,7 @@ fn main() {
             if let Some(main) = app.get_webview_window("main") { main.set_title("Vao Windows Preview")?; }
             let args: Vec<String> = std::env::args().collect();
             // UI regression tests must never mutate the user's preferences/history.
-            let path = if args.iter().any(|a| a == "--verify-ui" || (cfg!(target_os = "windows") && a == "--windows-smoke")) {
+            let path = if args.iter().any(|a| a == "--verify-ui" || (cfg!(target_os = "windows") && (a == "--windows-smoke" || a == "--windows-input-probe"))) {
                 let index = args.iter().position(|a| a == "--smoke-test").ok_or("--verify-ui requires --smoke-test output")?;
                 let output = args.get(index + 1).ok_or("Missing smoke output path")?;
                 std::path::Path::new(output).parent().ok_or("Invalid smoke output path")?.join("isolated-native-state")
@@ -1650,6 +1654,15 @@ fn main() {
                     r.error = format!("快捷键尚未生效 / Shortcuts inactive: {e}");
                 }
             }
+            #[cfg(target_os = "windows")]
+            if args.iter().any(|arg| arg == "--windows-input-probe") {
+                if let Some(main) = app.get_webview_window("main") {
+                    let mut url = main.url()?;
+                    url.set_path("/windows-input-fixture.html");
+                    main.navigate(url)?;
+                    main.set_focus()?;
+                }
+            }
             Ok(())
         })
         .on_page_load(|window,payload|{
@@ -1667,6 +1680,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             report_ui_ready,report_frontend_state,
+            windows_input_probe::probe_windows_input,
             snapshot,
             fit_voicebar,drag_voicebar,dismiss_answer,locked_target_probe::probe_locked_target,overlay_probe::probe_overlay,overlay_probe::probe_overlay_event,
             bootstrap,

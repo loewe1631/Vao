@@ -43,12 +43,10 @@ def main():
               'files': {p.name: digest(p) for p in [installer, portable]}}
     report_path = out / 'candidate.json'
     report_path.write_text(json.dumps(report, indent=2) + '\n')
-    evidence = [out / name for name in ['build-info.json', 'runner-startup.json']]
+    evidence = [out / name for name in ['build-info.json', 'runner-startup.json', 'runner-input.json']]
     if not all(path.is_file() for path in evidence):
         raise SystemExit('Run the Windows startup probe before packaging')
-    trace = out / 'runner-startup.json.trace'
-    if trace.is_file():
-        evidence.append(trace)
+    evidence.extend(sorted(out.glob('runner-*.json.trace')))
     entries = {**report['files'], report_path.name: digest(report_path),
                **{path.name: digest(path) for path in evidence}}
     (out / 'SHA256SUMS').write_text(''.join(f'{sha}  {name}\n' for name, sha in entries.items()))

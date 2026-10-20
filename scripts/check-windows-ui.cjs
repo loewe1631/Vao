@@ -11,7 +11,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  page.on('pageerror',error=>errors.push(String(error)));
  await page.addInitScript(()=>{
   const connection={base:'https://model.example/v1',model:'synthetic',protocol:'openai_chat'};
-  const db={platform:'windows',version:'0.1.0-beta.5-windows.3',build:'20261020.3003',
+  const db={platform:'windows',version:'0.1.0-beta.5-windows.4',build:'20261020.3004',
    settings:{asr:{...connection,protocol:'openai_audio'},llm:connection,backup:{base:'',model:'',protocol:'openai_chat'},language:'auto',translation_language:'English',auto_input:true,dictionary:[],ui_language:'zh',theme:'system',trial_enabled:false,trial_consent_version:'',onboarding_complete:false,shortcuts:{record:'Control+Alt+Space',translate:'Control+Alt+KeyT',cancel:'Escape'}},
    profile:{revision:0,learning:true,personalization:true,rules:[],votes:[],undo:[]},history:[],
    permissions:{microphone:'not_determined',accessibility:'not_supported',input_monitoring:'not_required'},
@@ -37,7 +37,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  });
  await page.goto('file://'+path.join(root,'ui/index.html'));
  await page.locator('.windows-preview').waitFor();
- check('preview_identifies_native_field_scope',await page.locator('.windows-preview').innerText().then(s=>s.includes('原生文本框回填')&&s.includes('3003')));
+ check('preview_identifies_native_field_scope',await page.locator('.windows-preview').innerText().then(s=>s.includes('标准编辑框回填')&&s.includes('3004')));
  check('no_enrollment_or_copy_on_launch',await page.evaluate(()=>!fake.calls.some(c=>['enroll_trial','copy_result'].includes(c.command))));
  check('onboarding_waits_for_actual_probe',await page.locator('#finish-setup').isDisabled());
  check('onboarding_offers_insertion',await page.locator('#setup-auto-input').count()===1);
@@ -67,9 +67,9 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  await page.waitForFunction(()=>fake.db.settings.shortcuts.record==='Control+Shift+KeyK');
  check('custom_shortcut_can_be_saved',true);
  await page.locator('.nav [data-page="home"]').click();
- check('ready_does_not_require_macos_accessibility',await page.locator('#top-status').innerText().then(s=>s.includes('原生文本框')));
+ check('ready_does_not_require_macos_accessibility',await page.locator('#top-status').innerText().then(s=>s.includes('标准编辑框')));
  await page.locator('#lang').click();
- check('english_preview_is_explicit',await page.locator('.windows-preview').innerText().then(s=>s.includes('native text-field insertion')));
+ check('english_preview_is_explicit',await page.locator('.windows-preview').innerText().then(s=>s.includes('standard text-field insertion')));
 
  for(const language of ['en','zh']){
   if(await page.evaluate(()=>fake.db.settings.ui_language)!==language)await page.locator('#lang').click();
