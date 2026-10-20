@@ -94,8 +94,9 @@ GUITHREADINFO gui(HWND root) {
     GUITHREADINFO info{};
     info.cbSize = sizeof(info);
     const DWORD thread = GetWindowThreadProcessId(root, nullptr);
-    if (!thread || !GetGUIThreadInfo(thread, &info) || !info.hwndFocus)
-        throw std::runtime_error("native_focus_unavailable");
+    if (!thread || !GetGUIThreadInfo(thread, &info))
+        throw std::runtime_error("native_focus_query_failed_" + std::to_string(GetLastError()));
+    if (!info.hwndFocus) throw std::runtime_error("native_focus_null");
     if (GetAncestor(info.hwndFocus, GA_ROOT) != root)
         throw std::runtime_error("focus_outside_root");
     if (info.flags & (GUI_INMENUMODE | GUI_INMOVESIZE | GUI_POPUPMENUMODE | GUI_SYSTEMMENUMODE))
@@ -346,8 +347,17 @@ struct Child {
     void focus(int id = 101) {
         if (GetForegroundWindow() != root && !SetForegroundWindow(root))
             throw std::runtime_error("fixture_activation_failed");
+        for (int i = 0; i < 50 && GetForegroundWindow() != root; ++i) Sleep(10);
+        if (GetForegroundWindow() != root) throw std::runtime_error("fixture_activation_unconfirmed");
         SendMessageW(root, kFocus, static_cast<WPARAM>(id), 0);
-        Sleep(100);
+        for (int i = 0; i < 50; ++i) {
+            GUITHREADINFO info{};
+            info.cbSize = sizeof(info);
+            if (GetGUIThreadInfo(GetWindowThreadProcessId(root, nullptr), &info) &&
+                info.hwndFocus == GetDlgItem(root, id)) return;
+            Sleep(10);
+        }
+        throw std::runtime_error("fixture_child_focus_unconfirmed");
     }
     std::wstring text(int id = 101) {
         // Only this owned, synthetic fixture. No external field can reach here.
