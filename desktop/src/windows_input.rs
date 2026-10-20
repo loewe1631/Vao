@@ -366,7 +366,14 @@ mod tests {
         }
         fn target(&self, name: &str) -> Value {
             self.focus(name);
-            capture(self.hwnd("root"), self.child.id()).unwrap()
+            capture(self.hwnd("root"), self.child.id()).unwrap_or_else(|error| {
+                let hwnd = self.hwnd(name);
+                let mut start = 0u32;
+                let mut end = 0u32;
+                let selection = message(hwnd, EM_GETSEL, &mut start as *mut u32 as usize, &mut end as *mut u32 as isize);
+                panic!("capture {name}: {error}; class={}, style={:#x}, password={:?}, length={:?}, selection={selection:?}/{start}/{end}, process={:?}, focused={:?}, contents={:?}",
+                    class(hwnd), unsafe{GetWindowLongPtrW(hwnd,GWL_STYLE)}, message(hwnd,EM_GETPASSWORDCHAR,0,0), message(hwnd,WM_GETTEXTLENGTH,0,0), process_created(self.child.id()), focused(self.hwnd("root"),self.child.id()).map(|h|h as usize), contents(hwnd,&class(hwnd)).map(|(text,start,end)|(text.len(),start,end)));
+            })
         }
     }
     impl Drop for Fixture {
@@ -443,6 +450,7 @@ mod tests {
         let mut f = Fixture::start();
         let sequence = unsafe { GetClipboardSequenceNumber() };
         for name in ["edit", "rich"] {
+            println!("Native fixture: {name} initial capture and replacement");
             f.text(name, "前😀后");
             f.select(name, 1, 3);
             let target = f.target(name);
