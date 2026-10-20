@@ -379,10 +379,19 @@ struct Child {
         SendMessageW(GetDlgItem(root, id), WM_GETTEXT, 256, reinterpret_cast<LPARAM>(buffer));
         return buffer;
     }
+    std::wstring await_text(const std::wstring& expected) {
+        std::wstring received;
+        for (int attempt = 0; attempt < 100; ++attempt) {
+            received = text();
+            if (received == expected) return received;
+            Sleep(20);
+        }
+        return received;
+    }
 };
 int self_test(const std::filesystem::path& report) {
     std::vector<std::pair<std::string, bool>> checks;
-    std::string error;
+    std::string error, synthetic_received;
     const DWORD clipboard_before = GetClipboardSequenceNumber();
     auto check = [&](const char* name, bool ok) {
         checks.emplace_back(name, ok);
@@ -394,10 +403,11 @@ int self_test(const std::filesystem::path& report) {
         auto target = capture(nullptr);
         b.focus();
         const UINT sent = submit(target, nullptr);
-        Sleep(250);
         check("unicode_events_queued_once", sent == 2 * (std::size(kText) - 1));
         check("original_process_restored", GetForegroundWindow() == a.root);
-        check("chinese_emoji_received_exactly", a.text() == kText);
+        const auto received = a.await_text(kText);
+        synthetic_received = utf8(received);
+        check("chinese_emoji_received_exactly", received == kText);
         check("other_process_untouched", b.text().empty());
         DWORD start = 0, end = 0;
         SendMessageW(GetDlgItem(a.root, 101), EM_GETSEL, reinterpret_cast<WPARAM>(&start), reinterpret_cast<LPARAM>(&end));
@@ -408,8 +418,7 @@ int self_test(const std::filesystem::path& report) {
         target = capture(nullptr);
         b.focus();
         check("selection_events_queued_once", submit(target, nullptr) == 2 * (std::size(kText) - 1));
-        Sleep(250);
-        check("selection_replaced_without_full_field_set", a.text() == L"prefix " + std::wstring(kText) + L" suffix");
+        check("selection_replaced_without_full_field_set", a.await_text(L"prefix " + std::wstring(kText) + L" suffix") == L"prefix " + std::wstring(kText) + L" suffix");
         a.focus(); target = capture(nullptr); a.focus(102);
         bool rejected = false;
         try { submit(target, nullptr); } catch (...) { rejected = true; }
@@ -432,7 +441,8 @@ int self_test(const std::filesystem::path& report) {
     } catch (const std::exception& e) { error = e.what(); }
     std::ostringstream out;
     out << "{\"commit\":\"" VAO_LAB_COMMIT "\",\"passed\":" << (error.empty() ? "true" : "false")
-        << ",\"synthetic_fixture_only\":true,\"error\":" << quoted(error) << ",\"checks\":[";
+        << ",\"synthetic_fixture_only\":true,\"owned_fixture_received\":" << quoted(synthetic_received)
+        << ",\"error\":" << quoted(error) << ",\"checks\":[";
     for (size_t i = 0; i < checks.size(); ++i) {
         if (i) out << ',';
         out << "{\"name\":" << quoted(checks[i].first) << ",\"passed\":" << (checks[i].second ? "true" : "false") << '}';
