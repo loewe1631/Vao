@@ -50,3 +50,14 @@ if ($inputProbe.passed -ne $true -or $inputProbe.audio_captured -ne $false -or
     throw ('Native WebView2 input receipt failed: ' + ($inputProbe | ConvertTo-Json -Depth 8 -Compress))
 }
 Write-Output 'Generic UI Automation WebView2 receipt, target/caret conflicts and non-sending checks passed.'
+$unicodePath = Join-Path $output 'runner-unicode.json'
+$unicodeProbe = Run-Probe -ProbeArgs @('--windows-input-probe', '--windows-unicode-preview', '--smoke-test', ('"' + $unicodePath + '"')) -ReportPath $unicodePath
+$requiredUnicode = @('unicode_uses_verified_uia_snapshot', 'unicode_changed_content_rejected', 'unicode_changed_caret_rejected', 'unicode_changed_selection_rejected', 'unicode_trusted_input_updates_web_model', 'unicode_one_undo_restores_selection_text', 'unicode_redo_restores_inserted_text', 'unicode_multiline_does_not_guess_enter_semantics', 'unicode_returns_from_other_window', 'unicode_never_enter_or_submit')
+if (!$unicodeProbe.passed -or $unicodeProbe.audio_captured -ne $false -or $unicodeProbe.models_contacted -ne $false -or
+    $unicodeProbe.checks.Count -lt 34 -or @($unicodeProbe.checks | Where-Object { $_.passed -ne $true }).Count -ne 0) {
+    throw ('Guarded Unicode input failed: ' + ($unicodeProbe | ConvertTo-Json -Depth 8 -Compress))
+}
+foreach ($name in $requiredUnicode) {
+    if (!($unicodeProbe.checks | Where-Object { $_.name -eq $name -and $_.passed })) { throw "Missing guarded Unicode regression: $name" }
+}
+Write-Output 'Guarded Unicode snapshot, native receipt, input events, undo and conflict checks passed.'

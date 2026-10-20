@@ -29,6 +29,7 @@ def main():
     shutil.copy2(installers[0], installer)
     portable = out / (stem + '-portable.zip')
     files = [(binary, 'vao.exe')]
+    files += [(ROOT / 'scripts/Start-Unicode-Preview.cmd', 'Start-Unicode-Preview.cmd')]
     files += [(ROOT / name, name) for name in ['LICENSE', 'PROVENANCE.md', 'THIRD_PARTY_NOTICES.md']]
     files += [(ROOT / 'docs/WINDOWS.md', 'WINDOWS.md')]
     files += [(ROOT / 'docs/WINDOWS_NOTICES.md', 'WINDOWS_NOTICES.md')]
@@ -43,7 +44,7 @@ def main():
               'files': {p.name: digest(p) for p in [installer, portable]}}
     report_path = out / 'candidate.json'
     report_path.write_text(json.dumps(report, indent=2) + '\n')
-    evidence = [out / name for name in ['build-info.json', 'runner-startup.json', 'runner-input.json']]
+    evidence = [out / name for name in ['build-info.json', 'runner-startup.json', 'runner-input.json', 'runner-unicode.json']]
     if not all(path.is_file() for path in evidence):
         raise SystemExit('Run the Windows startup probe before packaging')
     evidence.extend(sorted(out.glob('runner-*.json.trace')))

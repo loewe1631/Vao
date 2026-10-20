@@ -14,6 +14,30 @@ pub async fn probe_windows_input(
         use windows_sys::Win32::System::Threading::GetCurrentProcessId;
         let root = window.hwnd().map_err(|e| e.to_string())?.0 as usize;
         match action.as_str() {
+            "mode" => {
+                Ok(serde_json::json!({"unicode_preview":crate::windows_uia::unicode_preview()}))
+            }
+            "cover" => {
+                use tauri::Manager;
+                let cover =
+                    if let Some(cover) = window.app_handle().get_webview_window("input-cover") {
+                        cover
+                    } else {
+                        tauri::WebviewWindowBuilder::new(
+                            window.app_handle(),
+                            "input-cover",
+                            tauri::WebviewUrl::App("windows-input-cover.html".into()),
+                        )
+                        .title("Synthetic other window")
+                        .inner_size(420.0, 180.0)
+                        .build()
+                        .map_err(|_| "Owned cover fixture unavailable")?
+                    };
+                cover
+                    .set_focus()
+                    .map_err(|_| "Owned cover focus unavailable")?;
+                Ok(serde_json::json!({"ok":true}))
+            }
             "capture" => tauri::async_runtime::spawn_blocking(move || {
                 crate::windows_input::capture(root as _, unsafe { GetCurrentProcessId() })
             })

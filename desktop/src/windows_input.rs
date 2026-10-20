@@ -274,7 +274,10 @@ impl Target {
 }
 
 pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
-    if request["target"]["input_adapter"] == "uia_value" {
+    if matches!(
+        request["target"]["input_adapter"].as_str(),
+        Some("uia_value" | "uia_unicode")
+    ) {
         return crate::windows_uia::deliver(request.clone(), write);
     }
     let mut saved = TARGET.lock().map_err(|_| UNAVAILABLE)?;

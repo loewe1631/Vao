@@ -19,7 +19,35 @@ Keep candidate data separate: `app.vaovao.windows.preview`. Do not import anothe
 
 CI compilation is not microphone, hotkey, selection, focus or input-delivery acceptance. Test these in a logged-in desktop session. SSH belongs to a different session. Current platform gaps and desktop test instructions will be updated with each candidate.
 
-## Candidate 3004: capability-based input
+## Candidate 3005: guarded Unicode preview
+
+The portable archive includes `Start-Unicode-Preview.cmd`. Exit any running Vao
+before launching it. This explicitly enables a Unicode input preview for the
+current process; it does not change settings or the default input method.
+Launching Vao normally retains the existing verified native/UIA paths.
+
+The preview still requires a focused editable UIA field, a complete bounded
+content and selection snapshot, an unchanged original target and a verified
+post-input receipt. It sends one Unicode event batch after physical keys are
+released; it does not replace the whole field, move the caret after writing,
+paste, send Enter or retry a possible partial insertion. Controls that cannot
+prove these conditions retain the result for copying. Window-only identification
+is insufficient, including document panes without text/selection interfaces.
+
+Multiline output remains supported by the existing native Edit/RichEdit adapter.
+The UIA preview rejects line breaks and control characters until an editor
+contract can distinguish text insertion from sending. The CI runs both the
+original UIA tests and additional native WebView2 Unicode receipt, trusted input,
+undo/redo, conflict and window-restoration tests. CI success does not establish
+physical desktop recording acceptance.
+
+The preview launcher writes `input-preview.trace` beside the executable with
+stage names, HRESULTs and numeric metadata only. Field contents, selections,
+window titles and provider error descriptions are excluded. Only explicitly
+selected text enters the existing selection feature; complete field snapshots
+remain transient in the existing UIA worker.
+
+## Existing capability-based input
 
 Input routing now follows control capabilities rather than an application-name list. The existing native Edit/RichEdit path remains first. Other focused plain Edit controls can use Windows UI Automation when they expose both writable ValuePattern and a single TextPattern selection. The same adapter is intended for compatible Win32, XAML and web fields; a browser, chat product or executable name does not grant eligibility. Actual laptop acceptance remains pending.
 

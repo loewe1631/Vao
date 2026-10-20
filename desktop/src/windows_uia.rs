@@ -1,6 +1,7 @@
 //! Capability-based UI Automation for plain Edit controls (Win32, XAML, web).
 //! All COM objects and transient field text remain on one MTA worker. No app
-//! allowlist, keyboard injection, clipboard, window titles or background scan.
+//! allowlist, clipboard, window titles or background scan. Unicode preview is
+//! explicitly enabled and retains the same snapshot and receipt requirements.
 use crate::windows_input::{process_created, LIMIT, UNAVAILABLE};
 use serde_json::{json, Value};
 use std::{
@@ -23,9 +24,15 @@ use windows::{
 };
 use windows_sys::Win32::{
     Foundation::HWND,
-    UI::WindowsAndMessaging::{
-        GetForegroundWindow, GetWindowThreadProcessId, IsIconic, IsWindow, SetForegroundWindow,
-        ShowWindow, SW_RESTORE,
+    UI::{
+        Input::KeyboardAndMouse::{
+            GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT,
+            KEYEVENTF_KEYUP, KEYEVENTF_UNICODE,
+        },
+        WindowsAndMessaging::{
+            GetForegroundWindow, GetWindowThreadProcessId, IsIconic, IsWindow, SetForegroundWindow,
+            ShowWindow, SW_RESTORE,
+        },
     },
 };
 
@@ -37,6 +44,35 @@ const BUDGET: Duration = Duration::from_secs(5);
 // for every provider, including produced values; no application-name rule.
 const VALUE_UTF8_LIMIT: usize = 8 * 1024;
 const RECEIPT: &str = "输入框未确认完整接收，请检查原文后复制，避免重复 / Receipt not confirmed; inspect the original field before copying to avoid duplication";
+
+pub fn unicode_preview() -> bool {
+    std::env::args().any(|arg| arg == "--windows-unicode-preview")
+}
+
+fn keys_released() -> bool {
+    (1..255).all(|key| unsafe { GetAsyncKeyState(key) } as u16 & 0x8000 == 0)
+}
+
+// No shortcuts, virtual Enter, clipboard, surrogate conversion or retries.
+// Only called after the captured field, complete content and selection match.
+fn unicode_events(text: &[u16]) -> Vec<INPUT> {
+    text.iter()
+        .flat_map(|unit| {
+            [KEYEVENTF_UNICODE, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP].map(|flags| INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: 0,
+                        wScan: *unit,
+                        dwFlags: flags,
+                        time: 0,
+                        dwExtraInfo: 0,
+                    },
+                },
+            })
+        })
+        .collect()
+}
 
 enum Action {
     Clear,
@@ -84,6 +120,24 @@ fn diagnostic(metadata: Value) {
                 .create(true)
                 .append(true)
                 .open(format!("{path}.trace"))
+            {
+                let _ = writeln!(trace, "{metadata}");
+            }
+        }
+    }
+    // Explicit preview launcher selects a private metadata-only trace path.
+    // Never write provider descriptions, field text, titles, names or selections.
+    if unicode_preview() {
+        if let Some(path) = args
+            .iter()
+            .position(|arg| arg == "--windows-input-report")
+            .and_then(|index| args.get(index + 1))
+        {
+            use std::io::Write;
+            if let Ok(mut trace) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
             {
                 let _ = writeln!(trace, "{metadata}");
             }
@@ -235,6 +289,7 @@ struct Target {
     element_created: u64,
     element: IUIAutomationElement,
     snapshot: Snapshot,
+    unicode: bool,
 }
 fn canonical(text: &[u16]) -> Vec<u16> {
     let mut result = Vec::with_capacity(text.len());
@@ -485,6 +540,7 @@ impl Target {
                         element_created: process_created(element_pid)?,
                         element,
                         snapshot,
+                        unicode: unicode_preview(),
                     };
                     saved.verify_focused(automation, command)?;
                     return Ok(saved);
@@ -496,7 +552,7 @@ impl Target {
         Err(UNAVAILABLE.into())
     }
     fn result(&self) -> Value {
-        json!({"input_token":self.token,"input_adapter":"uia_value","delivery_supported":true,
+        json!({"input_token":self.token,"input_adapter":if self.unicode {"uia_unicode"} else {"uia_value"},"delivery_supported":true,
             "selection":String::from_utf16_lossy(&self.snapshot.text[self.snapshot.start..self.snapshot.end]),
             "length":self.snapshot.end-self.snapshot.start})
     }
@@ -618,6 +674,65 @@ impl Target {
             >= VALUE_UTF8_LIMIT
         {
             return Err(UNAVAILABLE.into());
+        }
+        if self.unicode {
+            // A text packet carrying a control character can have application
+            // semantics. Multiline remains rejected until a text-edit contract
+            // can prove it will not submit a form or strip a line break.
+            let inserted_string = String::from_utf16(&inserted).map_err(|_| UNAVAILABLE)?;
+            if inserted_string
+                .chars()
+                .any(|ch| ch.is_control() || matches!(ch, '\u{2028}' | '\u{2029}'))
+            {
+                return Err(UNAVAILABLE.into());
+            }
+            let release_deadline = Instant::now() + Duration::from_millis(750);
+            while !keys_released() {
+                command.current()?;
+                if Instant::now() >= release_deadline {
+                    return Err(UNAVAILABLE.into());
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            self.verify_focused(automation, command)?;
+            let events = unicode_events(&inserted);
+            command.current()?;
+            if !keys_released() || GetForegroundWindow() != self.root as HWND {
+                return Err(UNAVAILABLE.into());
+            }
+            diagnostic(json!({"uia_stage":"unicode_dispatch_once","events":events.len()}));
+            let queued = SendInput(
+                events.len() as u32,
+                events.as_ptr(),
+                std::mem::size_of::<INPUT>() as i32,
+            );
+            diagnostic(
+                json!({"uia_stage":"unicode_queued","queued_events":queued,"expected_events":events.len()}),
+            );
+            // Partial/zero queue acceptance never triggers another transport.
+            if queued as usize != events.len() {
+                return Err(RECEIPT.into());
+            }
+            let receipt_deadline = Instant::now() + Duration::from_millis(1500);
+            loop {
+                self.verify_focus_identity(automation, command)
+                    .map_err(|_| RECEIPT)?;
+                if let Ok(received) = snapshot(automation, &self.element, command) {
+                    let caret = self.snapshot.start + inserted.len();
+                    if received.text == expected && received.start == caret && received.end == caret
+                    {
+                        diagnostic(json!({"uia_stage":"unicode_receipt_verified"}));
+                        return Ok(
+                            json!({"ok":true,"verified":true,"input_adapter":"uia_unicode"}),
+                        );
+                    }
+                }
+                command.current().map_err(|_| RECEIPT)?;
+                if Instant::now() >= receipt_deadline {
+                    return Err(RECEIPT.into());
+                }
+                std::thread::sleep(Duration::from_millis(15));
+            }
         }
         self.verify_focused(automation, command)?;
         // Plain ValuePattern Edit controls only: direct provider operation, no

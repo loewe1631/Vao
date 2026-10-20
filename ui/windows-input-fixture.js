@@ -1,6 +1,8 @@
 // Runs only in the native --windows-input-probe fixture. No user input is read.
 (async()=>{
  const invoke=window.__TAURI__.core.invoke;
+ const mode=await invoke('probe_windows_input',{action:'mode',request:null});
+ if(mode.unicode_preview){await import('./windows-unicode-fixture.js');return;}
  const checks=[]; let enters=0,submits=0,inputs=0,model='';
  const one=document.querySelector('#one'),two=document.querySelector('#two');
  document.addEventListener('keydown',e=>{if(e.key==='Enter')enters++;});
