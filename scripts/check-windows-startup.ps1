@@ -37,7 +37,7 @@ if ($smoke.ipc -ne 'ready' -or $smoke.webview -ne 'main' -or $smoke.phase -ne 'i
     !$smoke.hotkeys -or $smoke.captured_audio -ne $false -or $smoke.trial.provisioned) {
     throw 'Native WebView/IPC startup probe failed'
 }
-foreach ($check in @('frame_free', 'no_activate', 'no_edge', 'bottom_retained', 'focus_preserved', 'content_height_changed')) {
+foreach ($check in @('frame_free', 'no_activate', 'no_edge', 'bottom_retained', 'focus_preserved', 'content_height_changed', 'style_guarded', 'click_no_activate', 'click_preserves_position', 'drag_moves_without_frame', 'release_stops_drag')) {
     if ($smoke.overlay.$check -ne $true) { throw "Native overlay failed: $check" }
 }
 Write-Output 'Windows build identity, WebView IPC and shortcut registration passed; no audio/model request performed.'

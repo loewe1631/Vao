@@ -137,14 +137,17 @@ pub fn place(window: &tauri::WebviewWindow, display: u32, expanded: bool) {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let _ = (window, display, expanded);
 }
+#[cfg(target_os = "windows")]
+pub async fn drag(window: tauri::WebviewWindow) -> Result<(), String> {
+    crate::platform::windows::drag_overlay(window).await
+}
+#[cfg(not(target_os = "windows"))]
 pub async fn drag(window: tauri::WebviewWindow) -> Result<(), String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let target = window.clone();
     window.run_on_main_thread(move || {
         #[cfg(target_os = "macos")]
         let dragged = target.ns_window().is_ok_and(|ptr| unsafe { vao_drag_voice_bar(ptr) != 0 });
-        #[cfg(target_os = "windows")]
-        let dragged = target.start_dragging().is_ok();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         let dragged = { let _ = target; false };
         let _ = tx.send(dragged);

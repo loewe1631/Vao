@@ -1,7 +1,7 @@
 {
   "product": "Vao Windows Preview",
-  "version": "0.1.0-beta.5-windows.2",
-  "build": "20261020.3002",
+  "version": "0.1.0-beta.5-windows.3",
+  "build": "20261020.3003",
   "bundle": "app.vaovao.windows.preview",
   "binary": "vao.exe",
   "channel": "windows-preview",

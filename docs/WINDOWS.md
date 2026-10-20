@@ -19,13 +19,15 @@ Keep candidate data separate: `app.vaovao.windows.preview`. Do not import anothe
 
 CI compilation is not microphone, hotkey, selection, focus or input-delivery acceptance. Test these in a logged-in desktop session. SSH belongs to a different session. Current platform gaps and desktop test instructions will be updated with each candidate.
 
-## Candidate 3002 scope
+## Candidate 3003 scope
+
+Candidate 3002 was tested by the user: dictation reached Notepad, switching apps during recording or translation returned to the original field, and a selected-text follow-up question succeeded. This confirms those reported flows on that device, not every application. Clicking the overlay exposed a native "Vao Voice Bar" caption. Candidate 3003 replaces the Windows non-client drag loop with bounded physical mouse polling and non-activating position updates; a persistent style guard prevents framework restyles from restoring caption/edge styles. The isolated native probe checks repeated clicks, movement, release and attempted restyling without injecting global mouse/keyboard input. Actual laptop click/drag appearance remains a user acceptance step.
 
 | Area | Implementation | Remaining evidence/work |
 | --- | --- | --- |
-| Install/start | Per-user NSIS, portable ZIP, isolated identity, WebView IPC probe | 3001 installation/start confirmed by user; 3002 upgrade/uninstall pending |
+| Install/start | Per-user NSIS, portable ZIP, isolated identity, WebView IPC probe | 3001 installation/start and 3002 runtime confirmed by user; 3003 upgrade/uninstall pending |
 | Credentials | Windows Credential Manager; URL-bound connection keys | Native round-trip test runs in Windows CI; user setup test |
-| Audio/models | CPAL WASAPI, microphone access probe, existing stage routing/cancellation | 3001 Chinese refinement/translation confirmed by user; 3002 regression pending |
+| Audio/models | CPAL WASAPI, microphone access probe, existing stage routing/cancellation | 3002 dictation, translation, cross-app return and selected-text question confirmed by user; 3003 regression pending |
 | Shortcuts | Ordinary customizable RegisterHotKey combinations, conflict rollback | Physical triggers and conflicts on laptop; no hardware Fn |
 | Overlay | No native frame/shadow, content-sized height, WS_EX_NOACTIVATE, work-area/DPI placement and dragging | Focus, multiple monitors and scaling on laptop |
 | Result | Verified native-field insertion, overlay/history and explicit copy; failures preserve text | Clipboard test on laptop |

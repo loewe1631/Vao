@@ -190,24 +190,66 @@ pub fn monitor(pid: u32) -> u32 {
 static MONITOR: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 static OVERLAY_HEIGHT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(74);
+const FRAME_BITS: u32 = windows_sys::Win32::UI::WindowsAndMessaging::WS_CAPTION
+    | windows_sys::Win32::UI::WindowsAndMessaging::WS_THICKFRAME
+    | windows_sys::Win32::UI::WindowsAndMessaging::WS_SYSMENU
+    | windows_sys::Win32::UI::WindowsAndMessaging::WS_MINIMIZEBOX
+    | windows_sys::Win32::UI::WindowsAndMessaging::WS_MAXIMIZEBOX;
+const EDGE_BITS: u32 = windows_sys::Win32::UI::WindowsAndMessaging::WS_EX_WINDOWEDGE
+    | windows_sys::Win32::UI::WindowsAndMessaging::WS_EX_CLIENTEDGE
+    | windows_sys::Win32::UI::WindowsAndMessaging::WS_EX_DLGMODALFRAME;
+
+unsafe extern "system" fn overlay_window(
+    hwnd: HWND,
+    msg: u32,
+    wparam: usize,
+    lparam: isize,
+    id: usize,
+    _data: usize,
+) -> isize {
+    use windows_sys::Win32::UI::{Shell::*, WindowsAndMessaging::*};
+    if msg == WM_MOUSEACTIVATE {
+        return MA_NOACTIVATE as isize;
+    }
+    if msg == WM_STYLECHANGING && lparam != 0 {
+        let result = DefSubclassProc(hwnd, msg, wparam, lparam);
+        let styles = &mut *(lparam as *mut STYLESTRUCT);
+        match wparam as i32 {
+            GWL_STYLE => styles.styleNew &= !FRAME_BITS,
+            GWL_EXSTYLE => {
+                styles.styleNew = (styles.styleNew | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW)
+                    & !(EDGE_BITS | WS_EX_APPWINDOW);
+            }
+            _ => {}
+        }
+        return result;
+    }
+    if msg == WM_NCDESTROY {
+        RemoveWindowSubclass(hwnd, Some(overlay_window), id);
+    }
+    DefSubclassProc(hwnd, msg, wparam, lparam)
+}
 
 pub fn initialize_overlay(window: &tauri::WebviewWindow) -> Result<(), String> {
     use windows_sys::Win32::{Graphics::Dwm::*, UI::WindowsAndMessaging::*};
-    window.set_shadow(false).map_err(|e| e.to_string())?;
     let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as HWND;
+    // Keep later framework style updates from restoring a native caption or focus.
+    if unsafe { windows_sys::Win32::UI::Shell::SetWindowSubclass(hwnd, Some(overlay_window), 1, 0) }
+        == 0
+    {
+        return Err("Could not protect overlay window styles".into());
+    }
+    window.set_shadow(false).map_err(|e| e.to_string())?;
+    window.set_focusable(false).map_err(|e| e.to_string())?;
     unsafe {
         let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-        SetWindowLongPtrW(
-            hwnd,
-            GWL_STYLE,
-            style & !((WS_CAPTION | WS_THICKFRAME | WS_BORDER | WS_DLGFRAME) as isize),
-        );
+        SetWindowLongPtrW(hwnd, GWL_STYLE, style & !(FRAME_BITS as isize));
         let extended = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
         SetWindowLongPtrW(
             hwnd,
             GWL_EXSTYLE,
             (extended | (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW) as isize)
-                & !((WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_DLGMODALFRAME) as isize),
+                & !((EDGE_BITS | WS_EX_APPWINDOW) as isize),
         );
         let policy = DWMNCRP_DISABLED;
         // Disabling non-client rendering removes the outline around transparent space.
@@ -228,6 +270,103 @@ pub fn initialize_overlay(window: &tauri::WebviewWindow) -> Result<(), String> {
         );
     }
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+struct DragOrigin {
+    hwnd: usize,
+    cursor: windows_sys::Win32::Foundation::POINT,
+    rect: windows_sys::Win32::Foundation::RECT,
+}
+
+fn move_drag(
+    origin: DragOrigin,
+    cursor: windows_sys::Win32::Foundation::POINT,
+    held: bool,
+) -> Result<bool, String> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::*;
+    if !held {
+        return Ok(false);
+    }
+    let dx = i64::from(cursor.x) - i64::from(origin.cursor.x);
+    let dy = i64::from(cursor.y) - i64::from(origin.cursor.y);
+    if dx.abs() < 4 && dy.abs() < 4 {
+        return Ok(true);
+    }
+    let x = (i64::from(origin.rect.left) + dx).clamp(i32::MIN as i64, i32::MAX as i64) as i32;
+    let y = (i64::from(origin.rect.top) + dy).clamp(i32::MIN as i64, i32::MAX as i64) as i32;
+    if unsafe {
+        SetWindowPos(
+            origin.hwnd as HWND,
+            std::ptr::null_mut(),
+            x,
+            y,
+            0,
+            0,
+            SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOZORDER,
+        )
+    } == 0
+    {
+        return Err("Could not move overlay".into());
+    }
+    Ok(true)
+}
+
+fn drag_tick(origin: DragOrigin) -> Result<bool, String> {
+    use windows_sys::Win32::UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*};
+    if unsafe { IsWindowVisible(origin.hwnd as HWND) } == 0 {
+        return Ok(false);
+    }
+    let held = unsafe { GetAsyncKeyState(VK_LBUTTON as i32) } < 0;
+    let mut cursor = windows_sys::Win32::Foundation::POINT::default();
+    if held && unsafe { GetCursorPos(&mut cursor) } == 0 {
+        return Err("Mouse position unavailable".into());
+    }
+    move_drag(origin, cursor, held)
+}
+
+pub async fn drag_overlay(window: tauri::WebviewWindow) -> Result<(), String> {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use windows_sys::Win32::{Foundation::*, UI::WindowsAndMessaging::*};
+    static DRAGGING: AtomicBool = AtomicBool::new(false);
+    if DRAGGING.swap(true, Ordering::AcqRel) {
+        return Ok(());
+    }
+    struct ResetDrag;
+    impl Drop for ResetDrag {
+        fn drop(&mut self) {
+            DRAGGING.store(false, Ordering::Release);
+        }
+    }
+    let _reset = ResetDrag;
+    let mut origin = DragOrigin {
+        hwnd: window.hwnd().map_err(|e| e.to_string())?.0 as usize,
+        cursor: POINT::default(),
+        rect: RECT::default(),
+    };
+    if unsafe { GetCursorPos(&mut origin.cursor) } == 0
+        || unsafe { GetWindowRect(origin.hwnd as HWND, &mut origin.rect) } == 0
+    {
+        return Err("Overlay position unavailable".into());
+    }
+    // Do not enter Windows' non-client move loop: it can show a native ghost
+    // caption, particularly when the async request arrives after mouse release.
+    // Only sample the physical button/cursor while this drag is active.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        window
+            .run_on_main_thread(move || {
+                let _ = tx.send(drag_tick(origin));
+            })
+            .map_err(|e| e.to_string())?;
+        if !rx.await.map_err(|_| "Overlay drag interrupted")??
+            || std::time::Instant::now() >= deadline
+        {
+            return Ok(());
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(16)).await;
+    }
 }
 fn overlay_area(
     hwnd: HWND,
@@ -330,14 +469,88 @@ pub fn probe_overlay(window: &tauri::WebviewWindow) -> Result<Value, String> {
     unsafe {
         GetWindowRect(hwnd, &mut after);
     }
+    // Exercise the persistent style guard against a later framework restyle.
+    unsafe {
+        SetWindowLongPtrW(
+            hwnd,
+            GWL_STYLE,
+            GetWindowLongPtrW(hwnd, GWL_STYLE) | FRAME_BITS as isize,
+        );
+        SetWindowLongPtrW(
+            hwnd,
+            GWL_EXSTYLE,
+            (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) | EDGE_BITS as isize)
+                & !(WS_EX_NOACTIVATE as isize),
+        );
+    }
     let style = unsafe { GetWindowLongPtrW(hwnd, GWL_STYLE) } as u32;
     let extended = unsafe { GetWindowLongPtrW(hwnd, GWL_EXSTYLE) } as u32;
-    let result = json!({"frame_free":style & (WS_CAPTION|WS_THICKFRAME|WS_BORDER|WS_DLGFRAME)==0,
+    let mouse_activate = unsafe {
+        SendMessageW(
+            hwnd,
+            WM_MOUSEACTIVATE,
+            0,
+            (HTCLIENT | (WM_LBUTTONDOWN << 16)) as isize,
+        )
+    };
+    let origin = DragOrigin {
+        hwnd: hwnd as usize,
+        cursor: windows_sys::Win32::Foundation::POINT { x: 100, y: 100 },
+        rect: after,
+    };
+    // Synthetic coordinates are applied only to this isolated probe window;
+    // no physical cursor/button or other application's input is modified.
+    for _ in 0..3 {
+        move_drag(origin, origin.cursor, true)?;
+        move_drag(origin, origin.cursor, false)?;
+    }
+    let mut clicked = after;
+    unsafe {
+        GetWindowRect(hwnd, &mut clicked);
+    }
+    move_drag(
+        origin,
+        windows_sys::Win32::Foundation::POINT { x: 132, y: 116 },
+        true,
+    )?;
+    let mut dragged = after;
+    unsafe {
+        GetWindowRect(hwnd, &mut dragged);
+    }
+    let released = !move_drag(
+        origin,
+        windows_sys::Win32::Foundation::POINT { x: 300, y: 300 },
+        false,
+    )?;
+    let mut stopped = after;
+    unsafe {
+        GetWindowRect(hwnd, &mut stopped);
+    }
+    let position = |rect: &windows_sys::Win32::Foundation::RECT| {
+        (rect.left, rect.top, rect.right, rect.bottom)
+    };
+    let result = json!({"frame_free":style & FRAME_BITS==0,
         "no_activate":extended & WS_EX_NOACTIVATE!=0,
-        "no_edge":extended & (WS_EX_WINDOWEDGE|WS_EX_CLIENTEDGE|WS_EX_DLGMODALFRAME)==0,
+        "no_edge":extended & EDGE_BITS==0,
         "bottom_retained":before.bottom==after.bottom && before.left==after.left,
         "focus_preserved":foreground==unsafe{GetForegroundWindow()},
-        "content_height_changed":before.bottom-before.top!=after.bottom-after.top});
+        "content_height_changed":before.bottom-before.top!=after.bottom-after.top,
+        "style_guarded":style & FRAME_BITS==0 && extended & EDGE_BITS==0 && extended & WS_EX_NOACTIVATE!=0,
+        "click_no_activate":mouse_activate==MA_NOACTIVATE as isize && foreground==unsafe{GetForegroundWindow()},
+        "click_preserves_position":position(&clicked)==position(&after),
+        "drag_moves_without_frame":dragged.left==after.left+32 && dragged.top==after.top+16 && unsafe{GetWindowLongPtrW(hwnd,GWL_STYLE)} as u32 & FRAME_BITS==0,
+        "release_stops_drag":released && position(&dragged)==position(&stopped)});
+    unsafe {
+        SetWindowPos(
+            hwnd,
+            std::ptr::null_mut(),
+            after.left,
+            after.top,
+            0,
+            0,
+            SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOZORDER,
+        );
+    }
     fit(window, 74.0)?;
     Ok(result)
 }
