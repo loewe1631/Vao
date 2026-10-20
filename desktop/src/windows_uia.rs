@@ -294,7 +294,31 @@ unsafe fn range_text(range: &IUIAutomationTextRange) -> Result<Vec<u16>, String>
     }
     Ok(text.to_vec())
 }
-unsafe fn snapshot(element: &IUIAutomationElement) -> Result<Snapshot, String> {
+unsafe fn range_owned_by(
+    automation: &IUIAutomation,
+    range: &IUIAutomationTextRange,
+    element: &IUIAutomationElement,
+    command: &Command,
+) -> Result<bool, String> {
+    let walker = unavailable(automation.RawViewWalker())?;
+    let mut enclosing = unavailable(range.GetEnclosingElement())?;
+    for _ in 0..16 {
+        command.current()?;
+        if unavailable(automation.CompareElements(&enclosing, element))?.as_bool() {
+            return Ok(true);
+        }
+        match walker.GetParentElement(&enclosing) {
+            Ok(parent) => enclosing = parent,
+            Err(_) => return Ok(false),
+        }
+    }
+    Ok(false)
+}
+unsafe fn snapshot(
+    automation: &IUIAutomation,
+    element: &IUIAutomationElement,
+    command: &Command,
+) -> Result<Snapshot, String> {
     diagnostic(json!({"uia_stage":"snapshot_patterns"}));
     let (value_pattern, text_pattern) = patterns(element)?;
     let text = value(&value_pattern)?;
@@ -326,7 +350,17 @@ unsafe fn snapshot(element: &IUIAutomationElement) -> Result<Snapshot, String> {
         &selection,
         TextPatternRangeEndpoint_End,
     ))?;
-    if from_start < 0 || to_end > 0 || order > 0 {
+    // Some providers anchor a collapsed end caret on the Edit container, while
+    // DocumentRange ends on its last text child. CompareEndpoints then places
+    // that caret after DocumentRange. Accept this representation only if the
+    // range still belongs to this exact Edit and both prefixes below prove the
+    // complete field boundary; a selection in another field remains invalid.
+    let end_caret = from_start >= 0
+        && to_end > 0
+        && order == 0
+        && range_text(&selection)?.is_empty()
+        && range_owned_by(automation, &selection, element, command)?;
+    if from_start < 0 || (to_end > 0 && !end_caret) || order > 0 {
         diagnostic(
             json!({"uia_stage":"selection_bounds_rejected","from_start":from_start,"to_end":to_end,"order":order}),
         );
@@ -346,10 +380,15 @@ unsafe fn snapshot(element: &IUIAutomationElement) -> Result<Snapshot, String> {
         TextPatternRangeEndpoint_End,
     ))?;
     let through = canonical(&range_text(&prefix_end)?);
-    if !document_text.starts_with(&before)
-        || !document_text.starts_with(&through)
-        || before.len() > through.len()
-    {
+    let valid_prefixes = if end_caret {
+        diagnostic(json!({"uia_stage":"owned_end_caret"}));
+        document_matches(&before, &text) && document_matches(&through, &text)
+    } else {
+        document_text.starts_with(&before)
+            && document_text.starts_with(&through)
+            && before.len() <= through.len()
+    };
+    if !valid_prefixes {
         diagnostic(
             json!({"uia_stage":"selection_prefix_rejected","before":before.len(),"through":through.len(),"document":document_text.len(),"value":text.len()}),
         );
@@ -408,7 +447,7 @@ impl Target {
             );
             if unavailable(element.CurrentHasKeyboardFocus())?.as_bool() {
                 within(automation, &element, root, command)?;
-                if let Ok(snapshot) = snapshot(&element) {
+                if let Ok(snapshot) = snapshot(automation, &element, command) {
                     let element_pid = unavailable(element.CurrentProcessId())? as u32;
                     let saved = Self {
                         epoch: command.epoch,
@@ -455,7 +494,7 @@ impl Target {
         command: &Command,
     ) -> Result<(), String> {
         self.verify_focus_identity(automation, command)?;
-        if snapshot(&self.element)? != self.snapshot {
+        if snapshot(automation, &self.element, command)? != self.snapshot {
             return Err(UNAVAILABLE.into());
         }
         command.current()
@@ -578,7 +617,7 @@ impl Target {
             let caret_deadline = Instant::now() + Duration::from_millis(750);
             loop {
                 self.verify_focus_identity(automation, command)?;
-                if let Ok(received) = snapshot(&self.element) {
+                if let Ok(received) = snapshot(automation, &self.element, command) {
                     if received.text != expected {
                         return Err(RECEIPT.into());
                     }
