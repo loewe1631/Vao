@@ -157,7 +157,17 @@ fn rich_text(text: &[u16]) -> Vec<u16> {
 
 pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
     let epoch = crate::windows_uia::invalidate();
-    capture_native(root, pid).or_else(|_| crate::windows_uia::capture(root, pid, epoch))
+    capture_native(root, pid).or_else(|error| {
+        // A recognized native control's refusal (protected state, size,
+        // inconsistent text/caret or timeout) is final. Do not reinterpret that
+        // refusal through another provider; UIA covers other control technology.
+        let field = focused(root, pid)?;
+        if supported(&class(field)) {
+            Err(error)
+        } else {
+            crate::windows_uia::capture(root, pid, epoch)
+        }
+    })
 }
 
 fn capture_native(root: HWND, pid: u32) -> Result<Value, String> {
@@ -421,7 +431,10 @@ mod tests {
         fn text(&self, name: &str, value: &str) {
             let wide: Vec<_> = value.encode_utf16().chain(Some(0)).collect();
             let started = Instant::now();
-            println!("Native fixture: seed {name}, {} UTF16 units", wide.len() - 1);
+            println!(
+                "Native fixture: seed {name}, {} UTF16 units",
+                wide.len() - 1
+            );
             let mut result = 0;
             // First-time font initialization on a fresh runner can exceed the
             // production read budget. This only seeds the synthetic fixture.
