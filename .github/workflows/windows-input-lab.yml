@@ -44,8 +44,8 @@ jobs:
           & ./dist/input-lab/vao-input-lab.exe --self-test dist/input-lab/runner-input-lab.json
           if ($LASTEXITCODE -ne 0) { throw 'Synthetic input lab tests failed' }
           $report = Get-Content dist/input-lab/runner-input-lab.json -Raw | ConvertFrom-Json
-          if (!$report.passed -or $report.commit -ne '${{ github.sha }}' -or $report.checks.Count -ne 18) { throw 'Unexpected lab evidence' }
-          $required = @('unsupported_value_pattern_is_absent', 'unsupported_text_pattern_is_absent', 'uia_edit_patterns_present', 'uia_capture_restoration_and_exact_receipt')
+          if (!$report.passed -or $report.commit -ne '${{ github.sha }}' -or $report.checks.Count -ne 22) { throw 'Unexpected lab evidence' }
+          $required = @('unsupported_value_pattern_is_absent', 'unsupported_text_pattern_is_absent', 'uia_edit_patterns_present', 'uia_capture_restoration_and_exact_receipt', 'delayed_native_focus_restored_before_dispatch', 'uia_requested_only_saved_element_when_native_focus_absent', 'focus_restore_timeout_does_not_dispatch', 'late_different_field_rejected_without_dispatch')
           foreach ($name in $required) {
             if (!($report.checks | Where-Object { $_.name -eq $name -and $_.passed })) { throw "Missing real UIA regression: $name" }
           }

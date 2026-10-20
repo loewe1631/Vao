@@ -28,6 +28,7 @@ constexpr wchar_t kText[] = L"Vao \u901a\u7528\u8f93\u5165\u6d4b\u8bd5 \U0001f64
 constexpr UINT kFocus = WM_APP + 1;
 constexpr UINT kState = WM_APP + 2;
 constexpr UINT kEnterCount = WM_APP + 3;
+constexpr UINT kRestoreMode = WM_APP + 4;
 constexpr wchar_t kFixture[] = L"VaoSyntheticInputFixture";
 
 std::string utf8(const std::wstring& value) {
@@ -90,17 +91,21 @@ std::wstring process_name(DWORD pid) {
     CloseHandle(process);
     return ok ? std::filesystem::path(std::wstring(buffer, size)).filename().wstring() : L"";
 }
-GUITHREADINFO gui(HWND root) {
+GUITHREADINFO gui_state(HWND root) {
     GUITHREADINFO info{};
     info.cbSize = sizeof(info);
     const DWORD thread = GetWindowThreadProcessId(root, nullptr);
     if (!thread || !GetGUIThreadInfo(thread, &info))
         throw std::runtime_error("native_focus_query_failed_" + std::to_string(GetLastError()));
-    if (!info.hwndFocus) throw std::runtime_error("native_focus_null");
-    if (GetAncestor(info.hwndFocus, GA_ROOT) != root)
+    if (info.hwndFocus && GetAncestor(info.hwndFocus, GA_ROOT) != root)
         throw std::runtime_error("focus_outside_root");
     if (info.flags & (GUI_INMENUMODE | GUI_INMOVESIZE | GUI_POPUPMENUMODE | GUI_SYSTEMMENUMODE))
         throw std::runtime_error("menu_or_move_active");
+    return info;
+}
+GUITHREADINFO gui(HWND root) {
+    const auto info = gui_state(root);
+    if (!info.hwndFocus) throw std::runtime_error("native_focus_null");
     return info;
 }
 bool keys_up() {
@@ -206,10 +211,73 @@ void verify_focus(const Target& target, IUIAutomation* automation) {
             throw std::runtime_error("uia_focused_element_changed");
     }
 }
-UINT submit(const Target& target, IUIAutomation* automation) {
+struct RestoreTrace {
+    ULONGLONG elapsed_ms = 0;
+    unsigned null_focus_samples = 0;
+    bool uia_request_attempted = false;
+    HRESULT uia_request_result = E_PENDING;
+    bool original_focus_confirmed = false;
+    std::string stage = "not_started";
+};
+std::string restore_metadata(const RestoreTrace& trace) {
+    std::ostringstream out;
+    out << "\"restore_stage\":" << quoted(trace.stage)
+        << ",\"focus_wait_ms\":" << trace.elapsed_ms
+        << ",\"null_focus_samples\":" << trace.null_focus_samples
+        << ",\"uia_focus_request_attempted\":" << (trace.uia_request_attempted ? "true" : "false")
+        << ",\"uia_focus_request_hresult\":" << trace.uia_request_result
+        << ",\"original_focus_confirmed\":" << (trace.original_focus_confirmed ? "true" : "false");
+    return out.str();
+}
+void await_original_focus(const Target& target, IUIAutomation* automation, RestoreTrace& trace) {
+    const ULONGLONG start = GetTickCount64();
+    trace.stage = "waiting_for_original_focus";
+    for (;;) {
+        trace.elapsed_ms = GetTickCount64() - start;
+        identity(target);
+        if (GetForegroundWindow() != target.root)
+            throw std::runtime_error("foreground_changed_during_focus_restore");
+        if (!keys_up()) throw std::runtime_error("physical_input_during_focus_restore");
+        const auto now = gui_state(target.root);
+        if (now.hwndFocus) {
+            // Never wait out a known different field or replace its focus.
+            if (now.hwndFocus != target.focus.hwndFocus)
+                throw std::runtime_error("native_focused_field_changed");
+            verify_focus(target, automation);
+            trace.original_focus_confirmed = true;
+            trace.stage = "original_focus_confirmed";
+            return;
+        }
+        ++trace.null_focus_samples;
+        if (trace.elapsed_ms >= 1500)
+            throw std::runtime_error("native_focus_restore_timeout");
+        // Some apps restore their child asynchronously; others need the
+        // standard UIA focus request. Request only the retained original
+        // element, once, while the original window has no native focus.
+        if (trace.elapsed_ms >= 250 && !trace.uia_request_attempted &&
+            automation && target.element && target.uia_focused) {
+            BOOL password = TRUE, enabled = FALSE;
+            if (FAILED(target.element->get_CurrentIsPassword(&password)) || password ||
+                FAILED(target.element->get_CurrentIsEnabled(&enabled)) || !enabled)
+                throw std::runtime_error("saved_uia_element_unavailable_for_focus");
+            identity(target);
+            if (GetForegroundWindow() != target.root || !keys_up())
+                throw std::runtime_error("input_changed_before_focus_request");
+            const auto before_request = gui_state(target.root);
+            if (before_request.hwndFocus) continue;
+            trace.uia_request_attempted = true;
+            trace.uia_request_result = target.element->SetFocus();
+        }
+        Sleep(20);
+    }
+}
+UINT submit(const Target& target, IUIAutomation* automation, RestoreTrace* diagnostics = nullptr) {
+    RestoreTrace local;
+    auto& trace = diagnostics ? *diagnostics : local;
+    trace.stage = "validating_target";
     identity(target);
     if (!keys_up()) throw std::runtime_error("physical_key_held");
-    // Never force a different child field or click coordinates to recover focus.
+    // Never choose another child, attach input queues or click coordinates.
     GUITHREADINFO inactive{};
     inactive.cbSize = sizeof(inactive);
     if (!GetGUIThreadInfo(GetWindowThreadProcessId(target.root, nullptr), &inactive))
@@ -218,12 +286,13 @@ UINT submit(const Target& target, IUIAutomation* automation) {
     // is a conflict; after activation the original child/caret must match.
     if (inactive.hwndFocus && inactive.hwndFocus != target.focus.hwndFocus)
         throw std::runtime_error("saved_native_focus_changed");
+    trace.stage = "activating_original_window";
     if (IsIconic(target.root)) ShowWindow(target.root, SW_RESTORE);
     if (GetForegroundWindow() != target.root && !SetForegroundWindow(target.root))
         throw std::runtime_error("windows_denied_activation");
     for (int i = 0; i < 50 && GetForegroundWindow() != target.root; ++i) Sleep(10);
     if (GetForegroundWindow() != target.root) throw std::runtime_error("activation_unconfirmed");
-    verify_focus(target, automation);
+    await_original_focus(target, automation, trace);
     std::vector<INPUT> input;
     for (const wchar_t ch : std::wstring(kText)) {
         INPUT down{};
@@ -239,7 +308,10 @@ UINT submit(const Target& target, IUIAutomation* automation) {
     verify_focus(target, automation);
     // One batch, no Enter, paste, shortcuts or retries. Return value is queue
     // acceptance only; the interactive report must never call it a receipt.
-    return SendInput(static_cast<UINT>(input.size()), input.data(), sizeof(INPUT));
+    trace.stage = "dispatching_once";
+    const UINT sent = SendInput(static_cast<UINT>(input.size()), input.data(), sizeof(INPUT));
+    trace.stage = "dispatched_once";
+    return sent;
 }
 std::string metadata(const Target& target) {
     const char* level = target.uia_focused && target.uia_text ? "uia_element_without_text_snapshot" :
@@ -267,6 +339,14 @@ void write_report(const std::filesystem::path& path, const std::string& data) {
 WNDPROC edit_proc = nullptr;
 LONG enter_count = 0;
 DWORD fixture_controller = 0;
+DWORD fixture_focus_delay = 0;
+int fixture_restore_id = 0;
+void restore_fixture_child(HWND hwnd) {
+    HWND last = fixture_restore_id ? GetDlgItem(hwnd, fixture_restore_id) :
+        reinterpret_cast<HWND>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (!last) last = GetDlgItem(hwnd, 101);
+    if (last && IsWindowEnabled(last)) SetFocus(last);
+}
 LRESULT CALLBACK fixture_edit(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
     if (msg == WM_SETFOCUS)
         SetWindowLongPtrW(GetParent(hwnd), GWLP_USERDATA, reinterpret_cast<LONG_PTR>(hwnd));
@@ -278,9 +358,17 @@ LRESULT CALLBACK fixture_window(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
     if (msg == WM_ACTIVATE && LOWORD(w) != WA_INACTIVE && fixture_controller)
         AllowSetForegroundWindow(fixture_controller);
     if (msg == WM_SETFOCUS) {
-        HWND last = reinterpret_cast<HWND>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-        if (!last) last = GetDlgItem(hwnd, 101);
-        if (last && IsWindowEnabled(last)) SetFocus(last);
+        if (fixture_focus_delay) {
+            // Model an app whose foreground window temporarily has no child
+            // focus. INFINITE models an app awaiting an explicit focus request.
+            SetFocus(nullptr);
+            if (fixture_focus_delay != INFINITE) SetTimer(hwnd, 1, fixture_focus_delay, nullptr);
+        } else restore_fixture_child(hwnd);
+        return 0;
+    }
+    if (msg == WM_TIMER && w == 1) {
+        KillTimer(hwnd, 1);
+        if (GetForegroundWindow() == hwnd) restore_fixture_child(hwnd);
         return 0;
     }
     if (msg == WM_CREATE) {
@@ -306,6 +394,12 @@ LRESULT CALLBACK fixture_window(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
         return 0;
     }
     if (msg == kFocus) { SetFocus(GetDlgItem(hwnd, static_cast<int>(w))); return 1; }
+    if (msg == kRestoreMode) {
+        fixture_focus_delay = static_cast<DWORD>(w);
+        fixture_restore_id = static_cast<int>(l);
+        KillTimer(hwnd, 1);
+        return 1;
+    }
     if (msg == kState) {
         HWND field = GetDlgItem(hwnd, 101);
         SetWindowLongPtrW(field, GWL_STYLE, GetWindowLongPtrW(field, GWL_STYLE) | ES_PASSWORD);
@@ -488,6 +582,53 @@ int self_test(const std::filesystem::path& report) {
         check("uia_capture_restoration_and_exact_receipt", uia_sent == 2 * (std::size(kText) - 1) &&
             GetForegroundWindow() == c.root && c.await_text(kText, 104) == kText &&
             c.text().empty() && a.text(102).empty());
+        auto prepare_restore = [&](IUIAutomation* client) {
+            SendMessageW(c.root, kRestoreMode, 0, 0);
+            c.focus(104);
+            SendMessageW(GetDlgItem(c.root, 104), WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L""));
+            return capture(client);
+        };
+        field = prepare_restore(nullptr);
+        SendMessageW(c.root, kRestoreMode, 140, 0);
+        a.focus(102);
+        RestoreTrace delayed;
+        const UINT delayed_sent = submit(field, nullptr, &delayed);
+        std::cout << "Owned delayed native focus: {" << restore_metadata(delayed) << "}\n";
+        check("delayed_native_focus_restored_before_dispatch", delayed_sent == 2 * (std::size(kText) - 1) &&
+            delayed.null_focus_samples > 0 && delayed.original_focus_confirmed &&
+            !delayed.uia_request_attempted && c.await_text(kText, 104) == kText && a.text(102).empty());
+        field = prepare_restore(automation.Get());
+        SendMessageW(c.root, kRestoreMode, INFINITE, 0);
+        a.focus(102);
+        RestoreTrace requested;
+        const UINT requested_sent = submit(field, automation.Get(), &requested);
+        std::cout << "Owned explicit UIA focus: {" << restore_metadata(requested) << "}\n";
+        check("uia_requested_only_saved_element_when_native_focus_absent", requested_sent == 2 * (std::size(kText) - 1) &&
+            requested.null_focus_samples > 0 && requested.uia_request_attempted &&
+            SUCCEEDED(requested.uia_request_result) && requested.original_focus_confirmed &&
+            c.await_text(kText, 104) == kText && a.text(102).empty());
+        field = prepare_restore(nullptr);
+        SendMessageW(c.root, kRestoreMode, INFINITE, 0);
+        a.focus(102);
+        RestoreTrace timed_out;
+        std::string restore_error;
+        try { submit(field, nullptr, &timed_out); }
+        catch (const std::exception& e) { restore_error = e.what(); }
+        std::cout << "Owned missing focus timeout: {" << restore_metadata(timed_out) << "}\n";
+        check("focus_restore_timeout_does_not_dispatch", restore_error == "native_focus_restore_timeout" &&
+            timed_out.null_focus_samples > 0 && !timed_out.original_focus_confirmed &&
+            !timed_out.uia_request_attempted && c.text(104).empty() && a.text(102).empty());
+        field = prepare_restore(automation.Get());
+        SendMessageW(c.root, kRestoreMode, 140, 102);
+        a.focus(102);
+        RestoreTrace changed;
+        restore_error.clear();
+        try { submit(field, automation.Get(), &changed); }
+        catch (const std::exception& e) { restore_error = e.what(); }
+        std::cout << "Owned delayed different field: {" << restore_metadata(changed) << "}\n";
+        check("late_different_field_rejected_without_dispatch", restore_error == "native_focused_field_changed" &&
+            changed.null_focus_samples > 0 && !changed.original_focus_confirmed && !changed.uia_request_attempted &&
+            c.text(104).empty() && c.text(102).empty() && a.text(102).empty());
         check("no_enter_or_linebreak", SendMessageW(a.root, kEnterCount, 0, 0) == 0 &&
             SendMessageW(c.root, kEnterCount, 0, 0) == 0);
         check("clipboard_untouched", GetClipboardSequenceNumber() == clipboard_before);
@@ -566,6 +707,7 @@ int interactive(const std::filesystem::path& directory) {
         write_report(report, "{\"commit\":\"" VAO_LAB_COMMIT "\",\"action\":" +
             quoted(action) + ",\"stage\":\"started\",\"field_text_read\":false}");
         std::string details, error;
+        RestoreTrace restore;
         UINT sent = 0;
         try {
             if (msg.wParam == 3) {
@@ -583,7 +725,7 @@ int interactive(const std::filesystem::path& directory) {
                 if (!target) throw std::runtime_error("no_armed_target_press_Ctrl_Alt_F8_first");
                 details = metadata(*target);
                 for (int i = 0; i < 100 && !keys_up(); ++i) Sleep(20);
-                sent = submit(*target, automation.Get());
+                sent = submit(*target, automation.Get(), &restore);
                 if (sent != 2 * (std::size(kText) - 1))
                     throw std::runtime_error("synthetic_queue_incomplete_no_retry");
                 std::cout << "已提交一次固定短句并解除目标，请检查原输入框。\n";
@@ -600,6 +742,7 @@ int interactive(const std::filesystem::path& directory) {
             << ",\"queued_events\":" << sent << ",\"expected_events\":"
             << 2 * (std::size(kText) - 1) << ",\"error\":" << quoted(error);
         if (!details.empty()) out << ',' << details;
+        if (msg.wParam == 2) out << ',' << restore_metadata(restore);
         out << '}';
         write_report(report, out.str());
     }
