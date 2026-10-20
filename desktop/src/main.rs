@@ -358,7 +358,7 @@ fn report_frontend_state(stage: String) {
     }
 }
 #[tauri::command]
-async fn report_ui_ready(window: tauri::WebviewWindow, state: State<AppState>) -> Result<bool, String> {
+async fn report_ui_ready(window: tauri::WebviewWindow, state: State<'_, AppState>) -> Result<bool, String> {
     if window.label() != "main" {
         return Ok(false);
     }
