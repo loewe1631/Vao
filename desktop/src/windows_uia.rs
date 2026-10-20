@@ -58,32 +58,33 @@ fn unavailable<T>(value: windows::core::Result<T>) -> Result<T, String> {
     // Provider errors can contain arbitrary data; never expose their description.
     let caller = std::panic::Location::caller();
     value.map_err(|error| {
-        if cfg!(test) {
-            eprintln!("UIA HRESULT {} at line {}", error.code().0, caller.line());
-        }
-        let args = std::env::args().collect::<Vec<_>>();
-        if args.iter().any(|arg| arg == "--windows-input-probe") {
-            if let Some(path) = args
-                .iter()
-                .position(|arg| arg == "--smoke-test")
-                .and_then(|index| args.get(index + 1))
-            {
-                use std::io::Write;
-                if let Ok(mut trace) = std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(format!("{path}.trace"))
-                {
-                    let _ = writeln!(
-                        trace,
-                        "{}",
-                        json!({"uia_hresult":error.code().0,"line":caller.line()})
-                    );
-                }
-            }
-        }
+        diagnostic(json!({"uia_hresult":error.code().0,"line":caller.line()}));
         UNAVAILABLE.to_owned()
     })
+}
+// Metadata only, in explicit synthetic probes/tests. Never pass field contents,
+// selections, names or provider error descriptions to this helper.
+fn diagnostic(metadata: Value) {
+    if cfg!(test) {
+        eprintln!("UIA {metadata}");
+    }
+    let args = std::env::args().collect::<Vec<_>>();
+    if args.iter().any(|arg| arg == "--windows-input-probe") {
+        if let Some(path) = args
+            .iter()
+            .position(|arg| arg == "--smoke-test")
+            .and_then(|index| args.get(index + 1))
+        {
+            use std::io::Write;
+            if let Ok(mut trace) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(format!("{path}.trace"))
+            {
+                let _ = writeln!(trace, "{metadata}");
+            }
+        }
+    }
 }
 pub fn invalidate() -> u64 {
     let epoch = EPOCH.fetch_add(1, Ordering::AcqRel).wrapping_add(1);
@@ -195,6 +196,7 @@ fn request(epoch: u64, action: Action) -> Result<Value, String> {
         .map_err(|_| UNAVAILABLE)?
 }
 pub fn capture(root: HWND, pid: u32, epoch: u64) -> Result<Value, String> {
+    diagnostic(json!({"uia_stage":"request_capture"}));
     request(
         epoch,
         Action::Capture {
@@ -290,11 +292,13 @@ unsafe fn range_text(range: &IUIAutomationTextRange) -> Result<Vec<u16>, String>
     Ok(text.to_vec())
 }
 unsafe fn snapshot(element: &IUIAutomationElement) -> Result<Snapshot, String> {
+    diagnostic(json!({"uia_stage":"snapshot_patterns"}));
     let (value_pattern, text_pattern) = patterns(element)?;
     let text = value(&value_pattern)?;
     let document = unavailable(text_pattern.DocumentRange())?;
     let document_text = canonical(&range_text(&document)?);
     if !document_matches(&document_text, &text) {
+        diagnostic(json!({"uia_stage":"snapshot_document_mismatch"}));
         return Err(UNAVAILABLE.into());
     }
     let selection = unavailable(text_pattern.GetSelection())?;
@@ -376,15 +380,20 @@ impl Target {
         pid: u32,
         command: &Command,
     ) -> Result<Self, String> {
+        diagnostic(json!({"uia_stage":"capture_worker"}));
         let created = process_created(pid)?;
         // Chromium may initialize accessibility when first queried. Only accept an
         // actually focused Edit; never guess a field by enumerating other editors.
         for _ in 0..3 {
             command.current()?;
             if GetForegroundWindow() != root as HWND {
+                diagnostic(json!({"uia_stage":"capture_foreground_changed"}));
                 return Err(UNAVAILABLE.into());
             }
             let element = unavailable(automation.GetFocusedElement())?;
+            diagnostic(
+                json!({"uia_stage":"focused_element","control_type":unavailable(element.CurrentControlType())?.0,"focused":unavailable(element.CurrentHasKeyboardFocus())?.as_bool(),"pid":unavailable(element.CurrentProcessId())?}),
+            );
             if unavailable(element.CurrentHasKeyboardFocus())?.as_bool() {
                 within(automation, &element, root, command)?;
                 if let Ok(snapshot) = snapshot(&element) {

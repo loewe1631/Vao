@@ -161,8 +161,10 @@ pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
         // A recognized native control's refusal (protected state, size,
         // inconsistent text/caret or timeout) is final. Do not reinterpret that
         // refusal through another provider; UIA covers other control technology.
-        let field = focused(root, pid)?;
-        if supported(&class(field)) {
+        if focused(root, pid)
+            .ok()
+            .is_some_and(|field| supported(&class(field)))
+        {
             Err(error)
         } else {
             crate::windows_uia::capture(root, pid, epoch)
