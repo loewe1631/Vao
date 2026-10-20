@@ -255,12 +255,15 @@ void write_report(const std::filesystem::path& path, const std::string& data) {
 // Synthetic child host is the only place this executable ever reads text.
 WNDPROC edit_proc = nullptr;
 LONG enter_count = 0;
+DWORD fixture_controller = 0;
 LRESULT CALLBACK fixture_edit(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
     if ((msg == WM_CHAR && (w == '\r' || w == '\n')) || (msg == WM_KEYDOWN && w == VK_RETURN))
         ++enter_count;
     return CallWindowProcW(edit_proc, hwnd, msg, w, l);
 }
 LRESULT CALLBACK fixture_window(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
+    if (msg == WM_ACTIVATE && LOWORD(w) != WA_INACTIVE && fixture_controller)
+        AllowSetForegroundWindow(fixture_controller);
     if (msg == WM_CREATE) {
         for (int i = 0; i < 2; ++i) {
             HWND edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_MULTILINE,
@@ -282,7 +285,8 @@ LRESULT CALLBACK fixture_window(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
     if (msg == WM_DESTROY) { PostQuitMessage(0); return 0; }
     return DefWindowProcW(hwnd, msg, w, l);
 }
-int fixture() {
+int fixture(DWORD controller) {
+    fixture_controller = controller;
     WNDCLASSW cls{};
     cls.lpfnWndProc = fixture_window;
     cls.hInstance = GetModuleHandleW(nullptr);
@@ -301,7 +305,7 @@ struct Child {
     Child() {
         wchar_t executable[32768]{};
         GetModuleFileNameW(nullptr, executable, 32768);
-        std::wstring cmd = L"\"" + std::wstring(executable) + L"\" --fixture";
+        std::wstring cmd = L"\"" + std::wstring(executable) + L"\" --fixture " + std::to_wstring(GetCurrentProcessId());
         STARTUPINFOW info{};
         info.cb = sizeof(info);
         if (!CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &info, &process))
@@ -479,7 +483,8 @@ int interactive(const std::filesystem::path& directory) {
 int wmain(int argc, wchar_t** argv) {
     try {
         SetConsoleOutputCP(CP_UTF8);
-        if (argc == 2 && std::wstring(argv[1]) == L"--fixture") return fixture();
+        if (argc == 3 && std::wstring(argv[1]) == L"--fixture")
+            return fixture(static_cast<DWORD>(std::stoul(argv[2])));
         if (argc == 3 && std::wstring(argv[1]) == L"--build-info") {
             write_report(argv[2], "{\"tool\":\"Vao synthetic Unicode input lab\",\"version\":1,\"commit\":\"" VAO_LAB_COMMIT "\",\"architecture\":\"x64\",\"gui_started\":false}");
             return 0;
