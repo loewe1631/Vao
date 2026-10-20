@@ -334,8 +334,17 @@ unsafe fn snapshot(
     let text = value(&value_pattern)?;
     let document = unavailable(text_pattern.DocumentRange())?;
     let document_text = canonical(&range_text(&document)?);
-    if !document_matches(&document_text, &text) {
-        diagnostic(json!({"uia_stage":"snapshot_document_mismatch"}));
+    // An empty control may expose one U+FFFC object boundary to accessibility
+    // navigation. It is not field text. Accept only that exact representation,
+    // an empty Value, and ranges owned by this Edit; require a collapsed caret
+    // below. Never normalize other document/value mismatches or placeholders.
+    let empty_object = text.is_empty()
+        && document_text == [0xfffc]
+        && range_owned_by(automation, &document, element, command)?;
+    if !document_matches(&document_text, &text) && !empty_object {
+        diagnostic(
+            json!({"uia_stage":"snapshot_document_mismatch","document_units":document_text.len(),"value_units":text.len()}),
+        );
         return Err(UNAVAILABLE.into());
     }
     let selection = unavailable(text_pattern.GetSelection())?;
@@ -360,6 +369,13 @@ unsafe fn snapshot(
         &selection,
         TextPatternRangeEndpoint_End,
     ))?;
+    if empty_object
+        && (order != 0
+            || !range_text(&selection)?.is_empty()
+            || !range_owned_by(automation, &selection, element, command)?)
+    {
+        return Err(UNAVAILABLE.into());
+    }
     // Some providers anchor a collapsed end caret on the Edit container, while
     // DocumentRange ends on its last text child. CompareEndpoints then places
     // that caret after DocumentRange. Accept this representation only if the
