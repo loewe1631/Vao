@@ -21,7 +21,7 @@
   check('explicit_selection_only_in_json',target.selection==='😀'&&!Object.hasOwn(target,'text'));
   check('unicode_selected_replacement',(await deliver(target,'新词')).verified===true&&one.value==='前新词后');
   check('caret_after_replacement',one.selectionStart===3&&one.selectionEnd===3);
-  check('web_app_receives_input_event',inputs>0&&model===one.value);
+  check('web_app_receives_input_event',inputs===1&&model===one.value);
   check('one_shot_token',await rejected(deliver(target,'NO')));
   await focus(one,'baseline',3);target=await capture();one.value='changed';
   check('changed_content_rejected',await rejected(deliver(target,'NO'))&&one.value==='changed');

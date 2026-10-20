@@ -647,7 +647,12 @@ mod tests {
             deliver(&json!({"target":target,"text":"line1\nline2"}), true).is_err(),
             "single line protects against newline"
         );
-        f.text("edit", &"x".repeat(LIMIT + 1));
+        // Exercise the content bound, not the EDIT renderer's quadratic layout
+        // of one 256K unbroken line. Keep the real oversized field, with short
+        // paragraphs, and prove it exceeds the limit before testing rejection.
+        let paragraph = "x".repeat(63) + "\r\n";
+        f.text("edit", &paragraph.repeat(LIMIT / paragraph.len() + 1));
+        assert!(message(f.hwnd("edit"), WM_GETTEXTLENGTH, 0, 0).unwrap() > LIMIT);
         f.focus("edit");
         assert!(
             capture(f.hwnd("root"), f.child.id()).is_err(),
