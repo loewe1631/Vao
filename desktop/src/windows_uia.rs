@@ -442,6 +442,17 @@ impl Target {
         automation: &IUIAutomation,
         command: &Command,
     ) -> Result<(), String> {
+        self.verify_focus_identity(automation, command)?;
+        if snapshot(&self.element)? != self.snapshot {
+            return Err(UNAVAILABLE.into());
+        }
+        command.current()
+    }
+    unsafe fn verify_focus_identity(
+        &self,
+        automation: &IUIAutomation,
+        command: &Command,
+    ) -> Result<(), String> {
         self.identity(automation, command)?;
         if GetForegroundWindow() != self.root as HWND
             || !unavailable(self.element.CurrentHasKeyboardFocus())?.as_bool()
@@ -450,7 +461,6 @@ impl Target {
                     .CompareElements(&unavailable(automation.GetFocusedElement())?, &self.element),
             )?
             .as_bool()
-            || snapshot(&self.element)? != self.snapshot
         {
             return Err(UNAVAILABLE.into());
         }
@@ -528,31 +538,47 @@ impl Target {
         self.verify_focused(automation, command)?;
         // Plain ValuePattern Edit controls only: direct provider operation, no
         // paste shortcut/Enter and no document formatting replacement fallback.
+        diagnostic(json!({"uia_stage":"set_value_once"}));
         unavailable(value_pattern.SetValue(&BSTR::from(expected_string.as_str())))
             .map_err(|_| RECEIPT)?;
         let caret = self.snapshot.start + inserted.len();
         let receipt: Result<(), String> = (|| {
-            command.current()?;
-            self.identity(automation, command)?;
-            if GetForegroundWindow() != self.root as HWND || value(&value_pattern)? != expected {
-                return Err(RECEIPT.into());
+            // Providers such as Chromium dispatch the action to another process.
+            // S_OK acknowledges dispatch, not a refreshed accessibility tree.
+            // Poll bounded reads; never repeat SetValue or Select on a timeout.
+            diagnostic(json!({"uia_stage":"await_value"}));
+            let value_deadline = Instant::now() + Duration::from_millis(750);
+            loop {
+                self.verify_focus_identity(automation, command)?;
+                let received = value(&value_pattern)?;
+                if received == expected {
+                    break;
+                }
+                if received != self.snapshot.text || Instant::now() >= value_deadline {
+                    return Err(RECEIPT.into());
+                }
+                std::thread::sleep(Duration::from_millis(15));
             }
+            self.verify_focus_identity(automation, command)?;
+            diagnostic(json!({"uia_stage":"select_caret_once"}));
             select_caret(&self.element, &expected, caret)?;
-            let received = snapshot(&self.element)?;
-            if received.text != expected
-                || received.start != caret
-                || received.end != caret
-                || !unavailable(
-                    automation.CompareElements(
-                        &unavailable(automation.GetFocusedElement())?,
-                        &self.element,
-                    ),
-                )?
-                .as_bool()
-            {
-                return Err(RECEIPT.into());
+            diagnostic(json!({"uia_stage":"await_caret_receipt"}));
+            let caret_deadline = Instant::now() + Duration::from_millis(750);
+            loop {
+                self.verify_focus_identity(automation, command)?;
+                if let Ok(received) = snapshot(&self.element) {
+                    if received.text != expected {
+                        return Err(RECEIPT.into());
+                    }
+                    if received.start == caret && received.end == caret {
+                        return Ok(());
+                    }
+                }
+                if Instant::now() >= caret_deadline {
+                    return Err(RECEIPT.into());
+                }
+                std::thread::sleep(Duration::from_millis(15));
             }
-            Ok(())
         })();
         receipt.map_err(|_| RECEIPT)?;
         Ok(json!({"ok":true,"verified":true,"input_adapter":"uia_value"}))

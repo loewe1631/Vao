@@ -21,6 +21,11 @@ jobs:
       - run: npm ci
       - run: cargo +stable test --workspace --locked
       - run: cargo +stable clippy --workspace --all-targets --locked -- -D warnings
+      - name: Build debug native probe
+        working-directory: desktop
+        run: npx tauri build --debug --config tauri.windows.conf.json --no-bundle -- --locked
+      - name: Verify native input before installer compilation
+        run: pwsh -File scripts/check-windows-startup.ps1 -Binary target/debug/vao.exe
       - name: Build Windows x64 installer
         working-directory: desktop
         run: npx tauri build --target x86_64-pc-windows-msvc --config tauri.windows.conf.json --bundles nsis -- --locked
