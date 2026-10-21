@@ -64,13 +64,16 @@ try{
  await delay(180);let opaque=await call('opaque_status');
  check('paste_opaque_host_receives_once',opaque.pastes===1&&opaque.text_matches&&opaque.enters===0);
  check('paste_opaque_token_cannot_replay',await rejected(deliver(target,'NO')));
+ target=await call('current_capture');await deliver(target,'不透明🙂');await delay(180);opaque=await call('opaque_status');
+ check('current_focus_opaque_host_receives',opaque.pastes===2&&opaque.text_matches&&opaque.enters===0);
  target=await call('opaque_capture');await call('invalidate');
  check('paste_opaque_cancel_invalidates_lease',await rejected(deliver(target,'NO')));
  target=await call('opaque_capture');await call('cover');await delay(250);
  check('paste_opaque_different_foreground_rejected',await rejected(deliver(target,'NO')));
  opaque=await call('opaque_status');
- check('paste_opaque_conflict_does_not_dispatch',opaque.pastes===1&&opaque.text_matches&&opaque.enters===0);
+ check('paste_opaque_conflict_does_not_dispatch',opaque.pastes===2&&opaque.text_matches&&opaque.enters===0);
  await call('opaque_hide');
+ check('current_focus_other_window_only',one.value==='未确认🙂');
  // Completion-time focus is independent of the recording's original snapshot.
  await focus(one,'source A',0);await capture();
  await focus(two,'target B',7);target=await call('current_capture');before=pastes;
@@ -104,10 +107,6 @@ try{
  check('current_focus_cancel_invalidates',await rejected(deliver(target,'NO'))&&one.value==='A'&&pastes===before);
  check('current_focus_cancel_before_capture_refused',await rejected(call('current_stale_capture'))&&pastes===before);
  check('current_focus_own_app_refused',await rejected(call('current_refuse_self'))&&pastes===before);
- await call('opaque_capture');target=await call('current_capture');await deliver(target,'不透明🙂');await delay(180);opaque=await call('opaque_status');
- check('current_focus_opaque_host_receives',opaque.pastes===2&&opaque.text_matches&&opaque.enters===0);
- await call('opaque_hide');
- check('current_focus_other_window_only',one.value==='A');
  check('paste_never_enter_or_submit',enters===0&&submits===0);
  await call('clipboard_seed');
  await call('report',{passed:true,kind:'native WebView2 paste and clipboard transactions; synthetic only',checks,audio_captured:false,models_contacted:false});
