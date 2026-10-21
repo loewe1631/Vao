@@ -444,7 +444,7 @@ pub fn fixture_window(action: &str) -> Result<Value, String> {
         if msg == WM_KEYDOWN && w == 0x0d {
             FIXTURE_ENTERS.fetch_add(1, Ordering::SeqCst);
         }
-        if msg == WM_KEYDOWN && w == 0x56 && GetAsyncKeyState(0x11) as u16 & 0x8000 != 0 {
+        if msg == WM_KEYDOWN && w == 0x56 && GetKeyState(0x11) as u16 & 0x8000 != 0 {
             FIXTURE_PASTES.fetch_add(1, Ordering::SeqCst);
             if let Ok(_open) = open(hwnd) {
                 let handle = GetClipboardData(13);
