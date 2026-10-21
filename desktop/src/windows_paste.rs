@@ -16,6 +16,8 @@ struct Lease {
     generation: u64,
     root: usize,
     field: usize,
+    field_pid: u32,
+    field_created: u64,
     pid: u32,
     created: u64,
     expires: Instant,
@@ -47,8 +49,15 @@ pub fn capture_current(expected: u64, owned_probe: bool) -> Result<Value, String
     {
         return Err("当前没有可用的外部输入位置，请复制历史结果 / No external input focus; copy the saved result".into());
     }
-    crate::windows_input::paste_allowed(root, pid)?;
     let field = unsafe { focus(root, pid)? };
+    crate::windows_input::paste_allowed(root, field)?;
+    let mut field_pid = 0;
+    unsafe {
+        GetWindowThreadProcessId(field, &mut field_pid);
+    }
+    crate::windows_uia::diagnostic(
+        json!({"uia_stage":"paste_native_focus","cross_process_child":field_pid!=pid}),
+    );
     let identity = crate::windows_uia::paste_focus(root, None)?;
     let focus_token = identity["token"].as_str().ok_or(UNAVAILABLE)?.to_owned();
     let mut nonce = [0u8; 16];
@@ -59,6 +68,8 @@ pub fn capture_current(expected: u64, owned_probe: bool) -> Result<Value, String
         generation: expected,
         root: root as usize,
         field: field as usize,
+        field_pid,
+        field_created: process_created(field_pid)?,
         pid,
         created: process_created(pid)?,
         expires: Instant::now() + Duration::from_secs(5),
@@ -71,7 +82,7 @@ pub fn capture_current(expected: u64, owned_probe: bool) -> Result<Value, String
     }
     *target = Some(saved);
     Ok(
-        json!({"input_token":token,"input_adapter":"current_paste","pid":pid,"hwnd":root as usize,"delivery_supported":true,"receipt_supported":false}),
+        json!({"input_token":token,"input_adapter":"current_paste","pid":pid,"hwnd":root as usize,"delivery_supported":true,"receipt_supported":false,"native_focus_cross_process":field_pid!=pid}),
     )
 }
 pub fn deliver_current(request: &Value) -> Result<Value, String> {
@@ -99,6 +110,10 @@ pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
     // strict snapshot path. Unknown non-Edit panes require explicit user opt-in.
     crate::windows_uia::compatibility_allowed(root, pid)?;
     let field = unsafe { focus(root, pid)? };
+    let mut field_pid = 0;
+    unsafe {
+        GetWindowThreadProcessId(field, &mut field_pid);
+    }
     if unsafe { GetForegroundWindow() } != root {
         return Err(UNAVAILABLE.into());
     }
@@ -114,6 +129,8 @@ pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
         generation,
         root: root as usize,
         field: field as usize,
+        field_pid,
+        field_created: process_created(field_pid)?,
         pid,
         created: process_created(pid)?,
         expires: Instant::now() + Duration::from_secs(3600),
@@ -130,20 +147,24 @@ impl Lease {
         }
         let root = self.root as HWND;
         let mut actual = 0;
+        let mut field_pid = 0;
         unsafe {
             GetWindowThreadProcessId(root, &mut actual);
+            GetWindowThreadProcessId(self.field as HWND, &mut field_pid);
         }
         if Instant::now() >= self.expires
             || unsafe { IsWindow(root) } == 0
             || actual != self.pid
             || process_created(actual)? != self.created
+            || field_pid != self.field_pid
+            || process_created(field_pid)? != self.field_created
             || unsafe { GetForegroundWindow() } != root
             || unsafe { focus(root, self.pid)? } as usize != self.field
         {
             return Err(UNAVAILABLE.into());
         }
         if let Some(token) = &self.focus_token {
-            crate::windows_input::paste_allowed(root, self.pid)?;
+            crate::windows_input::paste_allowed(root, self.field as HWND)?;
             crate::windows_uia::paste_focus(root, Some(token))?;
             if self.generation != generation()
                 || unsafe { GetForegroundWindow() } != root

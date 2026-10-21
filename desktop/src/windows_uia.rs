@@ -110,7 +110,7 @@ fn unavailable<T>(value: windows::core::Result<T>) -> Result<T, String> {
 }
 // Metadata only, in explicit synthetic probes/tests. Never pass field contents,
 // selections, names or provider error descriptions to this helper.
-fn diagnostic(metadata: Value) {
+pub(crate) fn diagnostic(metadata: Value) {
     if cfg!(test) {
         eprintln!("UIA {metadata}");
     }

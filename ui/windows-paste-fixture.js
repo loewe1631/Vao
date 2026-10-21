@@ -77,6 +77,7 @@ try{
  // Completion-time focus is independent of the recording's original snapshot.
  await focus(one,'source A',0);await capture();
  await focus(two,'target B',7);target=await call('current_capture');before=pastes;
+ check('current_focus_cross_process_child_supported',target.native_focus_cross_process===true);
  check('current_focus_ignores_starting_field',(await deliver(target,'🙂')).verified===false);
  await delay(180);
  check('current_focus_second_field_only',one.value==='source A'&&two.value==='target 🙂B'&&pastes===before+1);

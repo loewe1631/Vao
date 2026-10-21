@@ -114,9 +114,15 @@ fn editable(field: HWND, name: &str) -> Result<(), String> {
 }
 // Current-focus paste does not require reading the field, but known native
 // password/readonly/disabled controls still have to refuse before any write.
-pub fn paste_allowed(root: HWND, pid: u32) -> Result<(), String> {
-    let field = focused(root, pid)?;
-    if unsafe { IsWindowEnabled(field) } == 0 {
+pub fn paste_allowed(root: HWND, field: HWND) -> Result<(), String> {
+    // Embedded renderers can own the focused child HWND in another process.
+    // Its ancestry, lifetime and focus are checked by the paste lease; do not
+    // apply the same-process restriction used by native text snapshots here.
+    if unsafe { GetForegroundWindow() } != root
+        || unsafe { IsWindow(field) } == 0
+        || unsafe { GetAncestor(field, GA_ROOT) } != root
+        || unsafe { IsWindowEnabled(field) } == 0
+    {
         return Err(UNAVAILABLE.into());
     }
     let name = class(field);
