@@ -14,7 +14,6 @@ PATTERNS = {
     'aws_access_key': re.compile(r'\b(?:AKIA|ASIA)[A-Z0-9]{16}\b'),
     'trial_credential': re.compile(r'\bvao_device_[A-Za-z0-9_-]{24,}\b'),
     'literal_credential': re.compile(r'''(?i)["']?(?:api[_-]?key|access[_-]?token|secret|password)["']?\s*[:=]\s*["'][A-Za-z0-9_+/=-]{24,}["']'''),
-    'generation_note': re.compile(r'(?i)(?:generated\s+by\s+(?:chatgpt|codex|claude|grok|gemini)|co-authored' + r'-by:.*(?:noreply.*(?:anthropic|openai)))'),
     'internal_service': re.compile(r'https?://(?:10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+)(?::|/)'),
 }
 PRIVATE_EXTENSIONS = {'.key', '.pem', '.p12', '.pfx', '.mobileprovision', '.keychain',

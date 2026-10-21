@@ -7,6 +7,8 @@ Read the architecture, roadmap and privacy notes before changing behavior. Open 
 3. Identify third-party sources and licenses. Do not add private recordings, chat logs, credentials, personal endpoints or another project's private configuration.
 4. A pull request should say what changed, why, what was tested, and what remains unverified. Document-only changes should not claim application tests.
 
+Human-written and AI-assisted contributions are welcome. Review the actual changes and provide reproducible checks and their results, including anything still unverified. The same contribution and licensing requirements apply regardless of the tools used. See [AI collaboration](AI_DEVELOPMENT.en.md) ([中文](AI_DEVELOPMENT.md)) for how this project is made.
+
 Choose the correct platform source before starting. The default `main` branch currently builds Mac; Windows release source is `windows-v0.2.1`, and Windows development uses `codex/windows`. See [Windows build and validation](docs/WINDOWS_BUILD.md). Coordinate changes to shared modules across both source lines.
 
 Build and test on Apple Silicon:

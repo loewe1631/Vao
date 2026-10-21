@@ -4,7 +4,8 @@ import os
 
 ROOT_FILES = (
     'Cargo.toml', 'Cargo.lock', 'release.json', 'LICENSE', 'PROVENANCE.md',
-    'README.md', 'README.zh-CN.md', 'PRIVACY.md', 'RELEASE_NOTES.md',
+    'README.md', 'README.zh-CN.md', 'AI_DEVELOPMENT.md', 'AI_DEVELOPMENT.en.md',
+    'PRIVACY.md', 'RELEASE_NOTES.md',
     'THIRD_PARTY_NOTICES.md', 'CONTRIBUTING.md', 'GOVERNANCE.md', 'SECURITY.md',
     '.gitignore', 'package.json', 'package-lock.json',
 )

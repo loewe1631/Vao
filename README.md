@@ -1,8 +1,14 @@
-# Vao
+<p align="center"><img src="ui/assets/logo.svg" width="80" height="80" alt="Vao logo"></p>
 
-Your words. More like you.
+<h1 align="center">Vao</h1>
 
-[中文](README.zh-CN.md) · [Website and downloads](https://vaovao.app/) · [Privacy](PRIVACY.md) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
+<p align="center"><strong>Your words. More like you.</strong></p>
+
+<p align="center">macOS &amp; Windows · AGPL-3.0-only</p>
+
+<p align="center">Human-led · Multiple AI agents · Built end to end</p>
+
+[中文](README.zh-CN.md) · [Website and downloads](https://vaovao.app/) · [Privacy](PRIVACY.md) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [AI collaboration](AI_DEVELOPMENT.en.md)
 
 Vao is an open-source voice-input app for macOS and Windows. It turns speech into usable text, chooses writing styles from your content and destination app, and remembers the layout choices you explicitly ask it to keep.
 
@@ -30,6 +36,20 @@ Mac downloads are not yet Apple-notarized; the Windows installer is not code-sig
 Selection operations cover editing, translation, composing replies and understanding the selected text. Custom text services run an additional purpose check, adding a request, waiting time and possible cost. Unrelated requests or failed checks stop. Dictated questions remain input text rather than questions answered by Vao.
 
 Adaptation currently learns explicit layout choices for messages, tasks and technical writing. It does not monitor unrelated edits or learn silently from model output. Long-term adaptation quality remains to be evaluated. See [writing presets](docs/WRITING_PRESETS.md).
+
+## How was this project made?
+
+> **Human-led, built end to end with multiple AI agents.**
+>
+> Starting from real needs, multiple AI agents participate in research, design, development, engineering checks, website creation and promotion. A human continues to use and test the product, report problems, and decide its direction and releases.
+
+We choose to share how Vao is made. You are welcome to inspect the code, ask questions and help shape its next improvement.
+
+| Human responsibilities | AI agent participation |
+| --- | --- |
+| Needs, direction, hands-on testing and release decisions | Research, design, development, engineering checks, routine website maintenance and promotional content |
+
+See [AI collaboration](AI_DEVELOPMENT.en.md) for the participating tools, models and responsibilities.
 
 ## Install and start
 
@@ -102,6 +122,6 @@ Browser checks use synthetic IPC doubles; they do not certify microphone, model 
 
 ## Contribute and license
 
-Start with [contributing](CONTRIBUTING.md), the [roadmap](docs/ROADMAP.md) and [security reporting](SECURITY.md). Cross-platform app compatibility, model protocols, synthetic cases and accessibility are useful contribution areas.
+Start with [contributing](CONTRIBUTING.md), the [roadmap](docs/ROADMAP.md) and [security reporting](SECURITY.md). Cross-platform app compatibility, writing presets, model protocols, synthetic cases and accessibility are useful contribution areas. Human-written and AI-assisted contributions are welcome; describe concrete changes and validation results.
 
 AGPL-3.0-only. Product direction comes from experience using and adapting several open-source projects. This client is Vao's own implementation. [Provenance](PROVENANCE.md), [asset sources](docs/SOURCES.md) and third-party notices must remain with redistributed material.

@@ -1,8 +1,14 @@
-# Vao
+<p align="center"><img src="ui/assets/logo.svg" width="80" height="80" alt="Vao 标志"></p>
 
-让表达，越来越像你。
+<h1 align="center">Vao</h1>
 
-[English](README.md) · [官网与下载](https://vaovao.app/) · [隐私说明](PRIVACY.md) · [架构](docs/ARCHITECTURE.md) · [参与贡献](CONTRIBUTING.md)
+<p align="center"><strong>让表达，越来越像你。</strong></p>
+
+<p align="center">macOS &amp; Windows · AGPL-3.0-only</p>
+
+<p align="center">人类发起 · 多 AI Agent 协作 · 全栈制作</p>
+
+[English](README.md) · [官网与下载](https://vaovao.app/) · [隐私说明](PRIVACY.md) · [架构](docs/ARCHITECTURE.md) · [参与贡献](CONTRIBUTING.md) · [AI 协作说明](AI_DEVELOPMENT.md)
 
 Vao 是一款面向 macOS 与 Windows 的开源语音输入工具：把口述整理成可用文字，根据内容与目标应用自动选择表达方式，并记住你明确选择的排版偏好。
 
@@ -30,6 +36,20 @@ Mac 尚未经过 Apple 公证，Windows 安装包尚无代码签名；首次打�
 划词只处理所选文字的编辑、翻译、回复组织及相关理解。自有文字服务会先做一次用途判断，增加一次请求、等待及可能费用；无关请求或判断失败会停止。普通口述中的问题仍作为输入，不由 Vao 回答。
 
 当前学习范围是日常消息、任务、技术写作三种场景中的明确排版选择，不会监视其他编辑，也不会把模型生成内容当作学习证据。长期适配质量仍需验证。详见[场景模板](docs/WRITING_PRESETS.md)。
+
+## 这个项目是怎样做出来的？
+
+> **人类发起，多 AI Agent 协作，全栈制作。**
+>
+> 从真实使用中的需求出发，多个 AI Agent 参与研究、设计、开发、工程检查、网站制作与宣传运营。人类持续试用、反馈问题，并决定产品方向和版本发布。
+
+我们选择公开 Vao 的制作方式，也欢迎你查看代码、提出问题，参与它的下一次改进。
+
+| 人类负责 | AI Agent 参与 |
+| --- | --- |
+| 需求、方向、实测、发布决策 | 方案研究、设计开发、工程检查、站点日常维护与宣传制作 |
+
+参与工具、模型与具体分工见 [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md)。
 
 ## 安装与使用
 
@@ -102,6 +122,6 @@ python3 scripts/package-source.py
 
 ## 贡献与许可
 
-欢迎参与跨平台应用兼容、模型协议、合成场景用例和辅助功能改进。请先读[贡献指南](CONTRIBUTING.md)、[路线图](docs/ROADMAP.md)与[安全报告](SECURITY.md)。
+欢迎参与跨平台应用兼容、场景模板、模型协议、合成场景用例和辅助功能改进。人工编写或 AI 辅助的贡献，都以具体改动与验证结果交流。请先读[贡献指南](CONTRIBUTING.md)、[路线图](docs/ROADMAP.md)与[安全报告](SECURITY.md)。
 
 AGPL-3.0-only。产品方向源于多种开源项目的使用经验，当前客户端为 Vao 自有实现。[来源说明](PROVENANCE.md)、[素材清单](docs/SOURCES.md)与第三方许可须保留，不能因界面或架构变化取消许可义务。
