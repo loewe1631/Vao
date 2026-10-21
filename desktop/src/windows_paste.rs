@@ -1,4 +1,4 @@
-//! Explicit compatibility mode. A window-level lease is never a text receipt.
+//! One-shot paste transport. A focus lease is never a text receipt.
 use crate::windows_input::{process_created, UNAVAILABLE};
 use serde_json::{json, Value};
 use std::{
@@ -19,6 +19,7 @@ struct Lease {
     pid: u32,
     created: u64,
     expires: Instant,
+    focus_token: Option<String>,
 }
 static TARGET: Mutex<Option<Lease>> = Mutex::new(None);
 static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -27,6 +28,55 @@ const CLIPBOARD_LIMIT: usize = 16 * 1024 * 1024;
 pub fn clear() {
     GENERATION.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
     *TARGET.lock().unwrap() = None;
+}
+pub fn generation() -> u64 {
+    GENERATION.load(std::sync::atomic::Ordering::Acquire)
+}
+// Capture at completion, without restoring a window or reading its contents.
+// The generation was reserved with the session, before any asynchronous work.
+pub fn capture_current(expected: u64, owned_probe: bool) -> Result<Value, String> {
+    let root = unsafe { GetForegroundWindow() };
+    let mut pid = 0;
+    unsafe {
+        GetWindowThreadProcessId(root, &mut pid);
+    }
+    if root.is_null()
+        || (!owned_probe
+            && pid == unsafe { windows_sys::Win32::System::Threading::GetCurrentProcessId() })
+        || expected != generation()
+    {
+        return Err("当前没有可用的外部输入位置，请复制历史结果 / No external input focus; copy the saved result".into());
+    }
+    crate::windows_input::paste_allowed(root, pid)?;
+    let field = unsafe { focus(root, pid)? };
+    let identity = crate::windows_uia::paste_focus(root, None)?;
+    let focus_token = identity["token"].as_str().ok_or(UNAVAILABLE)?.to_owned();
+    let mut nonce = [0u8; 16];
+    getrandom::fill(&mut nonce).map_err(|_| UNAVAILABLE)?;
+    let token = nonce.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let saved = Lease {
+        token: token.clone(),
+        generation: expected,
+        root: root as usize,
+        field: field as usize,
+        pid,
+        created: process_created(pid)?,
+        expires: Instant::now() + Duration::from_secs(5),
+        focus_token: Some(focus_token),
+    };
+    saved.verify()?;
+    let mut target = TARGET.lock().unwrap();
+    if expected != generation() {
+        return Err(UNAVAILABLE.into());
+    }
+    *target = Some(saved);
+    Ok(
+        json!({"input_token":token,"input_adapter":"current_paste","pid":pid,"hwnd":root as usize,"delivery_supported":true,"receipt_supported":false}),
+    )
+}
+pub fn deliver_current(request: &Value) -> Result<Value, String> {
+    let target = capture_current(request["generation"].as_u64().ok_or(UNAVAILABLE)?, false)?;
+    deliver(&json!({"target":target,"text":request["text"]}), true)
 }
 unsafe fn focus(root: HWND, pid: u32) -> Result<HWND, String> {
     let mut actual = 0;
@@ -67,6 +117,7 @@ pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
         pid,
         created: process_created(pid)?,
         expires: Instant::now() + Duration::from_secs(3600),
+        focus_token: None,
     });
     Ok(
         json!({"input_token":token,"input_adapter":"compat_paste","delivery_supported":true,"receipt_supported":false,"selection":"","length":0}),
@@ -91,6 +142,16 @@ impl Lease {
         {
             return Err(UNAVAILABLE.into());
         }
+        if let Some(token) = &self.focus_token {
+            crate::windows_input::paste_allowed(root, self.pid)?;
+            crate::windows_uia::paste_focus(root, Some(token))?;
+            if self.generation != generation()
+                || unsafe { GetForegroundWindow() } != root
+                || unsafe { focus(root, self.pid)? } as usize != self.field
+            {
+                return Err(UNAVAILABLE.into());
+            }
+        }
         Ok(())
     }
 }
@@ -106,7 +167,9 @@ pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
         lease.take().unwrap()
     };
     saved.verify()?;
-    crate::windows_uia::compatibility_allowed(saved.root as HWND, saved.pid)?;
+    if saved.focus_token.is_none() {
+        crate::windows_uia::compatibility_allowed(saved.root as HWND, saved.pid)?;
+    }
     if !write {
         return Ok(json!({"ok":true}));
     }
@@ -114,7 +177,9 @@ pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
     let _transaction = dispatch(text, || saved.verify())?;
     // No readback is available. Keep the inserted text on the clipboard for
     // delayed paste consumers; restore would race without a host receipt.
-    Ok(json!({"ok":true,"verified":false,"input_adapter":"compat_paste"}))
+    Ok(
+        json!({"ok":true,"verified":false,"input_adapter":if saved.focus_token.is_some(){"current_paste"}else{"compat_paste"}}),
+    )
 }
 
 fn keys_released() -> bool {

@@ -56,6 +56,7 @@ pub fn call(request: Value) -> Result<Value, String> {
             Ok(json!({"ok":true}))
         }
         "deliver" => crate::windows_input::deliver(&request, true),
+        "deliver_current" => crate::windows_paste::deliver_current(&request),
         "return_source" => crate::windows_input::deliver(&request, false),
         "dictionary_import" => crate::windows_files::dictionary_dialog(false),
         "dictionary_export" => crate::windows_files::dictionary_dialog(true),

@@ -2,6 +2,28 @@
 
 This branch develops the Windows x64 client. Candidates are unsigned GitHub Actions artifacts, not a public Windows release. Windows 10 1809+ and WebView2 are the build target; the first desktop test target is Windows 11 x64.
 
+## Candidate 3009 / 0.2.1 Windows preview 2
+
+Ordinary dictation now defaults to one Ctrl+V at the **current caret when the
+result is ready**. Keep the destination focused through processing. Starting in
+one app and finishing in another writes to the latter. No app-name list or
+complete text snapshot is required. Known password, readonly and disabled
+controls, provider failures and missing external focus refuse before dispatch.
+The focused native control and UIA element must remain the same during dispatch.
+
+Enable **Return to the starting input** to retain the original snapshot and
+receipt behavior. Its separate compatibility-paste option remains available for
+opaque editors. Selection edits always use their original verified selection;
+selection questions remain answers and do not replace the source.
+
+A dispatched paste without a text receipt shows a compact three-second notice,
+with the result retained in History and on the clipboard. It is not reported as
+verified receipt. Failures retain the result card. Neither mode sends Enter or
+a message, automatically retries, or restores the clipboard over a later copy.
+The same preview identity preserves settings; missing target-mode settings
+select the new current-caret default. Synthetic CI checks are separate from
+real application acceptance.
+
 ## Candidate 3008 / 0.2.1 Windows preview
 
 This candidate integrates the shared Mac 0.2.1 features: long recordings,

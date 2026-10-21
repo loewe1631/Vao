@@ -82,6 +82,7 @@ enum Action {
     Capture { root: usize, pid: u32 },
     Deliver { request: Value, write: bool },
     Compatibility { root: usize, pid: u32 },
+    PasteFocus { root: usize, token: Option<String> },
     Context { token: String },
 }
 struct Command {
@@ -198,6 +199,7 @@ fn request(epoch: u64, action: Action) -> Result<Value, String> {
                             return;
                         };
                         let mut target: Option<Target> = None;
+                        let mut paste_focus: Option<(u64, String, IUIAutomationElement)> = None;
                         while let Ok(command) = rx.recv() {
                             if target
                                 .as_ref()
@@ -208,6 +210,7 @@ fn request(epoch: u64, action: Action) -> Result<Value, String> {
                             let result = command.current().and_then(|_| match &command.action {
                                 Action::Clear => {
                                     target = None;
+                                    paste_focus = None;
                                     Ok(json!({"ok":true}))
                                 }
                                 Action::Capture { root, pid } => {
@@ -267,6 +270,28 @@ fn request(epoch: u64, action: Action) -> Result<Value, String> {
                                         } else {
                                             command.current().map(|_| json!({"ok":true}))
                                         }
+                                    }
+                                }
+                                Action::PasteFocus { root, token } => {
+                                    let element = paste_element(&automation, *root, &command)?;
+                                    if let Some(token) = token {
+                                        let (epoch, saved_token, saved) =
+                                            paste_focus.as_ref().ok_or(UNAVAILABLE)?;
+                                        if *epoch != command.epoch
+                                            || saved_token != token
+                                            || !unavailable(
+                                                automation.CompareElements(saved, &element),
+                                            )?
+                                            .as_bool()
+                                        {
+                                            Err(UNAVAILABLE.into())
+                                        } else {
+                                            command.current().map(|_| json!({"ok":true}))
+                                        }
+                                    } else {
+                                        let token = nonce()?;
+                                        paste_focus = Some((command.epoch, token.clone(), element));
+                                        command.current().map(|_| json!({"token":token}))
                                     }
                                 }
                                 Action::Context { token } => {
@@ -341,6 +366,56 @@ pub fn compatibility_allowed(root: HWND, pid: u32) -> Result<(), String> {
         },
     )
     .map(|_| ())
+}
+pub fn paste_focus(root: HWND, token: Option<&str>) -> Result<Value, String> {
+    request(
+        EPOCH.load(Ordering::Acquire),
+        Action::PasteFocus {
+            root: root as usize,
+            token: token.map(str::to_owned),
+        },
+    )
+}
+
+unsafe fn paste_element(
+    automation: &IUIAutomation,
+    root: usize,
+    command: &Command,
+) -> Result<IUIAutomationElement, String> {
+    if GetForegroundWindow() != root as HWND {
+        return Err(UNAVAILABLE.into());
+    }
+    let element = unavailable(automation.GetFocusedElement())?;
+    within(automation, &element, root, command)?;
+    if unavailable(element.CurrentIsPassword())?.as_bool()
+        || !unavailable(element.CurrentIsEnabled())?.as_bool()
+        || !unavailable(element.CurrentHasKeyboardFocus())?.as_bool()
+        || ![
+            UIA_EditControlTypeId,
+            UIA_PaneControlTypeId,
+            UIA_DocumentControlTypeId,
+            UIA_WindowControlTypeId,
+            UIA_CustomControlTypeId,
+        ]
+        .contains(&unavailable(element.CurrentControlType())?)
+    {
+        return Err(UNAVAILABLE.into());
+    }
+    if let Ok(value) = element.GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId)
+    {
+        if unavailable(value.CurrentIsReadOnly())?.as_bool() {
+            return Err(UNAVAILABLE.into());
+        }
+    }
+    if let Ok(text) = element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId) {
+        let range = unavailable(text.DocumentRange())?;
+        let readonly = unavailable(range.GetAttributeValue(UIA_IsReadOnlyAttributeId))?;
+        if bool::try_from(&readonly).map_err(|_| UNAVAILABLE)? {
+            return Err(UNAVAILABLE.into());
+        }
+    }
+    command.current()?;
+    Ok(element)
 }
 pub fn context(token: &str) -> Result<Value, String> {
     request(

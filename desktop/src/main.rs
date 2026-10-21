@@ -90,10 +90,20 @@ impl Default for Runtime {
     }
 }
 impl Runtime {
+    #[cfg(any(target_os = "windows", test))]
+    fn windows_current_input(&self) -> bool {
+        !self.settings.windows_return_to_origin && self.target["selection"].as_str().unwrap_or("").is_empty()
+    }
+    #[cfg(any(target_os = "windows", test))]
+    fn expire_notice(&mut self, id: u64, serial: u64) -> bool {
+        if self.session.id != id || self.notice_serial != serial || self.notice.is_none() || self.session.active(id) || !self.answer.is_empty() { return false; }
+        self.notice = None;
+        true
+    }
     fn recording_warning(&mut self, id: u64) -> Option<u64> {
         if self.session.id != id
             || !matches!(self.session.phase, Phase::Ready | Phase::Completed)
-            || self.notice.is_some()
+            || self.notice.is_some_and(|n| n != InputNotice::PasteUnconfirmed)
             || !self.answer.is_empty()
         {
             return None;
@@ -821,6 +831,8 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
         let state = app.state::<AppState>();
         let mut r = state.runtime.lock().unwrap();
         let id = r.session.begin()?;
+        #[cfg(target_os = "windows")]
+        { windows_paste::clear(); windows_uia::invalidate(); }
         r.settings = settings.clone();
         r.profile = profile;
         r.target = json!({});
@@ -1224,15 +1236,13 @@ fn route_result(
     {
         let asks = !target["selection"].as_str().unwrap_or("").is_empty()
             && vao_core::selection_asks(&record.original);
-        if auto_input && !asks && target["delivery_supported"] == true {
+        if auto_input && !asks {
             match deliver_inner(app, id) {
-                Ok(()) => { show_bar(app, false); return; }
+                Ok(()) => { completed_windows_input(app, id); return; }
                 Err(error) => { app.state::<AppState>().runtime.lock().unwrap().error = error; }
             }
         } else if asks {
             let _ = platform::call(json!({"action":"return_source","target":target}));
-        } else if auto_input {
-            app.state::<AppState>().runtime.lock().unwrap().error = "此输入框暂不支持验证回填，请复制结果 / This field does not support verified insertion; copy the result".into();
         }
         present_answer(app, id, &record.text);
     }
@@ -1267,6 +1277,29 @@ fn route_result(
         show_main(app);
     }
     }
+}
+
+#[cfg(target_os = "windows")]
+fn completed_windows_input(app: &tauri::AppHandle, id: u64) {
+    let serial = {
+        let state = app.state::<AppState>();
+        let mut r = state.runtime.lock().unwrap();
+        if r.session.id != id || r.session.phase != Phase::Completed { return; }
+        if r.result.as_ref().is_none_or(|v| v.delivery != "paste_unconfirmed") {
+            drop(r); show_bar(app, false); return;
+        }
+        r.notice_serial += 1;
+        r.notice = Some(InputNotice::PasteUnconfirmed);
+        r.notice_serial
+    };
+    show_bar(app, true);
+    let h = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        let state = h.state::<AppState>();
+        let mut r = state.runtime.lock().unwrap();
+        if r.expire_notice(id, serial) { drop(r); show_bar(&h, false); }
+    });
 }
 
 fn present_answer(app: &tauri::AppHandle, id: u64, text: &str) {
@@ -1309,10 +1342,20 @@ fn dismiss_answer(app: tauri::AppHandle, window: tauri::WebviewWindow) -> Result
 }
 
 fn deliver_inner(app: &tauri::AppHandle, id: u64) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let (use_current, generation) = {
+        let state = app.state::<AppState>();
+        let r = state.runtime.lock().unwrap();
+        (r.windows_current_input(), windows_paste::generation())
+    };
     let (target, text, record_id, key_events, mouse_events) = {
         let state = app.state::<AppState>();
         let mut r = state.runtime.lock().unwrap();
-        if !r.target["pid"].is_number() {
+        #[cfg(target_os = "windows")]
+        let needs_origin = !use_current;
+        #[cfg(not(target_os = "windows"))]
+        let needs_origin = true;
+        if needs_origin && !r.target["pid"].is_number() {
             return Err("没有外部输入目标，请复制结果 / Copy the result".into());
         }
         let result = r.result.as_ref().ok_or("无可输入结果")?;
@@ -1327,18 +1370,24 @@ fn deliver_inner(app: &tauri::AppHandle, id: u64) -> Result<(), String> {
             voice_bar::mouse_events().wrapping_sub(r.bar_mouse_start),
         )
     };
-    let response = platform::call(
+    #[cfg(target_os = "windows")]
+    let response = if use_current {
+        platform::call(json!({"action":"deliver_current","text":text,"generation":generation}))
+    } else { platform::call(
         json!({"action":"deliver","target":target,"text":text,"return_to_target":true,"allowed_key_events":key_events,"allowed_mouse_events":mouse_events,"paste":target["paste_transport"]==true}),
-    );
+    ) };
+    #[cfg(not(target_os = "windows"))]
+    let response = platform::call(json!({"action":"deliver","target":target,"text":text,"return_to_target":true,"allowed_key_events":key_events,"allowed_mouse_events":mouse_events}));
     let state = app.state::<AppState>();
     let mut r = state.runtime.lock().unwrap();
     match response {
         Ok(response) => {
             r.session.advance(id, Phase::Completed)?;
             if response["verified"]==false {
-                r.error="已尝试粘贴，接收未确认。请检查原框；结果和剪贴板文字已保留，不会自动重试 / Paste dispatched, receipt unconfirmed. Check the field; result retained.".into();
+                r.error.clear();
+                r.detail="已派发粘贴，接收未核验；结果已保存在历史 / Paste dispatched; receipt unverified. Result saved in History.".into();
                 if let Some(record)=r.result.as_mut(){record.delivery="paste_unconfirmed".into();let _=state.store.lock().unwrap().update(record);}
-                return Err(r.error.clone());
+                return Ok(());
             }
             r.detail = "已发送输入 / Paste sent".into();
             if let Some(record) = r.result.as_mut() {

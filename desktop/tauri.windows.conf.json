@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Vao Windows Preview",
-  "version": "0.2.1-windows.preview.1",
+  "version": "0.2.1-windows.preview.2",
   "identifier": "app.vaovao.windows.preview",
   "bundle": {
     "active": true,

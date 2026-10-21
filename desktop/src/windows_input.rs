@@ -112,6 +112,19 @@ fn editable(field: HWND, name: &str) -> Result<(), String> {
     }
     Ok(())
 }
+// Current-focus paste does not require reading the field, but known native
+// password/readonly/disabled controls still have to refuse before any write.
+pub fn paste_allowed(root: HWND, pid: u32) -> Result<(), String> {
+    let field = focused(root, pid)?;
+    if unsafe { IsWindowEnabled(field) } == 0 {
+        return Err(UNAVAILABLE.into());
+    }
+    let name = class(field);
+    if supported(&name) {
+        editable(field, &name)?;
+    }
+    Ok(())
+}
 fn contents(field: HWND, name: &str) -> Result<(Vec<u16>, usize, usize), String> {
     editable(field, name)?;
     let length = message(field, WM_GETTEXTLENGTH, 0, 0)?;
@@ -275,7 +288,10 @@ impl Target {
 }
 
 pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
-    if request["target"]["input_adapter"] == "compat_paste" {
+    if matches!(
+        request["target"]["input_adapter"].as_str(),
+        Some("compat_paste" | "current_paste")
+    ) {
         return crate::windows_paste::deliver(request, write);
     }
     if matches!(

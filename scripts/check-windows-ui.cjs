@@ -42,6 +42,13 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  check('onboarding_waits_for_actual_probe',await page.locator('#finish-setup').isDisabled());
  check('onboarding_offers_insertion',await page.locator('#setup-auto-input').count()===1);
  await page.locator('.nav [data-page="settings"]').click();
+ check('current_caret_default',await page.locator('#return-to-origin').getAttribute('aria-checked')==='false');
+ await page.locator('#return-to-origin').click();
+ await page.waitForFunction(()=>fake.db.settings.windows_return_to_origin===true);
+ check('return_to_origin_persists',await page.locator('#return-to-origin').getAttribute('aria-checked')==='true');
+ await page.locator('#return-to-origin').click();
+ await page.waitForFunction(()=>fake.db.settings.windows_return_to_origin===false);
+ check('current_caret_restored_without_compatibility',await page.locator('#compatible-input').getAttribute('aria-checked')==='false');
  check('compatible_paste_initially_off',await page.locator('#compatible-input').getAttribute('aria-checked')==='false');
  await page.locator('#compatible-input').click();
  await page.waitForFunction(()=>fake.db.settings.windows_compatible_input===true);
@@ -125,6 +132,11 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  check('answer_shrinks_after_long_result',true);
  await page.locator('.answer-handle').dispatchEvent('mousedown',{button:0});
  check('overlay_drag_does_not_open_main',await page.evaluate(()=>fake.calls.some(c=>c.command==='drag_voicebar')&&!fake.calls.some(c=>c.command==='show_main')));
+ await page.evaluate(()=>{fake.state.answer='';fake.state.error='';fake.state.notice='paste_unconfirmed';fake.state.result.delivery='paste_unconfirmed';fake.listeners['session-updated']();});
+ await page.waitForFunction(()=>document.querySelector('#bar-message').textContent.includes('接收未核验'));
+ check('unconfirmed_paste_uses_compact_notice',await page.locator('.bar-stage').evaluate(e=>e.classList.contains('notice-only')));
+ check('unconfirmed_paste_has_no_large_result',await page.locator('.answer-toolbar').isHidden()&&!await page.locator('#bar-notice').evaluate(e=>e.classList.contains('answer')));
+ check('unconfirmed_paste_keeps_history_result',await page.evaluate(()=>fake.state.result.id===4));
  await page.screenshot({path:path.join(out,'windows-result-overlay.png')});
  check('no_script_errors',errors.length===0);
  fs.writeFileSync(path.join(out,'windows-ui-checks.json'),JSON.stringify({kind:'Windows browser IPC doubles; not native acceptance',checks,errors},null,2));

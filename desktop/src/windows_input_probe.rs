@@ -77,6 +77,18 @@ pub async fn probe_windows_input(
             })
             .await
             .map_err(|_| "Input fixture interrupted")?,
+            "current_capture" | "current_refuse_self" | "current_stale_capture" => {
+                let owned = action != "current_refuse_self";
+                let generation = crate::windows_paste::generation();
+                if action == "current_stale_capture" {
+                    crate::windows_paste::clear();
+                }
+                tauri::async_runtime::spawn_blocking(move || {
+                    crate::windows_paste::capture_current(generation, owned)
+                })
+                .await
+                .map_err(|_| "Current focus fixture interrupted")?
+            }
             "deliver" | "restore" => {
                 let request = request.ok_or("Missing synthetic request")?;
                 let write = action == "deliver";
