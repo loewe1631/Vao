@@ -8,6 +8,9 @@ xcuserdata/
 *.xccheckout
 *.xcscmblueprint
 *.local.xcconfig
+# Xcode may write versioned SDK caches beside the project.
+/xcode/*
+!/xcode/Vao.xcodeproj/
 # Local secrets and recordings
 .env
 .env.*

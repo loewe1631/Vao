@@ -2,6 +2,8 @@
 import AppKit
 import ApplicationServices
 import CryptoKit
+import Carbon
+import UniformTypeIdentifiers
 var probeClipboard: [[(NSPasteboard.PasteboardType,Data)]]?
 struct CapturedTarget {
     let element:AXUIElement
@@ -11,6 +13,7 @@ struct CapturedTarget {
     let mouseCount:UInt32
     let keyCount:UInt32
     let snapshot:FieldSnapshot?
+    let bundle:String
 }
 // Only the explicitly captured input is fingerprinted, in helper memory. This
 // state is neither persisted nor sent to model services.
@@ -37,6 +40,96 @@ struct FieldSnapshot {
     }
 }
 var capturedElements: [String: CapturedTarget] = [:]
+// One bounded worker uses the original AX element. Replies travel over the
+// dedicated stderr pipe, so AX reads never hold the target/delivery RPC queue.
+let contextLock=NSLock()
+var contextBusy=false
+func inputContext(_ original:CapturedTarget,_ expanded:Bool)->[String:Any]? {
+    guard AXIsProcessTrusted(),!original.windowPaste,let snapshot=original.snapshot,
+          let saved=snapshot.range,saved.length==0 else{return nil}
+    let element=original.element;AXUIElementSetMessagingTimeout(element,0.04)
+    defer{AXUIElementSetMessagingTimeout(element,0.3)}
+    let deadline=Date(timeIntervalSinceNow:0.45)
+    guard isEditable(element),Date()<deadline,
+          let value=attribute(element,kAXValueAttribute) as? String,
+          value.utf8.count<=1024*1024,Date()<deadline,
+          Data(SHA256.hash(data:Data(value.utf8)))==snapshot.valueDigest,
+          let raw=attribute(element,kAXSelectedTextRangeAttribute),CFGetTypeID(raw)==AXValueGetTypeID() else{return nil}
+    var current=CFRange();guard AXValueGetValue(unsafeBitCast(raw,to:AXValue.self),.cfRange,&current),
+          current.location==saved.location,current.length==0,Date()<deadline,
+          let cursor=contextCursor(value,current.location) else{return nil}
+    var result=croppedContext(value,cursor)
+    if expanded,Date()<deadline,!sensitiveApplication(original.bundle),let window=original.window {
+        let extra=nearbyContext(window,original.element,deadline)
+        for (key,value) in extra{result[key]=value}
+    }
+    guard Date()<deadline,snapshot.matches(element) else{return nil}
+    return result
+}
+func sensitiveApplication(_ bundle:String)->Bool {
+    ["password", "keychain", "bitwarden", "lastpass", "keepass", "authenticator"].contains{bundle.lowercased().contains($0)}
+}
+func contextCursor(_ value:String,_ offset:Int)->String.Index? {
+    guard offset>=0,let u=value.utf16.index(value.utf16.startIndex,offsetBy:offset,limitedBy:value.utf16.endIndex) else{return nil}
+    return String.Index(u,within:value)
+}
+func croppedContext(_ value:String,_ cursor:String.Index)->[String:Any] {
+    var before=String(value[..<cursor].suffix(500))
+    var after=String(value[cursor...].prefix(500))
+    while before.utf8.count+after.utf8.count>8192 {
+        if before.utf8.count>after.utf8.count {before.removeFirst()} else {after.removeLast()}
+    }
+    return ["version":1,"before_cursor":before,"after_cursor":after]
+}
+func startContext(_ token:String,_ original:CapturedTarget,_ expanded:Bool)->Bool {
+    contextLock.lock();if contextBusy{contextLock.unlock();return false};contextBusy=true;contextLock.unlock()
+    DispatchQueue.global(qos:.utility).async {
+        defer{contextLock.lock();contextBusy=false;contextLock.unlock()}
+        let context=inputContext(original,expanded)
+        let reply:[String:Any]=["context_token":token,"context":context as Any? ?? NSNull()]
+        if var data=try? JSONSerialization.data(withJSONObject:reply) {data.append(10);FileHandle.standardError.write(data)}
+    }
+    return true
+}
+// Read only bounded visible static text from the originally captured window.
+func nearbyContext(_ window:AXUIElement,_ input:AXUIElement,_ deadline:Date)->[String:Any] {
+    AXUIElementSetMessagingTimeout(window,0.025)
+    defer{AXUIElementSetMessagingTimeout(window,0.3)}
+    var out:[String:Any]=[:]
+    if Date()<deadline,let title=attribute(window,kAXTitleAttribute) as? String {out["window_title"]=String(String.UnicodeScalarView(title.unicodeScalars.prefix(120)))}
+    if Date()<deadline,let raw=attribute(window,kAXDocumentAttribute) as? String,let url=URL(string:raw),["https","http"].contains(url.scheme ?? ""),let host=url.host {out["source_domain"]=String(host.prefix(253))}
+    guard Date()<deadline,let windowRect=elementRect(window) else{return out}
+    var queue:[(AXUIElement,Int)]=[(window,0)],scanned=0,lines:[String]=[],remaining=1200
+    while !queue.isEmpty,scanned<60,remaining>0,Date()<deadline {
+        let (element,depth)=queue.removeFirst();scanned+=1
+        if CFEqual(element,input){continue}
+        AXUIElementSetMessagingTimeout(element,0.015)
+        defer{AXUIElementSetMessagingTimeout(element,0.3)}
+        if attribute(element,"AXHidden") as? Bool == true {continue}
+        let role=attribute(element,kAXRoleAttribute) as? String ?? ""
+        if (attribute(element,kAXSubroleAttribute) as? String)=="AXSecureTextField" || ["AXSecureTextField","AXTextField","AXTextArea","AXComboBox"].contains(role) {continue}
+        if role==kAXStaticTextRole as String,Date()<deadline,let rect=elementRect(element),rect.width>0,rect.height>0,rect.intersects(windowRect),let text=attribute(element,kAXValueAttribute) as? String,!text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty {
+            let clipped=String(String.UnicodeScalarView(text.unicodeScalars.prefix(min(400,remaining))));if !lines.contains(clipped){lines.append(clipped);remaining-=clipped.unicodeScalars.count+1}
+        }
+        if depth<5,Date()<deadline,let children=(attribute(element,"AXVisibleChildren") ?? attribute(element,kAXChildrenAttribute)) as? [AXUIElement] {queue.append(contentsOf:children.prefix(max(0,60-scanned-queue.count)).map{($0,depth+1)})}
+    }
+    out["nearby_text"]=lines.joined(separator:"\n");return out
+}
+func pasteKeyCode()->CGKeyCode? {
+    for source in [TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue()] {
+        guard let source,let pointer=TISGetInputSourceProperty(source,kTISPropertyUnicodeKeyLayoutData) else{continue}
+        let data=unsafeBitCast(pointer,to:CFData.self)
+        guard let bytes=CFDataGetBytePtr(data) else{continue}
+        let layout=UnsafeRawPointer(bytes).assumingMemoryBound(to:UCKeyboardLayout.self)
+        for key in UInt16(0)..<UInt16(128) {
+            var dead:UInt32=0,actual=0,buffer=[UniChar](repeating:0,count:4)
+            let status=UCKeyTranslate(layout,key,UInt16(kUCKeyActionDown),UInt32(cmdKey >> 8),UInt32(LMGetKbdType()),OptionBits(kUCKeyTranslateNoDeadKeysMask),&dead,4,&actual,&buffer)
+            if status==noErr,actual==1,(buffer[0]==118 || buffer[0]==86){return CGKeyCode(key)}
+        }
+    }
+    return nil
+}
+
 func mouseCount()->UInt32 {
     return CGEventSource.counterForEventType(.combinedSessionState,eventType:.leftMouseDown)
         &+ CGEventSource.counterForEventType(.combinedSessionState,eventType:.rightMouseDown)
@@ -186,7 +279,7 @@ func target(_ readSelection: Bool, capture: Bool = false, allowCopy:Bool = true,
     if capture {
         if capturedElements.count>=4{capturedElements.removeAll()}
         let token=UUID().uuidString
-        capturedElements[token]=CapturedTarget(element:focused,window:window,composer:composer,windowPaste:windowPaste,mouseCount:mouseCount(),keyCount:keyCount(),snapshot:FieldSnapshot.read(focused));out["captureToken"]=token
+        capturedElements[token]=CapturedTarget(element:focused,window:window,composer:composer,windowPaste:windowPaste,mouseCount:mouseCount(),keyCount:keyCount(),snapshot:FieldSnapshot.read(focused),bundle:app.bundleIdentifier ?? "");out["captureToken"]=token
     }
     out["role"]=attribute(focused,kAXRoleAttribute) as? String ?? ""
     out["identifier"]=attribute(focused,kAXIdentifierAttribute) as? String ?? ""
@@ -339,6 +432,20 @@ func run(_ request:[String:Any]) -> [String:Any] {
         }
         return ["error":"Invalid fixture request"]
     case "permissions": return ["accessibility": AXIsProcessTrusted()]
+    case "dictionary_import":
+        let panel=NSOpenPanel();panel.title="导入 Vao 词典 / Import dictionary";panel.allowedContentTypes=[.plainText,.json];panel.allowsMultipleSelection=false;panel.canChooseDirectories=false
+        NSApplication.shared.setActivationPolicy(.accessory);NSApplication.shared.activate(ignoringOtherApps:true)
+        guard panel.runModal() == .OK,let url=panel.url else{return ["cancelled":true]}
+        return ["path":url.path]
+    case "dictionary_export":
+        let panel=NSSavePanel();panel.title="导出 Vao 词典 / Export dictionary";panel.allowedContentTypes=[.json,.plainText];panel.nameFieldStringValue="Vao-dictionary.json"
+        NSApplication.shared.setActivationPolicy(.accessory);NSApplication.shared.activate(ignoringOtherApps:true)
+        guard panel.runModal() == .OK,let url=panel.url else{return ["cancelled":true]}
+        return ["path":url.path]
+    case "context_start":
+        guard let expires=request["expires_ms"] as? Double,Date().timeIntervalSince1970*1000<expires,
+              let token=request["token"] as? String,let original=capturedElements[token] else{return ["accepted":false]}
+        return ["accepted":startContext(token,original,request["expanded"] as? Bool ?? false)]
     case "target":
         let selection=request["selection"] as? Bool ?? false
         return target(selection,capture:selection)
@@ -385,7 +492,9 @@ func run(_ request:[String:Any]) -> [String:Any] {
         }
         let pb=NSPasteboard.general
         let saved=pb.pasteboardItems?.map { item -> [(NSPasteboard.PasteboardType,Data)] in item.types.compactMap { type in item.data(forType:type).map{(type,$0)} } } ?? []
-        pb.clearContents();pb.setString(text,forType:.string);let count=pb.changeCount
+        guard let pasteCode=pasteKeyCode() else{return ["error":"无法确认当前键盘布局的粘贴键，请复制结果 / Paste key unavailable for this keyboard layout"]}
+        let item=NSPasteboardItem();item.setString(text,forType:.string);item.setData(Data(),forType:NSPasteboard.PasteboardType("org.nspasteboard.TransientType"));item.setData(Data(),forType:NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+        pb.clearContents();pb.writeObjects([item]);let count=pb.changeCount
         guard frontmost()?.processIdentifier==pid_t(pid), (original.windowPaste ? (axElement(attribute(process,kAXFocusedWindowAttribute)).map{CFEqual(original.element,$0)} ?? false) : (focusedElement(process,pid_t(pid)).map{CFEqual(original.element,$0)} ?? false)), (original.composer || original.windowPaste || sameTarget(expected,target(false,discover:false))) else {if pb.changeCount==count {restore(saved)};return ["error":"焦点发生变化，未发送粘贴 / Focus changed"]}
         if returning {
             guard mouseCount()==deliveryMouse,keyCount()==deliveryKeys,
@@ -398,7 +507,7 @@ func run(_ request:[String:Any]) -> [String:Any] {
             guard mouseCount() &- original.mouseCount==allowedMouse,keyCount() &- original.keyCount==allowed else{if pb.changeCount==count{restore(saved)};return ["error":"会话操作已变化，未发送粘贴 / Conversation interaction changed"]}
         }
         let source=CGEventSource(stateID:.combinedSessionState)
-        guard let down=CGEvent(keyboardEventSource:source,virtualKey:9,keyDown:true),let up=CGEvent(keyboardEventSource:source,virtualKey:9,keyDown:false) else {restore(saved);return ["error":"无法生成输入事件"]}
+        guard let down=CGEvent(keyboardEventSource:source,virtualKey:pasteCode,keyDown:true),let up=CGEvent(keyboardEventSource:source,virtualKey:pasteCode,keyDown:false) else {restore(saved);return ["error":"无法生成输入事件"]}
         down.flags = .maskCommand;up.flags = .maskCommand;down.post(tap:.cghidEventTap);up.post(tap:.cghidEventTap)
         Thread.sleep(forTimeInterval:0.35)
         if pb.changeCount==count {restore(saved)}
@@ -416,6 +525,17 @@ func respond(_ data:Data) {
     if let request=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any] {result=run(request)} else {result=["error":"invalid request"]}
     var output=(try? JSONSerialization.data(withJSONObject:result,options:[.sortedKeys])) ?? Data("{}".utf8)
     output.append(10);FileHandle.standardOutput.write(output)
+}
+if CommandLine.arguments.contains("--verify-context-fixtures") {
+    let value="邮件🙂e\u{301}，"+String(repeating:"技术术语",count:400)
+    let cursor=value.index(value.startIndex,offsetBy:5)
+    let result=croppedContext(value,cursor)
+    let before=result["before_cursor"] as! String;let after=result["after_cursor"] as! String
+    let valid=before.count<=500 && after.count<=500 && before.utf8.count+after.utf8.count<=8192
+      && contextCursor("a🙂b",2)==nil && contextCursor("a🙂b",3) != nil
+      && !(before+after).contains("�")
+    let output:[String:Any]=["unicode_and_bounds":valid,"raw_source_recorded":false,"paste_layout_found":pasteKeyCode() != nil,"sensitive_apps_skipped":sensitiveApplication("com.apple.Passwords") && sensitiveApplication("com.agilebits.onepassword7") && !sensitiveApplication("com.example.editor")]
+    FileHandle.standardOutput.write(try! JSONSerialization.data(withJSONObject:output));exit(valid ? 0 : 1)
 }
 if CommandLine.arguments.contains("--daemon") {
     while let line=readLine(){autoreleasepool{respond(Data(line.utf8))}}

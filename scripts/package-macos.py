@@ -17,6 +17,6 @@ for name in ['LICENSE','PROVENANCE.md','PRIVACY.md','THIRD_PARTY_NOTICES.md']:
     shutil.copy2(root/name,app/'Contents/Resources'/name)
 shutil.copytree(root/'licenses',app/'Contents/Resources/licenses')
 info=plistlib.loads((root/'desktop/Info.plist').read_bytes())
-info.update(CFBundleIdentifier=meta['bundle'],CFBundleExecutable=meta['binary'],CFBundleName=meta['product'],CFBundleDisplayName=meta['product'],CFBundleShortVersionString='0.1.0',CFBundleVersion=meta['build'],CFBundlePackageType='APPL',CFBundleIconFile='icon.icns',LSMinimumSystemVersion=meta['minimum_macos'],LSApplicationCategoryType='public.app-category.productivity',NSPrincipalClass='NSApplication',VaoReleaseVersion=meta['version'])
+info.update(CFBundleIdentifier=meta['bundle'],CFBundleExecutable=meta['binary'],CFBundleName=meta['product'],CFBundleDisplayName=meta['product'],CFBundleShortVersionString=meta['version'].split('-',1)[0],CFBundleVersion=meta['build'],CFBundlePackageType='APPL',CFBundleIconFile='icon.icns',LSMinimumSystemVersion=meta['minimum_macos'],LSApplicationCategoryType='public.app-category.productivity',NSPrincipalClass='NSApplication',VaoReleaseVersion=meta['version'])
 (app/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
 print(app)

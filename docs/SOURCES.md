@@ -16,10 +16,14 @@ The macOS adapter uses core-graphics (MIT/Apache-2.0) and core-foundation (MIT/A
 
 ## Public beta additions
 
-Public first-run UI, per-installation enrollment and packaging are part of this client. The hosted trial service is operated separately and is not included in this source tree. Third-party Rust license texts and their pinned sources are indexed in licenses/index.json. Model runtime dependencies and weights are not redistributed.
+Public first-run UI, per-installation enrollment and packaging are part of this client. The hosted service is operated separately. This tree includes generic selection-policy adapters in scripts/gateway/, not production configuration, credentials, databases or a complete hosted-service implementation. Third-party Rust license texts and their pinned sources are indexed in licenses/index.json. Model runtime dependencies and weights are not redistributed.
 
 ## Dependency maintenance status
 
-A RustSec check on 2026-10-19 reported no vulnerability advisories for Cargo.lock. Five `unic-*` 0.9.0 crates used through Tauri → tauri-utils → urlpattern are marked unmaintained: unic-char-property, unic-char-range, unic-common, unic-ucd-ident and unic-ucd-version. These are upstream maintenance warnings, not a claim of a discovered Vao exploit or of zero risk. Track an upstream replacement instead of silently suppressing the warnings.
+The 0.2.0 review on 2026-10-21 updated rustls-webpki to 0.103.16 and webpki-roots to 1.0.10 for RUSTSEC-2026-0382 / RUSTSEC-2026-0381 (distrusted certificate authorities). A refreshed RustSec scan reported no vulnerability advisories for the Mac release graph. Five `unic-*` 0.9.0 crates used through Tauri → tauri-utils → urlpattern are marked unmaintained: unic-char-property, unic-char-range, unic-common, unic-ucd-ident and unic-ucd-version. These are upstream maintenance warnings, not a claim of a discovered Vao exploit or of zero risk. Track an upstream replacement instead of silently suppressing the warnings.
 
 The full lockfile also includes packages for other platforms, including a glib unsoundness warning outside the Mac dependency graph. Any new platform needs its own dependency and license review. Advisory results change over time; run a current audit before distributing updates.
+
+## Connection-test audio
+
+`desktop/src/asr_test_audio.json` contains a 2.351-second, 16 kHz mono PCM16 synthetic English phrase ("This is a speech recognition test."), generated offline with eSpeak NG 1.52.0, en-us voice, rate 155, then resampled. It contains no user recording. No speech engine or voice model is redistributed. The generator is [eSpeak NG](https://github.com/espeak-ng/espeak-ng); the PCM SHA256 and generation details are included in the asset. This fixed test phrase is only sent when the user requests an ASR connection test, using the selected provider and protocol.

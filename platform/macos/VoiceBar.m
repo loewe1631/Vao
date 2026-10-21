@@ -161,9 +161,9 @@ void vao_probe_voice_bar_positions(int begin) {
         savedPositions = nil;
     }
 }
-static NSRect frameForScreen(NSScreen *screen, BOOL expanded) {
+static NSRect frameForScreen(NSScreen *screen, NSInteger expanded) {
     NSRect visible=screen.visibleFrame;
-    NSSize size=expanded?NSMakeSize(520,360):NSMakeSize(380,148);
+    NSSize size=expanded==2?NSMakeSize(440,220):(expanded?NSMakeSize(520,360):NSMakeSize(380,148));
     NSPoint origin=barOrigin(visible,size);
     NSDictionary *saved=[[NSUserDefaults.standardUserDefaults dictionaryForKey:positionKey] objectForKey:[@(displayID(screen)) stringValue]];
     if([saved isKindOfClass:NSDictionary.class]) {
@@ -219,7 +219,7 @@ void vao_place_voice_bar(void *rawWindow,unsigned int preferredDisplay,int expan
     NSWindow *window=voicePanel(rawWindow);NSScreen *chosen=nil;
     for(NSScreen *screen in NSScreen.screens)if(displayID(screen)==preferredDisplay){chosen=screen;break;}
     if(!chosen){unsigned int fallback=vao_capture_input_display(0);for(NSScreen *screen in NSScreen.screens)if(displayID(screen)==fallback){chosen=screen;break;}}
-    if(chosen)[window setFrame:frameForScreen(chosen,expanded!=0) display:NO];
+    if(chosen)[window setFrame:frameForScreen(chosen,expanded) display:NO];
 }
 int vao_drag_voice_bar(void *rawWindow) {
     NSWindow *window=voicePanel(rawWindow);
@@ -245,7 +245,7 @@ unsigned int vao_test_display_geometry(void) {
     NSPoint p=barOrigin(NSMakeRect(-2560,24,2560,1416),NSMakeSize(232,60));
     if(p.x != -1396 || p.y != 48)fail|=16;
     NSArray *visible=@[[NSValue valueWithRect:NSMakeRect(0,65,2560,1345)],[NSValue valueWithRect:NSMakeRect(2560,0,2560,1440)],[NSValue valueWithRect:NSMakeRect(-1920,-1080,1920,1050)],[NSValue valueWithRect:NSMakeRect(0,0,320,200)]];
-    for(NSValue *v in visible)for(NSValue *s in @[[NSValue valueWithSize:NSMakeSize(380,148)],[NSValue valueWithSize:NSMakeSize(520,360)]]) {
+    for(NSValue *v in visible)for(NSValue *s in @[[NSValue valueWithSize:NSMakeSize(380,148)],[NSValue valueWithSize:NSMakeSize(520,360)],[NSValue valueWithSize:NSMakeSize(440,220)]]) {
         NSRect rect=v.rectValue;NSSize size=s.sizeValue;
         for(NSValue *o in @[[NSValue valueWithPoint:barOrigin(rect,size)],[NSValue valueWithPoint:NSMakePoint(NSMinX(rect)-100,NSMinY(rect)-500)],[NSValue valueWithPoint:NSMakePoint(NSMaxX(rect)+100,NSMaxY(rect)+500)]]) {
             if(!NSContainsRect(rect,fittedFrame(rect,size,o.pointValue)))fail|=32;
@@ -259,9 +259,9 @@ char *vao_probe_voice_bar(void *rawWindow) {
     for(NSScreen *screen in NSScreen.screens){
         unsigned int identifier=displayID(screen);
         // Reproduce the exact small -> answer -> small transition on each monitor.
-        for(NSNumber *expanded in @[@NO,@YES,@NO]) {
+        for(NSNumber *expanded in @[@0,@1,@2,@0]) {
             vao_place_voice_bar(rawWindow,identifier,expanded.intValue);NSRect actual=window.frame;
-            NSSize expected=expanded.boolValue?NSMakeSize(520,360):NSMakeSize(380,148);
+            NSSize expected=expanded.intValue==2?NSMakeSize(440,220):(expanded.boolValue?NSMakeSize(520,360):NSMakeSize(380,148));
             [rows addObject:@{@"display_id":@(identifier),@"scale":@(screen.backingScaleFactor),@"expanded":expanded,@"contained":@(NSContainsRect(screen.visibleFrame,actual)),@"screen_matches":@(displayID(window.screen)==identifier),@"size_matches":@(NSEqualSizes(actual.size,expected)),@"x":@(actual.origin.x),@"y":@(actual.origin.y),@"width":@(actual.size.width),@"height":@(actual.size.height)}];
         }
         NSRect moved=window.frame;moved.origin=NSMakePoint(NSMidX(screen.visibleFrame)-moved.size.width/2,NSMinY(screen.visibleFrame)+120);

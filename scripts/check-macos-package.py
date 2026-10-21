@@ -5,7 +5,7 @@ root = Path(__file__).resolve().parent.parent
 app = Path(sys.argv[1] if len(sys.argv) > 1 else root / 'dist/Vao.app').resolve()
 meta = json.loads((root / 'release.json').read_text())
 info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
-for key, expected in [('CFBundleIdentifier', meta['bundle']), ('CFBundleVersion', meta['build']), ('VaoReleaseVersion', meta['version']), ('CFBundleExecutable', meta['binary'])]:
+for key, expected in [('CFBundleIdentifier', meta['bundle']), ('CFBundleVersion', meta['build']), ('CFBundleShortVersionString', meta['version'].split('-',1)[0]), ('VaoReleaseVersion', meta['version']), ('CFBundleExecutable', meta['binary'])]:
     if info.get(key) != expected:
         raise SystemExit(f'Metadata mismatch: {key}')
 requirements = {}

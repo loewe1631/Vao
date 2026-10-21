@@ -1107,6 +1107,20 @@
     ]
   },
   {
+    "name": "data-encoding",
+    "version": "2.11.1",
+    "license": "MIT",
+    "repository": "https://github.com/ia0/data-encoding",
+    "authors": [],
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "b68ad1a3367b825447089e1f8d6829b97f47a89eb78d2f4ebaef4672f5606186",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "defmt",
     "version": "1.2.0",
     "license": "MIT OR Apache-2.0",
@@ -3760,6 +3774,27 @@
     ]
   },
   {
+    "name": "ppv-lite86",
+    "version": "0.2.21",
+    "license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/cryptocorrosion/cryptocorrosion",
+    "authors": [
+      "The CryptoCorrosion Contributors"
+    ],
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "0218327e7a480793ffdd4eb792379a9709e5c135c7ba267f709d6f6d4d70af0a",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "4cada0bd02ea3692eee6f16400d86c6508bbd3bafb2b65fed0419f36d4f83e8f",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "precomputed-hash",
     "version": "0.1.1",
     "license": "MIT",
@@ -3917,6 +3952,61 @@
     ]
   },
   {
+    "name": "rand",
+    "version": "0.9.5",
+    "license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/rust-random/rand",
+    "authors": [
+      "The Rand Project Developers",
+      "The Rust Project Developers"
+    ],
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "35242e7a83f69875e6edeff02291e688c97caafe2f8902e4e19b49d3e78b4cab",
+        "source": "crate archive"
+      },
+      {
+        "file": "COPYRIGHT",
+        "sha256": "90eb64f0279b0d9432accfa6023ff803bc4965212383697eee27a0f426d5f8d5",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "209fbbe0ad52d9235e37badf9cadfe4dbdc87203179c0899e738b39ade42177b",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
+    "name": "rand_chacha",
+    "version": "0.9.0",
+    "license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/rust-random/rand",
+    "authors": [
+      "The Rand Project Developers",
+      "The Rust Project Developers",
+      "The CryptoCorrosion Contributors"
+    ],
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "35242e7a83f69875e6edeff02291e688c97caafe2f8902e4e19b49d3e78b4cab",
+        "source": "crate archive"
+      },
+      {
+        "file": "COPYRIGHT",
+        "sha256": "90eb64f0279b0d9432accfa6023ff803bc4965212383697eee27a0f426d5f8d5",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "209fbbe0ad52d9235e37badf9cadfe4dbdc87203179c0899e738b39ade42177b",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "rand_core",
     "version": "0.10.1",
     "license": "MIT OR Apache-2.0",
@@ -3938,6 +4028,33 @@
       {
         "file": "LICENSE-MIT",
         "sha256": "8b6e9feec03e7c9a5facb26855cecd31662bf989b636bcfe79521bdf8ac863f0",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
+    "name": "rand_core",
+    "version": "0.9.5",
+    "license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/rust-random/rand",
+    "authors": [
+      "The Rand Project Developers",
+      "The Rust Project Developers"
+    ],
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "6df43f6f4b5d4587f3d8d71e45532c688fd168afa5fe89d571cb32fa09c4ef51",
+        "source": "crate archive"
+      },
+      {
+        "file": "COPYRIGHT",
+        "sha256": "90eb64f0279b0d9432accfa6023ff803bc4965212383697eee27a0f426d5f8d5",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "209fbbe0ad52d9235e37badf9cadfe4dbdc87203179c0899e738b39ade42177b",
         "source": "crate archive"
       }
     ]
@@ -4151,11 +4268,6 @@
         "source": "crate archive"
       },
       {
-        "file": "third_party__fiat__LICENSE",
-        "sha256": "9eacbcb81be660840c714a560a9d65ba07913db98dd4baf969f78dd499fdd60f",
-        "source": "crate archive"
-      },
-      {
         "file": "src__polyfill__once_cell__LICENSE-APACHE",
         "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
         "source": "crate archive"
@@ -4163,6 +4275,11 @@
       {
         "file": "src__polyfill__once_cell__LICENSE-MIT",
         "sha256": "6ee2ed6c77710de911761acd5fc1ad1da00f476beb1a7ef27e78c2d1858deafc",
+        "source": "crate archive"
+      },
+      {
+        "file": "third_party__fiat__LICENSE",
+        "sha256": "9eacbcb81be660840c714a560a9d65ba07913db98dd4baf969f78dd499fdd60f",
         "source": "crate archive"
       }
     ]
@@ -4248,6 +4365,35 @@
     ]
   },
   {
+    "name": "rustls-native-certs",
+    "version": "0.8.5",
+    "license": "Apache-2.0 OR ISC OR MIT",
+    "repository": "https://github.com/rustls/rustls-native-certs",
+    "authors": [],
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE",
+        "sha256": "d75967ce788187f83c3bd3328210974acfc443d4dc44909f1d7e34f21623a0c6",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-ISC",
+        "sha256": "7cfafc877eccc46c0e346ccbaa5c51bb6b894d2b818e617d970211e232785ad4",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "709e3175b4212f7b13aa93971c9f62ff8c69ec45ad8c6532a7e0c41d7a7d6f8c",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "rustls-pki-types",
     "version": "1.15.1",
     "license": "MIT OR Apache-2.0",
@@ -4268,7 +4414,7 @@
   },
   {
     "name": "rustls-webpki",
-    "version": "0.103.15",
+    "version": "0.103.16",
     "license": "ISC",
     "repository": "https://github.com/rustls/webpki",
     "authors": [],
@@ -4779,6 +4925,27 @@
       {
         "file": "LICENSE-MIT",
         "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
+    "name": "sha1",
+    "version": "0.10.7",
+    "license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/RustCrypto/hashes",
+    "authors": [
+      "RustCrypto Developers"
+    ],
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "b4eb00df6e2a4d22518fcaa6a2b4646f249b3a3c9814509b22bd2091f1392ff1",
         "source": "crate archive"
       }
     ]
@@ -5628,6 +5795,23 @@
     ]
   },
   {
+    "name": "tokio-tungstenite",
+    "version": "0.28.0",
+    "license": "MIT",
+    "repository": "https://github.com/snapview/tokio-tungstenite",
+    "authors": [
+      "Daniel Abramov <dabramov@snapview.de>",
+      "Alexey Galakhov <agalakhov@snapview.de>"
+    ],
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "fdd55e2b2da854b0fbdc1e607df7c2ba1e1ebf91ecb77c515511ebeef972bc8f",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "tokio-util",
     "version": "0.7.20",
     "license": "MIT",
@@ -5918,6 +6102,28 @@
     ]
   },
   {
+    "name": "tungstenite",
+    "version": "0.28.0",
+    "license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/snapview/tungstenite-rs",
+    "authors": [
+      "Alexey Galakhov",
+      "Daniel Abramov"
+    ],
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "7fea0ee51a4ca5d5cea7464135fd55e8b09caf3a61da3d451ac8a22af95c033f",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "typeid",
     "version": "1.0.3",
     "license": "MIT OR Apache-2.0",
@@ -6196,6 +6402,27 @@
     ]
   },
   {
+    "name": "utf-8",
+    "version": "0.7.6",
+    "license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/SimonSapin/rust-utf8",
+    "authors": [
+      "Simon Sapin <simon.sapin@exyr.org>"
+    ],
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "utf8_iter",
     "version": "1.0.4",
     "license": "Apache-2.0 OR MIT",
@@ -6346,7 +6573,7 @@
   },
   {
     "name": "webpki-roots",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "license": "CDLA-Permissive-2.0",
     "repository": "https://github.com/rustls/webpki-roots",
     "authors": [],

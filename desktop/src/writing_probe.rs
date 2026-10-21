@@ -87,6 +87,7 @@ pub async fn replay(
             dictionary: &dictionary,
             translation: fixture.translation.as_deref(),
             selection: fixture.selection.as_deref(),
+            context:None,
         };
         let started = std::time::Instant::now();
         let output = models::refine_writing(&route.config, &key, &request).await;

@@ -53,3 +53,16 @@ Real microphone, physical shortcut, another Mac's initial installation and actua
 ## Explicit model replay
 
 [Writing presets](WRITING_PRESETS.md) documents the opt-in fixed-text replay. It opens settings read-only but sends fixture text to the selected model and consumes quota. A local/synthetic test pass cannot establish provider quality or universal semantic preservation.
+
+
+## 0.2.0 focused acceptance
+
+Use an isolated Mac test build and retain the previous app for rollback. Test dictionary TXT/JSON round trips, duplicates, invalid/over-capacity input and cancelling either file panel. Unsaved edits must not disappear. Confirm exports have terms only.
+
+With both preview and context off, regress short dictation, Fn, translation, selection and original-target insertion. Then enable recording preview alone; test file windows and cancellation. For a service supporting public Realtime sessions and file transcription with the configured model, explicitly select Realtime and test confirmed stop-time output, protocol rejection and file fallback. Protocol mocks establish request/response handling only, not provider compatibility or speech quality.
+
+Test inserting in the middle of existing text: only the new spoken phrase should be inserted. Enable bounded input context, then its separate expanded option. Verify that reference text helps continuity without being copied; switching applications must keep the original target. Compare final completeness, edits required and measured stop-to-output time. Default hosted access is file-based; backend free-use policy does not imply realtime ASR.
+
+## Protocol-specific connection diagnostics
+
+In Models, select a protocol under Advanced and use Test speech connection / Test text connection. Speech tests send the built-in English phrase without activating the microphone; provider usage applies. The displayed draft endpoint/model/key are used without saving or changing the connection. Success requires a nonempty response from that protocol. Realtime tests must complete session negotiation and final transcription and never use file fallback. The report includes protocol, elapsed time, source phrase and returned text. It does not grade recognition accuracy. Changing connection fields clears its old report. Test ordinary file support and Realtime independently; model discovery or a successful final recording after fallback does not prove Realtime support.

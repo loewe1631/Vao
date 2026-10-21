@@ -117,10 +117,10 @@ pub async fn capture(app: &tauri::AppHandle, pid: i32) -> u32 {
         0
     }
 }
-pub fn place(window: &tauri::WebviewWindow, display: u32, expanded: bool) {
+pub fn place(window: &tauri::WebviewWindow, display: u32, expanded: i32) {
     #[cfg(target_os = "macos")]
     if let Ok(ptr) = window.ns_window() {
-        unsafe { vao_place_voice_bar(ptr, display, i32::from(expanded)) }
+        unsafe { vao_place_voice_bar(ptr, display, expanded) }
     }
     #[cfg(not(target_os = "macos"))]
     let _ = (window, display, expanded);
