@@ -430,6 +430,7 @@ async fn report_ui_ready(window: tauri::WebviewWindow, state: State<'_, AppState
             {
                 info["overlay"] = overlay;
                 info["main_visible"] = json!(window.is_visible().unwrap_or(true));
+                info["main_native_handle"] = json!(window.hwnd().map(|h| h.0 as usize).unwrap_or(0));
                 info["tray_ready"] = json!(window.app_handle().tray_by_id("vao-tray").is_some());
                 info["login_background"] = json!(login_background_launch(&args));
             }
@@ -1881,6 +1882,7 @@ fn main() {
         if login_background_launch(&args) {
             if let Some(main) = context.config_mut().app.windows.iter_mut().find(|w| w.label == "main") {
                 main.visible = false;
+                main.focus = false;
             }
         }
         context
