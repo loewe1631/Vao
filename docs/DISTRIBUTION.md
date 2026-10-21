@@ -2,6 +2,12 @@
 
 Source releases do not require Apple Developer Program membership. Free/open-source binaries still undergo Gatekeeper checks. Current direct downloads are not Apple-notarized; do not claim otherwise based on a local build or persistent self-signed certificate.
 
+## Current public downloads
+
+[Vao 0.2.1](https://github.com/loewe1631/Vao/releases/tag/v0.2.1) is a unified download page for Mac and Windows. Mac DMG/ZIP and `Vao-0.2.1-source.*` match tag `v0.2.1` (build 20261021.1202); Windows EXE and `Vao-0.2.1-windows-source.*` match tag `windows-v0.2.1` (build 20261021.3013). `SHA256SUMS` covers Mac assets; `SHA256SUMS-windows` covers Windows assets. Tags and shipped binaries retain their original identities.
+
+The Windows installer is not code-signed. It targets Windows 10 1809+ x64 and installs WebView2 from Microsoft if missing. Windows installation and build information are in [Windows](WINDOWS.md) and [Windows build](WINDOWS_BUILD.md). The default branch remains the Mac source; a unified Release does not merge platform source trees. The following signing instructions apply to Mac.
+
 ## Build identity
 
 `release.json` owns the product, version, build and bundle identity. The host version/identifier must agree; compilation checks this. Source publication maintenance changes are listed separately in RELEASE_NOTES.md and do not replace an existing website binary automatically.

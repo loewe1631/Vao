@@ -7,6 +7,8 @@ Read the architecture, roadmap and privacy notes before changing behavior. Open 
 3. Identify third-party sources and licenses. Do not add private recordings, chat logs, credentials, personal endpoints or another project's private configuration.
 4. A pull request should say what changed, why, what was tested, and what remains unverified. Document-only changes should not claim application tests.
 
+Choose the correct platform source before starting. The default `main` branch currently builds Mac; Windows release source is `windows-v0.2.1`, and Windows development uses `codex/windows`. See [Windows build and validation](docs/WINDOWS_BUILD.md). Coordinate changes to shared modules across both source lines.
+
 Build and test on Apple Silicon:
 
 ```sh

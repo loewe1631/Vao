@@ -1,6 +1,6 @@
 # Architecture
 
-The Mac beta uses a Rust shared core, Tauri UI and native platform adapters. Windows integration is planned and is not implemented by this release. This is the direct-download desktop client, without App Sandbox; store distribution needs separate capability and license review.
+Vao uses a Rust core, Tauri UI and native platform adapters. Mac and Windows 0.2.1 are released through one download page, with separate source tags. The default branch and the detailed implementation below describe the Mac direct-download client, without App Sandbox; Windows source and platform differences are linked in [Windows build](WINDOWS_BUILD.md). Store distribution needs separate capability and license review.
 
 ## Code map
 
@@ -81,3 +81,7 @@ Expanded context depends on the input-context option and adds bounded original-w
 `dictionary_io.rs` imports bounded UTF-8 TXT/JSON after native file selection, validates the full list, then merges into the latest saved settings. Failed/cancelled imports leave data unchanged. Export snapshots saved terms only and atomically replaces a selected TXT/JSON file. Model secrets and histories are never included.
 
 Free-service authorization remains separate from use accounting. The separately operated gateway no longer enforces expiry, per-device/global daily usage or enrollment quotas. New clients use the unlimited status flag; legacy numeric fields are compatibility placeholders. Queues, revocation and physical inference bounds remain.
+
+## Windows implementation
+
+Windows release source is on tag `windows-v0.2.1`, with ongoing work on `codex/windows`. Its native adapters use Windows capture, UI Automation, Credential Manager, clipboard ownership checks, a nonactivating overlay, system shortcuts and an NSIS installer. Ordinary dictation defaults to the current caret when ready; returning to the original target is optional. Windows does not use the Mac Swift helper or hardware Fn event tap. Its expanded context contains only the starting window title, not Mac-style nearby static text or domains. See the [Windows guide](WINDOWS.md), [build notes](WINDOWS_BUILD.md) and [privacy details](../PRIVACY.md).

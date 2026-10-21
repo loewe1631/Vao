@@ -1,4 +1,17 @@
-# Vao 0.2.1 · build20261021.1202
+# Vao 0.2.1 · macOS & Windows
+
+[统一下载 / Downloads](https://github.com/loewe1631/Vao/releases/tag/v0.2.1)
+
+- **Mac:** build20261021.1202 · tag `v0.2.1` · source `7416ad6aa2193cfc1cb8354545d9d2dd40f17a8c`.
+- **Windows x64:** build20261021.3013 · tag `windows-v0.2.1` · source `12b9f4748d0215f40431b8a7e85773db1af89f70`.
+
+## Windows
+
+Windows 10 1809+ x64 现已提供单文件 EXE 安装程序，支持听写、整理、局部翻译、划词、可选临时转写、输入框上下文、词典迁移和排版偏好。普通听写默认在结果完成时输入到当前光标，“返回录音起始位置”为可选项；硬件 Fn 不支持。登录启动默认关闭，开启后在托盘待命。安装包尚无代码签名。早期测试版数据与正式版独立，不自动迁移。
+
+Windows ships as a single EXE installer, with dictation, refinement, translation, selected-text operations, optional previews/context, dictionary transfer and explicit layout preferences. It defaults to current-caret insertion, with optional return to the starting input. Hardware Fn is unsupported. Sign-in startup is optional and hidden in the tray. The installer is not code-signed; early test settings are not automatically migrated. See [Windows guide](docs/WINDOWS.md).
+
+## Mac
 
 Mac direct download · Apple Silicon · macOS 12+. Not Apple-notarized; not an App Store build.
 
@@ -77,7 +90,7 @@ The initial source tag was followed by matching Beta5/build20261019.1011 DMG and
 - Narrow output checks repair lost dates or protected quote content once, preserving the source and marking incomplete refinement if repair still fails. Single numbered items are normalized without a manual review step.
 - Includes 30 fixed-text replay cases, request-contract tests and an opt-in read-only model replay command. These checks do not replace real speech and cross-app acceptance.
 
-## Current behavior and limitations
+## Historical 0.1.0 behavior and limitations
 
 - Automatic insertion defaults on for new users; explicit existing settings are retained. Selection questions display answers without replacing source text. Edits can replace the selection.
 - Recording locks the starting field and can return after app switches when its content/caret snapshot remains valid. Opaque targets retain stricter foreground checks; WeChat needs a click in the input field.

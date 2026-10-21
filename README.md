@@ -4,20 +4,27 @@ Your words. More like you.
 
 [中文](README.zh-CN.md) · [Website and downloads](https://vaovao.app/) · [Privacy](PRIVACY.md) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
 
-Vao is an open-source Mac voice-input app. It turns speech into usable text, chooses writing styles from your content and destination app, and remembers the layout choices you explicitly ask it to keep.
+Vao is an open-source voice-input app for macOS and Windows. It turns speech into usable text, chooses writing styles from your content and destination app, and remembers the layout choices you explicitly ask it to keep.
 
-**0.2.1 · Apple Silicon · macOS 12+.** This release ships Mac installers only. Windows adapters are being developed on a separate branch; Intel Mac builds are not available. Current direct downloads are not Apple-notarized. See [release notes](RELEASE_NOTES.md) for source and binary versions.
+**0.2.1 · Available for macOS and Windows.** The [unified release](https://github.com/loewe1631/Vao/releases/tag/v0.2.1) includes both platforms, matching sources and checksums.
+
+| Platform | Download | Requirements |
+| --- | --- | --- |
+| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-build20261021.1202-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-build20261021.1202-mac-arm64.zip) | Apple Silicon · macOS 12+ |
+| Windows | [EXE installer](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-setup.exe) | Windows 10 1809+ · x64; downloads WebView2 if missing |
+
+Mac downloads are not yet Apple-notarized; the Windows installer is not code-signed. See the [installation guide](https://vaovao.app/install/) for first-launch prompts. Intel Mac is not available. See [release notes](RELEASE_NOTES.md) for source and build identities.
 
 ## Features
 
-- **Speak and insert.** Refine speech and fill the original input field, without sending the message.
+- **Speak and insert.** Refine speech and fill a destination input field, without sending the message.
 - **Adapt to context.** Built-in presets cover messages, tasks, plans, technical records and documents. Content takes priority; app hints resolve remaining cases. No manual task/chat switch.
 - **Keep your choices.** Remember paragraph or numbered-list preferences for a context. One explicit choice takes effect next time. Pause, disable, undo or delete it whenever you want.
 - **Select and ask.** Highlight text, press the main shortcut and speak a question or an edit. Answers appear above the voice bar; edits can replace the selection.
 - **Translate a segment.** Start translated recording directly, or turn translation on and off while recording.
-- **Switch apps while speaking.** Consult another app, then return to the starting input when it still passes target validation.
+- **Switch apps while speaking.** On Mac, return to the validated starting input. Windows defaults to the current caret when ready, with an optional return-to-start mode.
 
-- **Optional input enhancements.** Independent recording-preview switch, bounded input context and optional nearby text; Realtime requires an explicitly compatible service.
+- **Optional input enhancements.** Independent recording-preview switch, bounded input context and optional window reference (nearby text on Mac; title only on Windows); Realtime requires an explicitly compatible service.
 - **Portable vocabulary.** Merge and deduplicate TXT/JSON imports; export terms only.
 
 Selection operations cover editing, translation, composing replies and understanding the selected text. Custom text services run an additional purpose check, adding a request, waiting time and possible cost. Unrelated requests or failed checks stop. Dictated questions remain input text rather than questions answered by Vao.
@@ -26,22 +33,24 @@ Adaptation currently learns explicit layout choices for messages, tasks and tech
 
 ## Install and start
 
-1. Download from [vaovao.app](https://vaovao.app/), extract the ZIP or open the DMG, then drag **Vao.app** to **Applications**.
-2. Open Vao. If macOS blocks an unnotarized download, follow [the installation guide](https://vaovao.app/install/). Do not disable Gatekeeper globally.
+1. Choose your platform at [vaovao.app](https://vaovao.app/). On Mac, drag **Vao.app** to **Applications**; on Windows, run **Vao-0.2.1-setup.exe** and follow the installer.
+2. Open Vao. See [installation and permissions](https://vaovao.app/install/) for system prompts and the [Windows guide](docs/WINDOWS.md) for platform-specific steps.
 3. Follow the first-run checklist: activate the optional trial or connect your models, grant needed permissions and check shortcuts.
 4. Click your destination input, press the main shortcut, speak, then press it again to finish.
 
 | Default shortcut | Action |
 | --- | --- |
-| Control + Option + Space | Start or finish recording |
-| Control + Option + T | Start translation when idle; toggle translation during recording |
+| Mac: Control + Option + Space; Windows: Ctrl + Alt + Space | Start or finish recording |
+| Mac: Control + Option + T; Windows: Ctrl + Alt + T | Start translation when idle; toggle translation during recording |
 | Escape | Cancel the active session |
 
-Shortcuts support key capture or typed entry, including **Fn** and **Fn+Space**. Fn needs Accessibility and may conflict with the system Globe-key action. If Vao is absent from Input Monitoring, add the installed app with the system **+** button, enable it and restart. Requesting a permission does not grant it.
+On Mac, shortcuts support key capture or typed entry, including **Fn** and **Fn+Space**. Fn needs Accessibility and may conflict with the system Globe-key action. If Vao is absent from Input Monitoring, add the installed app with the system **+** button, enable it and restart. Requesting a permission does not grant it.
 
 Automatic insertion is enabled by default; turn it off to preview and copy first. Selecting text and pressing the main shortcut immediately records your instruction. Questions display and copy an answer without replacing the source. Edits try to replace the selection when automatic insertion is enabled.
 
-Cross-app insertion depends on the destination's Accessibility support. Closed windows, changed contents or conflicting caret positions preserve the result instead of pasting elsewhere. Opaque inputs keep stricter foreground checks. WeChat currently needs a click in its message field. A posted paste event does not prove receipt by another app.
+On Mac, cross-app insertion depends on the destination's Accessibility support. Closed windows, changed contents or conflicting caret positions preserve the result instead of pasting elsewhere. Opaque inputs keep stricter foreground checks. WeChat currently needs a click in its message field. A posted paste event does not prove receipt by another app.
+
+Windows uses regular key combinations, without hardware Fn support. Ordinary dictation pastes at the current caret when ready; keep the destination focused during processing. Returning to the starting input is optional and cannot restore every app’s caret. Sign-in startup is off by default.
 
 ## Models and optional trial
 
@@ -62,9 +71,13 @@ Custom ASR and LLM connections take priority independently. Failures never silen
 
 ## Privacy
 
-Audio uses a temporary session buffer and is sent to the chosen ASR; no audio history is retained. Local text history is limited to seven days and 200 results. Keys stay in macOS Keychain. Dictionary terms and relevant preferences accompany model requests. Selected text is sent for the selected-text operation. Read [PRIVACY.md](PRIVACY.md) for permissions, clipboard use and retention.
+Audio uses a temporary session buffer and is sent to the chosen ASR; no audio history is retained. Local text history is limited to seven days and 200 results. Keys stay in macOS Keychain or Windows Credential Manager. Dictionary terms and relevant preferences accompany model requests. Selected text is sent for the selected-text operation. Read [PRIVACY.md](PRIVACY.md) for permissions, clipboard use and retention.
 
-## Build and check
+## Source and builds
+
+The default `main` branch currently retains the Mac client and Xcode entry point. Windows release source is at [`windows-v0.2.1`](https://github.com/loewe1631/Vao/tree/windows-v0.2.1); ongoing development uses [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows). The tags remain separate. GitHub’s automatic “Source code” links on the unified release refer to the Mac tag; for Windows use the `windows-source` archive or its tag. See [Windows build steps](docs/WINDOWS_BUILD.md).
+
+### Mac build and check
 
 Use Apple Silicon, Xcode Command Line Tools, Python 3.11+, Node.js 22+ and stable Rust with Clippy. Fetch locked dependencies, then build:
 
@@ -89,6 +102,6 @@ Browser checks use synthetic IPC doubles; they do not certify microphone, model 
 
 ## Contribute and license
 
-Start with [contributing](CONTRIBUTING.md), the [roadmap](docs/ROADMAP.md) and [security reporting](SECURITY.md). Windows adapters, model compatibility, synthetic cases and accessibility are useful contribution areas.
+Start with [contributing](CONTRIBUTING.md), the [roadmap](docs/ROADMAP.md) and [security reporting](SECURITY.md). Cross-platform app compatibility, model protocols, synthetic cases and accessibility are useful contribution areas.
 
 AGPL-3.0-only. Product direction comes from experience using and adapting several open-source projects. This client is Vao's own implementation. [Provenance](PROVENANCE.md), [asset sources](docs/SOURCES.md) and third-party notices must remain with redistributed material.
