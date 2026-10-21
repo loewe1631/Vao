@@ -12,7 +12,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  await page.addInitScript(()=>{
   const connection={base:'https://model.example/v1',model:'synthetic',protocol:'openai_chat'};
   const db={platform:'windows',version:'0.1.0-beta.5-windows.4',build:'20261020.3004',
-   settings:{asr:{...connection,protocol:'openai_audio'},llm:connection,backup:{base:'',model:'',protocol:'openai_chat'},language:'auto',translation_language:'English',auto_input:true,dictionary:[],ui_language:'zh',theme:'system',trial_enabled:false,trial_consent_version:'',onboarding_complete:false,shortcuts:{record:'Control+Alt+Space',translate:'Control+Alt+KeyT',cancel:'Escape'}},
+   settings:{asr:{...connection,protocol:'openai_audio'},llm:connection,backup:{base:'',model:'',protocol:'openai_chat'},language:'auto',translation_language:'English',auto_input:true,windows_compatible_input:true,windows_return_to_origin:false,live_preview:false,input_context:false,expanded_context:false,dictionary:[],ui_language:'zh',theme:'system',trial_enabled:false,trial_consent_version:'',onboarding_complete:false,shortcuts:{record:'Control+Alt+Space',translate:'Control+Alt+KeyT',cancel:'Escape'}},
    profile:{revision:0,learning:true,personalization:true,rules:[],votes:[],undo:[]},history:[],
    permissions:{microphone:'not_determined',accessibility:'not_supported',input_monitoring:'not_required'},
    trial:{provisioned:false,consented:false,ready:true,asr_source:'custom',llm_source:'custom'}};
@@ -48,14 +48,17 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  check('return_to_origin_persists',await page.locator('#return-to-origin').getAttribute('aria-checked')==='true');
  await page.locator('#return-to-origin').click();
  await page.waitForFunction(()=>fake.db.settings.windows_return_to_origin===false);
- check('current_caret_restored_without_compatibility',await page.locator('#compatible-input').getAttribute('aria-checked')==='false');
- check('compatible_paste_initially_off',await page.locator('#compatible-input').getAttribute('aria-checked')==='false');
- await page.locator('#compatible-input').click();
- await page.waitForFunction(()=>fake.db.settings.windows_compatible_input===true);
- check('compatible_paste_explicit_persistent_opt_in',await page.locator('#compatible-input').getAttribute('aria-checked')==='true');
- check('compatible_paste_does_not_reset_connections',await page.evaluate(()=>fake.db.settings.asr.model==='synthetic'&&fake.db.settings.shortcuts.record==='Control+Alt+Space'));
+ check('compatible_paste_default_on',await page.locator('#compatible-input').getAttribute('aria-checked')==='true');
+ check('enhancements_default_off',await page.locator('#live-preview').getAttribute('aria-checked')==='false'&&await page.locator('#input-context').getAttribute('aria-checked')==='false'&&await page.locator('#expanded-context').getAttribute('aria-checked')==='false');
+ check('automatic_input_label_has_no_origin_promise',await page.locator('#auto-input').locator('..').locator('h3').innerText()==='自动输入');
+ check('automatic_input_explains_completion_caret',await page.locator('#auto-input').locator('..').innerText().then(s=>s.includes('结果完成时')&&s.includes('当前光标位置')));
  await page.locator('#compatible-input').click();
  await page.waitForFunction(()=>fake.db.settings.windows_compatible_input===false);
+ check('compatible_paste_can_be_disabled',await page.locator('#compatible-input').getAttribute('aria-checked')==='false');
+ await page.locator('#compatible-input').click();
+ await page.waitForFunction(()=>fake.db.settings.windows_compatible_input===true);
+ check('compatible_paste_can_be_restored',await page.locator('#compatible-input').getAttribute('aria-checked')==='true');
+ check('compatible_paste_does_not_reset_connections',await page.evaluate(()=>fake.db.settings.asr.model==='synthetic'&&fake.db.settings.shortcuts.record==='Control+Alt+Space'));
  check('windows_has_one_permission_row',await page.locator('.permission-row').count()===1);
  check('no_macos_reset_actions',await page.locator('[data-repair-permission]').count()===0);
  check('automatic_insertion_toggle',await page.locator('#auto-input').getAttribute('aria-checked')==='true');
@@ -106,6 +109,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
   }
   await page.locator('.nav [data-page="settings"]').click();
   check(`guide_${language}_navigation_returns`,await page.locator('#auto-input').count()===1);
+  check(`automatic_input_label_${language}`,await page.locator('#auto-input').locator('..').locator('h3').innerText()===(language==='en'?'Automatic input':'自动输入'));
  }
  await page.goto('file://'+path.join(root,'ui/index.html')+'?bar=1');
  await page.waitForFunction(()=>!!fake.listeners['session-updated']);
@@ -132,11 +136,11 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  check('answer_shrinks_after_long_result',true);
  await page.locator('.answer-handle').dispatchEvent('mousedown',{button:0});
  check('overlay_drag_does_not_open_main',await page.evaluate(()=>fake.calls.some(c=>c.command==='drag_voicebar')&&!fake.calls.some(c=>c.command==='show_main')));
- await page.evaluate(()=>{fake.state.answer='';fake.state.error='';fake.state.notice='paste_unconfirmed';fake.state.result.delivery='paste_unconfirmed';fake.listeners['session-updated']();});
- await page.waitForFunction(()=>document.querySelector('#bar-message').textContent.includes('接收未核验'));
- check('unconfirmed_paste_uses_compact_notice',await page.locator('.bar-stage').evaluate(e=>e.classList.contains('notice-only')));
- check('unconfirmed_paste_has_no_large_result',await page.locator('.answer-toolbar').isHidden()&&!await page.locator('#bar-notice').evaluate(e=>e.classList.contains('answer')));
- check('unconfirmed_paste_keeps_history_result',await page.evaluate(()=>fake.state.result.id===4));
+ await page.evaluate(()=>{fake.state.answer='';fake.state.error='';fake.state.notice=null;fake.state.result.delivery='paste_unconfirmed';fake.listeners['session-updated']();});
+ await page.waitForFunction(()=>document.querySelector('#bar-notice').classList.contains('hidden'));
+ check('completed_paste_has_no_bubble',await page.locator('#bar-notice').isHidden());
+ check('completed_paste_has_no_large_result',await page.locator('.answer-toolbar').isHidden());
+ check('unconfirmed_paste_keeps_history_result',await page.evaluate(()=>fake.state.result.id===4&&fake.state.result.delivery==='paste_unconfirmed'));
  await page.screenshot({path:path.join(out,'windows-result-overlay.png')});
  check('no_script_errors',errors.length===0);
  fs.writeFileSync(path.join(out,'windows-ui-checks.json'),JSON.stringify({kind:'Windows browser IPC doubles; not native acceptance',checks,errors},null,2));

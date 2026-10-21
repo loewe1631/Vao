@@ -2,7 +2,7 @@
 
 This branch develops the Windows x64 client. Candidates are unsigned GitHub Actions artifacts, not a public Windows release. Windows 10 1809+ and WebView2 are the build target; the first desktop test target is Windows 11 x64.
 
-## Candidate 3009 / 0.2.1 Windows preview 2
+## Candidate 3010 / 0.2.1 Windows preview 3
 
 Ordinary dictation now defaults to one Ctrl+V at the **current caret when the
 result is ready**. Keep the destination focused through processing. Starting in
@@ -16,12 +16,17 @@ receipt behavior. Its separate compatibility-paste option remains available for
 opaque editors. Selection edits always use their original verified selection;
 selection questions remain answers and do not replace the source.
 
-A dispatched paste without a text receipt shows a compact three-second notice,
-with the result retained in History and on the clipboard. It is not reported as
-verified receipt. Failures retain the result card. Neither mode sends Enter or
+A dispatched paste closes the recording overlay without a completion bubble.
+Without a text receipt, the result remains unconfirmed in History and the paste
+text stays on the clipboard. Failures retain the result card; recording
+interruptions still show a warning. Neither mode sends Enter or
 a message, automatically retries, or restores the clipboard over a later copy.
 The same preview identity preserves settings; missing target-mode settings
-select the new current-caret default. Synthetic CI checks are separate from
+select the current-caret default. Automatic input and original-position
+compatibility paste default to on; return to the starting input, temporary
+transcription and both context options default to off. Compatibility paste
+only applies when returning to the starting input. Explicit saved choices
+remain unchanged. Synthetic CI checks are separate from
 real application acceptance.
 
 ## Candidate 3008 / 0.2.1 Windows preview

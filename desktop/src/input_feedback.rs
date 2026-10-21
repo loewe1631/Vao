@@ -13,7 +13,6 @@ pub enum InputNotice {
     SelectionScopeUnavailable,
     DeliveryTargetUnavailable,
     RecordingInterrupted,
-    PasteUnconfirmed,
 }
 
 pub enum FlowError {

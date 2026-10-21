@@ -790,31 +790,3 @@ fn windows_target_mode_preserves_selection_origin_and_legacy_settings() {
     r.target["selection"] = serde_json::json!("selected source");
     assert!(!r.windows_current_input());
 }
-
-#[test]
-fn old_notice_timer_cannot_hide_new_recording_answer_or_notice() {
-    use crate::InputNotice;
-    use vao_core::Phase;
-    let mut r = crate::Runtime::default();
-    let id = r.session.begin().unwrap();
-    for phase in [Phase::Listening, Phase::Processing, Phase::Ready, Phase::Completed] {
-        r.session.advance(id, phase).unwrap();
-    }
-    r.notice = Some(InputNotice::PasteUnconfirmed);
-    assert!(r.recording_warning(id).is_some());
-    assert_eq!(r.notice, Some(InputNotice::RecordingInterrupted));
-    r.notice = Some(InputNotice::PasteUnconfirmed);
-    r.notice_serial = 4;
-    assert!(!r.expire_notice(id, 3));
-    r.answer = "saved answer".into();
-    assert!(!r.expire_notice(id, 4));
-    r.answer.clear();
-    assert!(r.expire_notice(id, 4));
-    assert!(r.notice.is_none());
-    assert!(r.can_hide_completed_bar(id, 4));
-    r.session.begin().unwrap();
-    assert!(!r.can_hide_completed_bar(id, 4));
-    r.notice = Some(InputNotice::PasteUnconfirmed);
-    assert!(!r.expire_notice(id, 4));
-    assert!(!r.expire_notice(r.session.id, 4));
-}

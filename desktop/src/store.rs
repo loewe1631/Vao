@@ -55,7 +55,7 @@ impl Default for Settings {
             translation_language: "English".into(),
             auto_input: true,
             live_preview: false,
-            windows_compatible_input: false,
+            windows_compatible_input: cfg!(target_os = "windows"),
             windows_return_to_origin: false,
             input_context: false,
             expanded_context: false,
@@ -219,6 +219,9 @@ mod migration_tests {
         assert_eq!(settings.dictionary,vec!["Vao"]);
         assert_eq!(settings.shortcuts.record,"Control+Shift+KeyK");
         assert!(!settings.auto_input);
-        assert!(!settings.live_preview && !settings.input_context && !settings.expanded_context && !settings.windows_compatible_input);
+        assert!(!settings.live_preview && !settings.input_context && !settings.expanded_context && !settings.windows_return_to_origin);
+        assert_eq!(settings.windows_compatible_input, cfg!(target_os = "windows"));
+        let explicit: Settings = serde_json::from_value(serde_json::json!({"windows_compatible_input":false,"windows_return_to_origin":true})).unwrap();
+        assert!(!explicit.windows_compatible_input && explicit.windows_return_to_origin);
     }
 }

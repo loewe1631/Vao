@@ -94,20 +94,10 @@ impl Runtime {
     fn windows_current_input(&self) -> bool {
         !self.settings.windows_return_to_origin && self.target["selection"].as_str().unwrap_or("").is_empty()
     }
-    #[cfg(any(target_os = "windows", test))]
-    fn can_hide_completed_bar(&self, id: u64, serial: u64) -> bool {
-        self.session.id == id && self.notice_serial == serial && self.notice.is_none() && !self.session.active(id) && self.answer.is_empty()
-    }
-    #[cfg(any(target_os = "windows", test))]
-    fn expire_notice(&mut self, id: u64, serial: u64) -> bool {
-        if self.session.id != id || self.notice_serial != serial || self.notice.is_none() || self.session.active(id) || !self.answer.is_empty() { return false; }
-        self.notice = None;
-        true
-    }
     fn recording_warning(&mut self, id: u64) -> Option<u64> {
         if self.session.id != id
             || !matches!(self.session.phase, Phase::Ready | Phase::Completed)
-            || self.notice.is_some_and(|n| n != InputNotice::PasteUnconfirmed)
+            || self.notice.is_some()
             || !self.answer.is_empty()
         {
             return None;
@@ -1242,7 +1232,8 @@ fn route_result(
             && vao_core::selection_asks(&record.original);
         if auto_input && !asks {
             match deliver_inner(app, id) {
-                Ok(()) => { completed_windows_input(app, id); return; }
+                // Dispatch status stays in History; ordinary completion is quiet.
+                Ok(()) => { show_bar(app, false); return; }
                 Err(error) => { app.state::<AppState>().runtime.lock().unwrap().error = error; }
             }
         } else if asks {
@@ -1281,40 +1272,6 @@ fn route_result(
         show_main(app);
     }
     }
-}
-
-#[cfg(target_os = "windows")]
-fn completed_windows_input(app: &tauri::AppHandle, id: u64) {
-    let serial = {
-        let state = app.state::<AppState>();
-        let mut r = state.runtime.lock().unwrap();
-        if r.session.id != id || r.session.phase != Phase::Completed { return; }
-        if r.result.as_ref().is_none_or(|v| v.delivery != "paste_unconfirmed") {
-            drop(r); show_bar(app, false); return;
-        }
-        r.notice_serial += 1;
-        r.notice = Some(InputNotice::PasteUnconfirmed);
-        r.notice_serial
-    };
-    show_bar(app, true);
-    let h = app.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-        let state = h.state::<AppState>();
-        let mut r = state.runtime.lock().unwrap();
-        if r.expire_notice(id, serial) {
-            drop(r);
-            let _ = h.emit("session-updated", ());
-            if let Some(window) = h.get_webview_window("voicebar") {
-                let handle = h.clone();
-                let _ = h.run_on_main_thread(move || {
-                    let state = handle.state::<AppState>();
-                    let r = state.runtime.lock().unwrap();
-                    if r.can_hide_completed_bar(id, serial) { voice_bar::set_visible(&window, false); }
-                });
-            }
-        }
-    });
 }
 
 fn present_answer(app: &tauri::AppHandle, id: u64, text: &str) {
