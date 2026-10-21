@@ -387,6 +387,9 @@ unsafe fn paste_element(
     }
     let element = unavailable(automation.GetFocusedElement())?;
     within(automation, &element, root, command)?;
+    diagnostic(
+        json!({"uia_stage":"paste_focus_guard","control_type":unavailable(element.CurrentControlType())?.0,"focused":unavailable(element.CurrentHasKeyboardFocus())?.as_bool()}),
+    );
     if unavailable(element.CurrentIsPassword())?.as_bool()
         || !unavailable(element.CurrentIsEnabled())?.as_bool()
         || !unavailable(element.CurrentHasKeyboardFocus())?.as_bool()
@@ -403,14 +406,23 @@ unsafe fn paste_element(
     }
     if let Ok(value) = element.GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId)
     {
-        if unavailable(value.CurrentIsReadOnly())?.as_bool() {
+        let readonly = unavailable(value.CurrentIsReadOnly())?.as_bool();
+        diagnostic(json!({"uia_stage":"paste_focus_value","readonly":readonly}));
+        if readonly {
             return Err(UNAVAILABLE.into());
         }
-    }
-    if let Ok(text) = element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId) {
+    } else if let Ok(text) =
+        element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
+    {
+        // ValuePattern already reports the editor's writable state. Do not
+        // additionally require an optional text-range attribute from that editor.
         let range = unavailable(text.DocumentRange())?;
         let readonly = unavailable(range.GetAttributeValue(UIA_IsReadOnlyAttributeId))?;
-        if bool::try_from(&readonly).map_err(|_| UNAVAILABLE)? {
+        let state = bool::try_from(&readonly).map_err(|_| UNAVAILABLE);
+        diagnostic(
+            json!({"uia_stage":"paste_focus_text","readonly_known":state.is_ok(),"readonly":state.as_ref().ok()}),
+        );
+        if state? {
             return Err(UNAVAILABLE.into());
         }
     }
