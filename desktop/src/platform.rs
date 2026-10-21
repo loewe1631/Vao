@@ -41,9 +41,63 @@ struct Bridge {
 }
 #[cfg(target_os = "macos")]
 static BRIDGE: std::sync::OnceLock<std::sync::Mutex<Option<Bridge>>> = std::sync::OnceLock::new();
+#[cfg(target_os = "macos")]
+fn helper_path() -> Result<std::path::PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let helper = exe.parent().unwrap().join("../Resources/vao-macos-bridge");
+    #[cfg(debug_assertions)]
+    let helper = if helper.exists() {
+        helper
+    } else {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../.build/vao-macos-bridge")
+    };
+    if !helper.exists() {
+        return Err("Bundled macOS helper is missing. Reinstall Vao.".into());
+    }
+    Ok(helper)
+}
+#[cfg(target_os = "macos")]
+fn dialog_reply(mut command: Command, request: &Value) -> Result<Value, String> {
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|_| "文件选择器不可用 / File dialog unavailable")?;
+    let written = {
+        let mut input = child.stdin.take().unwrap();
+        writeln!(input, "{request}")
+    }; // Closing stdin lets the one-shot helper read and finish its request.
+    if written.is_err() {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err("文件选择请求失败 / File dialog request failed".into());
+    }
+    let output = child.wait_with_output().map_err(|_| "文件选择器异常退出")?;
+    if !output.status.success() {
+        return Err("文件选择器异常退出 / File dialog exited unexpectedly".into());
+    }
+    let value: Value = serde_json::from_slice(&output.stdout)
+        .map_err(|_| "文件选择器响应无效 / Invalid file dialog response")?;
+    if let Some(error) = value["error"].as_str() {
+        return Err(error.to_owned());
+    }
+    if value["cancelled"] != true && value["path"].as_str().filter(|p| !p.is_empty()).is_none() {
+        return Err("文件选择器响应无效 / Invalid file dialog response".into());
+    }
+    Ok(value)
+}
 pub fn call(request: Value) -> Result<Value, String> {
     #[cfg(target_os = "macos")]
     {
+        if matches!(request["action"].as_str(), Some("dictionary_import" | "dictionary_export")) {
+            static DIALOG: std::sync::Mutex<()> = std::sync::Mutex::new(());
+            let _dialog = DIALOG.lock().unwrap();
+            // Modal AppKit windows must not outlive their event loop in the daemon.
+            // A separate process also leaves the captured input target available.
+            return dialog_reply(Command::new(helper_path()?), &request);
+        }
         let mut state = BRIDGE
             .get_or_init(|| std::sync::Mutex::new(None))
             .lock()
@@ -56,19 +110,7 @@ pub fn call(request: Value) -> Result<Value, String> {
             *state = None;
         }
         if state.is_none() {
-            let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-            let helper = exe.parent().unwrap().join("../Resources/vao-macos-bridge");
-            #[cfg(debug_assertions)]
-            let helper = if helper.exists() {
-                helper
-            } else {
-                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("../.build/vao-macos-bridge")
-            };
-            if !helper.exists() {
-                return Err("Bundled macOS helper is missing. Reinstall Vao.".into());
-            }
-            let mut command = Command::new(helper);
+            let mut command = Command::new(helper_path()?);
             command.arg("--daemon");
             if std::env::args().any(|a| a == "--verify-ui") {
                 command.arg("--verify-selection");
@@ -208,6 +250,30 @@ fn decode_secret(raw: &str, base: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "macos")]
+    fn dialog_fixture(script: &str) -> Result<Value, String> {
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", script]);
+        dialog_reply(command, &json!({"action":"dictionary_import"}))
+    }
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn dialog_closes_stdin_and_waits_for_exit() {
+        let value = dialog_fixture(
+            "IFS= read -r request; [ \"$request\" = '{\"action\":\"dictionary_import\"}' ] || exit 9; if IFS= read -r extra; then exit 10; fi; printf '%s\\n' '{\"cancelled\":true}'",
+        ).unwrap();
+        assert_eq!(value, json!({"cancelled":true}));
+        assert_eq!(dialog_fixture("cat >/dev/null; printf '%s\\n' '{\"path\":\"/tmp/dictionary.json\"}'").unwrap()["path"], "/tmp/dictionary.json");
+    }
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn dialog_errors_do_not_masquerade_as_cancellation() {
+        assert!(dialog_fixture("cat >/dev/null; printf '%s\\n' '{\"cancelled\":true}'; exit 7").is_err());
+        assert!(dialog_fixture("cat >/dev/null; printf 'invalid'").is_err());
+        assert!(dialog_fixture("cat >/dev/null; printf '{}'").is_err());
+        assert!(dialog_fixture("cat >/dev/null; printf '%s\\n' '{\"path\":\"\"}'").is_err());
+        assert_eq!(dialog_fixture("cat >/dev/null; printf '%s\\n' '{\"error\":\"fixture error\"}'").unwrap_err(), "fixture error");
+    }
     #[test]
     fn credential_bound_to_service() {
         let raw = r#"{"base":"https://one.example/v1","key":"synthetic"}"#;

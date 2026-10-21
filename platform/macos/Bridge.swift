@@ -433,13 +433,15 @@ func run(_ request:[String:Any]) -> [String:Any] {
         return ["error":"Invalid fixture request"]
     case "permissions": return ["accessibility": AXIsProcessTrusted()]
     case "dictionary_import":
+        guard !CommandLine.arguments.contains("--daemon") else{return ["error":"File dialogs require a one-shot helper"]}
         let panel=NSOpenPanel();panel.title="导入 Vao 词典 / Import dictionary";panel.allowedContentTypes=[.plainText,.json];panel.allowsMultipleSelection=false;panel.canChooseDirectories=false
-        NSApplication.shared.setActivationPolicy(.accessory);NSApplication.shared.activate(ignoringOtherApps:true)
+        NSApplication.shared.setActivationPolicy(.accessory);NSApplication.shared.finishLaunching();NSApplication.shared.activate(ignoringOtherApps:true)
         guard panel.runModal() == .OK,let url=panel.url else{return ["cancelled":true]}
         return ["path":url.path]
     case "dictionary_export":
+        guard !CommandLine.arguments.contains("--daemon") else{return ["error":"File dialogs require a one-shot helper"]}
         let panel=NSSavePanel();panel.title="导出 Vao 词典 / Export dictionary";panel.allowedContentTypes=[.json,.plainText];panel.nameFieldStringValue="Vao-dictionary.json"
-        NSApplication.shared.setActivationPolicy(.accessory);NSApplication.shared.activate(ignoringOtherApps:true)
+        NSApplication.shared.setActivationPolicy(.accessory);NSApplication.shared.finishLaunching();NSApplication.shared.activate(ignoringOtherApps:true)
         guard panel.runModal() == .OK,let url=panel.url else{return ["cancelled":true]}
         return ["path":url.path]
     case "context_start":
