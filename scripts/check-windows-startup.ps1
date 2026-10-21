@@ -71,9 +71,9 @@ foreach ($shape in @('input_placeholder', 'textarea_placeholder', 'editable_empt
 Write-Output 'Guarded Unicode snapshot, native receipt, input events, undo and conflict checks passed.'
 $pastePath = Join-Path $output 'runner-paste.json'
 $pasteProbe = Run-Probe -ProbeArgs @('--windows-input-probe', '--windows-paste-preview', '--smoke-test', ('"' + $pastePath + '"')) -ReportPath $pastePath
-$requiredPaste = @('paste_selected_unicode_receipt', 'paste_single_trusted_input', 'paste_multiline_receipt', 'paste_one_undo', 'paste_changed_field_no_dispatch', 'paste_later_copy_not_overwritten', 'paste_marker_mismatch_not_overwritten', 'paste_delayed_consumer_exactly_once', 'paste_unconfirmed_keeps_result_clipboard', 'paste_unconfirmed_token_cannot_replay', 'paste_never_enter_or_submit', 'windows_context_changed_field_omitted')
+$requiredPaste = @('paste_selected_unicode_receipt', 'paste_single_trusted_input', 'paste_multiline_receipt', 'paste_one_undo', 'paste_changed_field_no_dispatch', 'paste_later_copy_not_overwritten', 'paste_marker_mismatch_not_overwritten', 'paste_delayed_consumer_exactly_once', 'paste_unconfirmed_keeps_result_clipboard', 'paste_unconfirmed_token_cannot_replay', 'paste_never_enter_or_submit', 'windows_context_changed_field_omitted', 'paste_opaque_host_receives_once', 'paste_opaque_conflict_does_not_dispatch')
 if (!$pasteProbe.passed -or $pasteProbe.audio_captured -ne $false -or $pasteProbe.models_contacted -ne $false -or
-    $pasteProbe.checks.Count -lt 27 -or @($pasteProbe.checks | Where-Object { $_.passed -ne $true }).Count -ne 0) {
+    $pasteProbe.checks.Count -lt 33 -or @($pasteProbe.checks | Where-Object { $_.passed -ne $true }).Count -ne 0) {
     throw ('Native paste/clipboard regression failed: ' + ($pasteProbe | ConvertTo-Json -Depth 8 -Compress))
 }
 foreach ($name in $requiredPaste) {

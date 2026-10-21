@@ -57,6 +57,17 @@ try{
  await delay(700);
  check('paste_delayed_consumer_exactly_once',one.value==='未确认🙂'&&pastes===before+1);
  check('paste_unconfirmed_token_cannot_replay',await rejected(deliver(target,'NO'))&&one.value==='未确认🙂'&&pastes===before+1);
+ target=await call('opaque_capture');
+ check('paste_opaque_explicit_window_lease',target.input_adapter==='compat_paste'&&target.receipt_supported===false);
+ check('paste_opaque_reports_unconfirmed',(await deliver(target,'不透明🙂')).verified===false);
+ await delay(180);let opaque=await call('opaque_status');
+ check('paste_opaque_host_receives_once',opaque.pastes===1&&opaque.text_matches&&opaque.enters===0);
+ check('paste_opaque_token_cannot_replay',await rejected(deliver(target,'NO')));
+ target=await call('opaque_capture');await call('cover');await delay(250);
+ check('paste_opaque_different_foreground_rejected',await rejected(deliver(target,'NO')));
+ opaque=await call('opaque_status');
+ check('paste_opaque_conflict_does_not_dispatch',opaque.pastes===1&&opaque.text_matches&&opaque.enters===0);
+ await call('opaque_hide');
  check('paste_never_enter_or_submit',enters===0&&submits===0);
  await call('clipboard_seed');
  await call('report',{passed:true,kind:'native WebView2 paste and clipboard transactions; synthetic only',checks,audio_captured:false,models_contacted:false});

@@ -432,6 +432,112 @@ pub fn fixture_clipboard(action: &str) -> Result<Value, String> {
     }
 }
 
+// A self-owned opaque Win32 host exercises the window-only lease without
+// attaching to an external application or assuming a text/selection provider.
+static FIXTURE_WINDOW: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+static FIXTURE_PASTES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static FIXTURE_TEXT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static FIXTURE_ENTERS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+pub fn fixture_window(action: &str) -> Result<Value, String> {
+    use std::sync::atomic::Ordering;
+    unsafe extern "system" fn procedure(hwnd: HWND, msg: u32, w: usize, l: isize) -> isize {
+        if msg == WM_KEYDOWN && w == 0x0d {
+            FIXTURE_ENTERS.fetch_add(1, Ordering::SeqCst);
+        }
+        if msg == WM_KEYDOWN && w == 0x56 && GetAsyncKeyState(0x11) as u16 & 0x8000 != 0 {
+            FIXTURE_PASTES.fetch_add(1, Ordering::SeqCst);
+            if let Ok(_open) = open(hwnd) {
+                let handle = GetClipboardData(13);
+                if !handle.is_null() && GlobalSize(handle) >= 12 {
+                    let ptr = GlobalLock(handle);
+                    if !ptr.is_null() {
+                        let expected: Vec<u16> = "不透明🙂\0".encode_utf16().collect();
+                        FIXTURE_TEXT.store(
+                            std::slice::from_raw_parts(ptr.cast::<u16>(), expected.len())
+                                == expected,
+                            Ordering::SeqCst,
+                        );
+                        GlobalUnlock(handle);
+                    }
+                }
+            }
+            return 0;
+        }
+        DefWindowProcW(hwnd, msg, w, l)
+    }
+    let root = *FIXTURE_WINDOW.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        std::thread::spawn(move || unsafe {
+            let instance =
+                windows_sys::Win32::System::LibraryLoader::GetModuleHandleW(std::ptr::null());
+            let name: Vec<u16> = "VaoSyntheticOpaqueHost\0".encode_utf16().collect();
+            let mut class: WNDCLASSW = std::mem::zeroed();
+            class.hInstance = instance;
+            class.lpszClassName = name.as_ptr();
+            class.lpfnWndProc = Some(procedure);
+            if RegisterClassW(&class) == 0 {
+                let _ = tx.send(0usize);
+                return;
+            }
+            let hwnd = CreateWindowExW(
+                0,
+                name.as_ptr(),
+                name.as_ptr(),
+                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                80,
+                80,
+                420,
+                200,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                instance,
+                std::ptr::null(),
+            );
+            if !hwnd.is_null() {
+                SetForegroundWindow(hwnd);
+                windows_sys::Win32::UI::Input::KeyboardAndMouse::SetFocus(hwnd);
+            }
+            let _ = tx.send(hwnd as usize);
+            let mut msg: MSG = std::mem::zeroed();
+            while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        });
+        rx.recv_timeout(Duration::from_secs(3)).unwrap_or(0)
+    }) as HWND;
+    if root.is_null() {
+        return Err("Opaque synthetic host unavailable".into());
+    }
+    match action {
+        "capture" => {
+            let pid = unsafe { windows_sys::Win32::System::Threading::GetCurrentProcessId() };
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while unsafe { GetForegroundWindow() } != root
+                || unsafe { focus(root, pid) }.ok() != Some(root)
+            {
+                if Instant::now() >= deadline {
+                    return Err("Opaque synthetic focus unavailable".into());
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            clear();
+            crate::windows_uia::invalidate();
+            capture(root, pid)
+        }
+        "status" => Ok(
+            json!({"pastes":FIXTURE_PASTES.load(Ordering::SeqCst),"text_matches":FIXTURE_TEXT.load(Ordering::SeqCst),"enters":FIXTURE_ENTERS.load(Ordering::SeqCst)}),
+        ),
+        "hide" => {
+            unsafe {
+                ShowWindow(root, SW_HIDE);
+            }
+            Ok(json!({"ok":true}))
+        }
+        _ => Err("Unknown opaque synthetic operation".into()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

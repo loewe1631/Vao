@@ -224,12 +224,6 @@ impl Capture {
                     cpal::SampleFormat::F64 => {
                         stream::<f64>(&device, &config, channels, rate, audio_tx, l, e)?
                     }
-                    cpal::SampleFormat::I32 => {
-                        stream::<i32>(&device, &config, channels, rate, s, l, e)?
-                    }
-                    cpal::SampleFormat::F64 => {
-                        stream::<f64>(&device, &config, channels, rate, s, l, e)?
-                    }
                     _ => return Err("不支持的麦克风格式".into()),
                 };
                 stream

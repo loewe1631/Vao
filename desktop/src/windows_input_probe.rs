@@ -17,6 +17,21 @@ pub async fn probe_windows_input(
             "mode" => Ok(
                 serde_json::json!({"unicode_preview":crate::windows_uia::unicode_preview(),"paste_preview":std::env::args().any(|a|a=="--windows-paste-preview")}),
             ),
+            "opaque_capture" | "opaque_status" | "opaque_hide" => {
+                let operation = action.trim_start_matches("opaque_").to_owned();
+                let hidden = operation == "hide";
+                let result = tauri::async_runtime::spawn_blocking(move || {
+                    crate::windows_paste::fixture_window(&operation)
+                })
+                .await
+                .map_err(|_| "Opaque synthetic host interrupted")?;
+                if hidden {
+                    window
+                        .set_focus()
+                        .map_err(|_| "Synthetic focus restore unavailable")?;
+                }
+                result
+            }
             "context" => {
                 let target = request.ok_or("Missing synthetic context target")?;
                 tauri::async_runtime::spawn_blocking(move || crate::windows_input::context(&target))
