@@ -25,7 +25,10 @@ def main():
     out = ROOT / 'dist/windows'
     out.mkdir(parents=True, exist_ok=True)
     stem = f"Vao-{release['version']}-build{release['build']}-windows-x64"
-    installer = out / (stem + '-setup.exe')
+    version = release['version'].split('-', 1)[0]
+    if not re.fullmatch(r'\d+\.\d+\.\d+', version):
+        raise SystemExit('Expected a semantic user-facing version')
+    installer = out / f'Vao-{version}-setup.exe'
     shutil.copy2(installers[0], installer)
     portable = out / (stem + '-portable.zip')
     files = [(binary, 'vao.exe')]
@@ -44,7 +47,7 @@ def main():
               'files': {p.name: digest(p) for p in [installer, portable]}}
     report_path = out / 'candidate.json'
     report_path.write_text(json.dumps(report, indent=2) + '\n')
-    evidence = [out / name for name in ['build-info.json', 'runner-startup.json', 'runner-input.json', 'runner-unicode.json', 'runner-paste.json', 'runner-login-startup.json', 'runner-installer-startup.json']]
+    evidence = [out / name for name in ['build-info.json', 'runner-startup.json', 'runner-input.json', 'runner-unicode.json', 'runner-paste.json', 'runner-login-startup.json', 'runner-installer-startup.json', 'runner-branding.json']]
     if not all(path.is_file() for path in evidence):
         raise SystemExit('Run the Windows startup probe before packaging')
     evidence.extend(sorted(out.glob('runner-*.json.trace')))

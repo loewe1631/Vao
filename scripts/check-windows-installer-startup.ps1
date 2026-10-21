@@ -43,6 +43,8 @@ foreach ($keyPath in @($run, $approval)) {
 try {
     Run-Installer @('/S', ('/D=' + $installed))
     $checks.installer_has_standalone_application = Test-Path $binary
+    & python (Join-Path $PSScriptRoot 'check-windows-branding.py') --installer $installer[0].FullName --application (Join-Path $root 'target/x86_64-pc-windows-msvc/release/vao.exe') --installed $binary --uninstaller $uninstaller --output (Join-Path $root 'dist/windows/runner-branding.json')
+    if ($LASTEXITCODE -ne 0) { throw 'Built installer/application/uninstaller branding differs from Vao artwork' }
     $checks.install_does_not_enable_startup = !(Read-Startup)
     New-Item -Path $run -Force | Out-Null
     New-ItemProperty -Path $run -Name $name -PropertyType String -Value $expected -Force | Out-Null

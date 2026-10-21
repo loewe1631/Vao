@@ -2,7 +2,15 @@
 
 This branch develops the Windows x64 client. Candidates are unsigned GitHub Actions artifacts, not a public Windows release. Windows 10 1809+ and WebView2 are the build target; the first desktop test target is Windows 11 x64.
 
-## Candidate 3011 / 0.2.1 Windows preview 4
+## Candidate 3012 / 0.2.1 Windows preview 5
+
+The user test download is a single `Vao-0.2.1-setup.exe`. The installer,
+application and uninstaller use the Vao icon at seven Windows icon sizes;
+welcome, completion and header artwork use the same existing brand. CI checks
+the actual executable icon resources, including the installed uninstaller.
+Portable archives and verification reports stay in the internal Actions artifact
+and are not part of the user download. This candidate does not publish a release
+or update the website. Existing preview identity and settings are preserved.
 
 Settings offers **Start when signing in to Windows**, initially off. Enabling it
 registers this executable for the current user. Sign-in starts quietly in the
