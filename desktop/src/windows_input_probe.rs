@@ -17,6 +17,11 @@ pub async fn probe_windows_input(
             "mode" => Ok(
                 serde_json::json!({"unicode_preview":crate::windows_uia::unicode_preview(),"paste_preview":std::env::args().any(|a|a=="--windows-paste-preview")}),
             ),
+            "invalidate" => {
+                crate::windows_paste::clear();
+                crate::windows_uia::invalidate();
+                Ok(serde_json::json!({"ok":true}))
+            }
             "opaque_capture" | "opaque_status" | "opaque_hide" => {
                 let operation = action.trim_start_matches("opaque_").to_owned();
                 let hidden = operation == "hide";

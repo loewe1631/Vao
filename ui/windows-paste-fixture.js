@@ -63,6 +63,8 @@ try{
  await delay(180);let opaque=await call('opaque_status');
  check('paste_opaque_host_receives_once',opaque.pastes===1&&opaque.text_matches&&opaque.enters===0);
  check('paste_opaque_token_cannot_replay',await rejected(deliver(target,'NO')));
+ target=await call('opaque_capture');await call('invalidate');
+ check('paste_opaque_cancel_invalidates_lease',await rejected(deliver(target,'NO')));
  target=await call('opaque_capture');await call('cover');await delay(250);
  check('paste_opaque_different_foreground_rejected',await rejected(deliver(target,'NO')));
  opaque=await call('opaque_status');

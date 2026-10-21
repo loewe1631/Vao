@@ -1,0 +1,7 @@
+# Keep embedded prompts, policy exports and source bytes identical on each host.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.png binary
+*.ico binary
+*.wav binary
+*.woff2 binary

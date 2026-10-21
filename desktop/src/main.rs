@@ -976,6 +976,8 @@ fn cancel(app: tauri::AppHandle) {
         r.detail = "已取消 / Cancelled".into();
         r.capture.take()
     };
+    #[cfg(target_os = "windows")]
+    { windows_paste::clear(); windows_uia::invalidate(); }
     drop(capture);
     show_bar(&app, false);
     escape_key(&app, false);

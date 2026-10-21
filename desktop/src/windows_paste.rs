@@ -13,6 +13,7 @@ use windows_sys::Win32::{
 
 struct Lease {
     token: String,
+    generation: u64,
     root: usize,
     field: usize,
     pid: u32,
@@ -20,9 +21,11 @@ struct Lease {
     expires: Instant,
 }
 static TARGET: Mutex<Option<Lease>> = Mutex::new(None);
+static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 const CLIPBOARD_LIMIT: usize = 16 * 1024 * 1024;
 
 pub fn clear() {
+    GENERATION.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
     *TARGET.lock().unwrap() = None;
 }
 unsafe fn focus(root: HWND, pid: u32) -> Result<HWND, String> {
@@ -41,6 +44,7 @@ unsafe fn focus(root: HWND, pid: u32) -> Result<HWND, String> {
     Ok(info.hwndFocus)
 }
 pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
+    let generation = GENERATION.load(std::sync::atomic::Ordering::Acquire);
     // The UIA worker checks password/readonly and rejects an Edit refused by the
     // strict snapshot path. Unknown non-Edit panes require explicit user opt-in.
     crate::windows_uia::compatibility_allowed(root, pid)?;
@@ -51,8 +55,13 @@ pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
     let mut nonce = [0u8; 16];
     getrandom::fill(&mut nonce).map_err(|_| UNAVAILABLE)?;
     let token = nonce.iter().map(|b| format!("{b:02x}")).collect::<String>();
-    *TARGET.lock().unwrap() = Some(Lease {
+    let mut target = TARGET.lock().unwrap();
+    if generation != GENERATION.load(std::sync::atomic::Ordering::Acquire) {
+        return Err(UNAVAILABLE.into());
+    }
+    *target = Some(Lease {
         token: token.clone(),
+        generation,
         root: root as usize,
         field: field as usize,
         pid,
@@ -65,6 +74,9 @@ pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
 }
 impl Lease {
     fn verify(&self) -> Result<(), String> {
+        if self.generation != GENERATION.load(std::sync::atomic::Ordering::Acquire) {
+            return Err(UNAVAILABLE.into());
+        }
         let root = self.root as HWND;
         let mut actual = 0;
         unsafe {
