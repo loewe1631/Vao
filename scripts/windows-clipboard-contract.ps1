@@ -28,9 +28,15 @@ public static class VaoClipboardContract {
   DestroyWindow(owner);var afterDestroy=GetClipboardSequenceNumber();
   owner=Owner();if(!OpenClipboard(owner))throw new Exception("read busy");
   var afterOpen=GetClipboardSequenceNumber();var data=GetClipboardData(marker);var markerSize=data==IntPtr.Zero?0:GlobalSize(data).ToUInt64();
-  var afterRead=GetClipboardSequenceNumber();CloseClipboard();DestroyWindow(owner);
-  return new {before_close=beforeClose,after_close=afterClose,after_owner_destroy=afterDestroy,after_open=afterOpen,after_marker_read=afterRead,marker_present=data!=IntPtr.Zero,marker_size=markerSize,audio_captured=false,input_dispatched=false};
+  var afterRead=GetClipboardSequenceNumber();CloseClipboard();var afterReadClose=GetClipboardSequenceNumber();DestroyWindow(owner);
+  return new {before_close=beforeClose,after_close=afterClose,after_owner_destroy=afterDestroy,after_open=afterOpen,after_marker_read=afterRead,after_read_close=afterReadClose,marker_present=data!=IntPtr.Zero,marker_size=markerSize,audio_captured=false,input_dispatched=false};
  }
 }
 '@
-[VaoClipboardContract]::Run() | ConvertTo-Json -Compress
+$result = [VaoClipboardContract]::Run()
+$result | ConvertTo-Json -Compress
+if (!$result.marker_present -or $result.marker_size -lt 16 -or
+    $result.after_close -ne $result.after_owner_destroy -or $result.after_close -ne $result.after_open -or
+    $result.after_close -ne $result.after_marker_read -or $result.after_close -ne $result.after_read_close) {
+    throw 'Synthetic clipboard ownership could not be sealed after write-close'
+}

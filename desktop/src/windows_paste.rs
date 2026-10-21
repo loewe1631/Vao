@@ -220,6 +220,20 @@ unsafe fn snapshot() -> Result<Vec<(u32, Vec<u8>)>, String> {
     Ok(out)
 }
 
+unsafe fn matches_data(format: u32, expected: &[u8]) -> bool {
+    let handle = GetClipboardData(format);
+    if handle.is_null() || GlobalSize(handle) < expected.len() {
+        return false;
+    }
+    let pointer = GlobalLock(handle);
+    if pointer.is_null() {
+        return false;
+    }
+    let matches = std::slice::from_raw_parts(pointer.cast::<u8>(), expected.len()) == expected;
+    GlobalUnlock(handle);
+    matches
+}
+
 pub struct Transaction {
     sequence: u32,
     marker: u32,
@@ -227,6 +241,24 @@ pub struct Transaction {
     backup: Vec<(u32, Vec<u8>)>,
 }
 impl Transaction {
+    unsafe fn owns_open(&self) -> bool {
+        GetClipboardSequenceNumber() == self.sequence && matches_data(self.marker, &self.nonce)
+    }
+    fn current(&self) -> bool {
+        let Ok(_guard) = crate::platform::windows::CLIPBOARD.lock() else {
+            return false;
+        };
+        unsafe {
+            let Ok(owner) = crate::platform::windows::clipboard_owner() else {
+                return false;
+            };
+            let owner = Window(owner);
+            let Ok(_open) = open(owner.0) else {
+                return false;
+            };
+            self.owns_open()
+        }
+    }
     /// Called only after a reliable target receipt. Verify ownership again while
     /// holding the clipboard. Never overwrite a later user copy.
     pub fn restore(&self) -> bool {
@@ -241,20 +273,7 @@ impl Transaction {
             let Ok(_open) = open(owner.0) else {
                 return false;
             };
-            if GetClipboardSequenceNumber() != self.sequence {
-                return false;
-            }
-            let marker = GetClipboardData(self.marker);
-            if marker.is_null() || GlobalSize(marker) < self.nonce.len() {
-                return false;
-            }
-            let ptr = GlobalLock(marker);
-            if ptr.is_null() {
-                return false;
-            }
-            let ours = std::slice::from_raw_parts(ptr.cast::<u8>(), self.nonce.len()) == self.nonce;
-            GlobalUnlock(marker);
-            if !ours || EmptyClipboard() == 0 {
+            if !self.owns_open() || EmptyClipboard() == 0 {
                 return false;
             }
             self.backup
@@ -292,6 +311,11 @@ pub fn dispatch(
     if !keys_released() {
         transaction.restore();
         return Err("按键状态变化，结果已保留".into());
+    }
+    if !transaction.current() {
+        return Err(
+            "剪贴板已变化，未派发粘贴，结果已保留 / Clipboard changed; paste not dispatched".into(),
+        );
     }
     let input = events();
     let queued = unsafe { SendInput(4, input.as_ptr(), std::mem::size_of::<INPUT>() as i32) };
@@ -354,6 +378,17 @@ fn prepare(text: &str, verify: impl Fn() -> Result<(), String>) -> Result<Transa
                     let _ = put(*format, data);
                 }
                 return Err(error);
+            }
+            // Windows may synthesize text formats and advance the sequence on
+            // CloseClipboard. Seal after that write-close, while re-opening to
+            // verify the original owner, marker and exact Unicode payload.
+            drop(_open);
+            let _seal = open(owner.0)?;
+            if GetClipboardOwner() != owner.0
+                || !matches_data(marker, &nonce)
+                || !matches_data(13, &bytes)
+            {
+                return Err("剪贴板已变化，未派发粘贴，结果已保留 / Clipboard changed; paste not dispatched".into());
             }
             Transaction {
                 sequence: GetClipboardSequenceNumber(),
