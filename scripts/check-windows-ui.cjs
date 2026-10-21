@@ -84,7 +84,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  await page.waitForFunction(()=>fake.db.settings.shortcuts.record==='Control+Shift+KeyK');
  check('custom_shortcut_can_be_saved',true);
  await page.locator('.nav [data-page="home"]').click();
- check('ready_does_not_require_macos_accessibility',await page.locator('#top-status').innerText().then(s=>s.includes('标准编辑框')));
+ check('ready_does_not_require_macos_accessibility',await page.locator('#top-status').innerText()==='可开始录音');
  await page.locator('#lang').click();
  check('english_preview_is_explicit',await page.locator('.windows-preview').innerText().then(s=>s.includes('standard text-field insertion')));
 
