@@ -55,6 +55,10 @@ Real microphone, physical shortcut, another Mac's initial installation and actua
 [Writing presets](WRITING_PRESETS.md) documents the opt-in fixed-text replay. It opens settings read-only but sends fixture text to the selected model and consumes quota. A local/synthetic test pass cannot establish provider quality or universal semantic preservation.
 
 
+## 0.2.1 dictionary dialog regression
+
+Test importing and exporting a small synthetic TXT/JSON dictionary, then cancelling each file dialog. Confirm that the dialog helper exits after every selection or cancellation, Vao and Finder remain interactive, and no unresponsive dialog process remains. Imported terms should be saved and deduplicated; cancelled or invalid imports must not change the saved dictionary. Follow with dictation, translation and original-target insertion to check that the long-lived input bridge remains usable.
+
 ## 0.2.0 focused acceptance
 
 Use an isolated Mac test build and retain the previous app for rollback. Test dictionary TXT/JSON round trips, duplicates, invalid/over-capacity input and cancelling either file panel. Unsaved edits must not disappear. Confirm exports have terms only.

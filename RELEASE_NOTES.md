@@ -1,3 +1,23 @@
+# Vao 0.2.1 · build20261021.1202
+
+Mac direct download · Apple Silicon · macOS 12+. Not Apple-notarized; not an App Store build.
+
+## 修复
+
+- 修复词典导入、导出窗口关闭后，辅助进程未响应并影响其他窗口交互的问题。
+- 文件选择器改为单次进程，选取完成或取消后退出并回收；不占用录音和原窗口回填所用的适配进程。
+- 保留现有词典与配置，导入仍合并去重。异常退出或无效响应会报告错误，不会被当作用户取消。
+
+## Fixes
+
+- Fixed an unresponsive helper after closing dictionary import/export dialogs, which could disrupt interaction with other windows.
+- File dialogs now run in separate, one-shot processes, exit after selection or cancellation, and are reaped by the parent. They no longer occupy the recording/input-target bridge.
+- Existing settings and dictionary terms are preserved. Import still merges and deduplicates; process failures and invalid replies are reported rather than treated as cancellation.
+
+All 0.2.0 features remain available. See [testing](docs/TESTING.md), [privacy](PRIVACY.md) and [distribution](docs/DISTRIBUTION.md).
+
+---
+
 # Vao 0.2.0 · build20261021.1200
 
 Mac direct download · Apple Silicon · macOS 12+. Not Apple-notarized; not an App Store build.
