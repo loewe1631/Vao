@@ -17,9 +17,14 @@ $uninstaller = Join-Path $installed 'uninstall.exe'
 $expected = '"' + $binary + '" --autostart'
 $other = '"' + (Join-Path $fixture 'newer/vao.exe') + '" --autostart'
 $checks = [ordered]@{}
+function Has-StartupValue([string]$KeyPath) {
+    return (Test-Path $KeyPath) -and ((Get-Item -LiteralPath $KeyPath).GetValueNames() -contains $name)
+}
 function Read-Startup {
     if (!(Test-Path $run)) { return $null }
-    return Get-ItemPropertyValue -Path $run -Name $name -ErrorAction SilentlyContinue
+    # RegistryKey.GetValue returns the supplied default for an absent value.
+    # Get-ItemPropertyValue can throw a terminating error for this normal state.
+    return (Get-Item -LiteralPath $run).GetValue($name, $null)
 }
 function Run-Installer([string[]]$Arguments) {
     $p = Start-Process -FilePath $installer[0].FullName -ArgumentList $Arguments -PassThru
@@ -33,7 +38,7 @@ function Run-Uninstaller {
     finally { if (!$p.HasExited) { Stop-Process -Id $p.Id -Force } }
 }
 foreach ($keyPath in @($run, $approval)) {
-    if ((Test-Path $keyPath) -and (Get-Item $keyPath).GetValueNames() -contains $name) { throw 'Refusing to touch an existing bundle startup value' }
+    if (Has-StartupValue $keyPath) { throw 'Refusing to touch an existing bundle startup value' }
 }
 try {
     Run-Installer @('/S', ('/D=' + $installed))
@@ -58,14 +63,14 @@ try {
     New-ItemProperty -Path $approval -Name $name -PropertyType Binary -Value $disabled -Force | Out-Null
     Run-Uninstaller
     $checks.uninstall_removes_owned_startup = !(Read-Startup)
-    $checks.uninstall_removes_owned_approval = !(Get-ItemPropertyValue -Path $approval -Name $name -ErrorAction SilentlyContinue)
+    $checks.uninstall_removes_owned_approval = !(Has-StartupValue $approval)
     $report = [ordered]@{passed=!($checks.Values -contains $false);checks=@($checks.GetEnumerator() | ForEach-Object { @{name=$_.Key;passed=$_.Value} });scope='owned CI installer fixture, no login or reboot'}
     [IO.File]::WriteAllText((Join-Path $root 'dist/windows/runner-installer-startup.json'), ($report | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
     if (!$report.passed) { throw 'Installer startup lifecycle checks failed' }
     Write-Output 'Installer startup opt-in, update, system-disable and owned uninstall checks passed.'
 } finally {
     if ((Read-Startup) -in @($expected, $other)) { Remove-ItemProperty -Path $run -Name $name -ErrorAction SilentlyContinue }
-    Remove-ItemProperty -Path $approval -Name $name -ErrorAction SilentlyContinue
+    if (Has-StartupValue $approval) { Remove-ItemProperty -Path $approval -Name $name }
     if (Test-Path $uninstaller) { Run-Uninstaller }
     if (Test-Path $fixture) { Remove-Item -LiteralPath $fixture -Recurse -Force }
 }
