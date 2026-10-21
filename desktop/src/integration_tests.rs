@@ -809,7 +809,9 @@ fn old_notice_timer_cannot_hide_new_recording_answer_or_notice() {
     r.answer.clear();
     assert!(r.expire_notice(id, 4));
     assert!(r.notice.is_none());
+    assert!(r.can_hide_completed_bar(id, 4));
     r.session.begin().unwrap();
+    assert!(!r.can_hide_completed_bar(id, 4));
     r.notice = Some(InputNotice::PasteUnconfirmed);
     assert!(!r.expire_notice(id, 4));
     assert!(!r.expire_notice(r.session.id, 4));

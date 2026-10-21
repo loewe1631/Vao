@@ -95,6 +95,10 @@ impl Runtime {
         !self.settings.windows_return_to_origin && self.target["selection"].as_str().unwrap_or("").is_empty()
     }
     #[cfg(any(target_os = "windows", test))]
+    fn can_hide_completed_bar(&self, id: u64, serial: u64) -> bool {
+        self.session.id == id && self.notice_serial == serial && self.notice.is_none() && !self.session.active(id) && self.answer.is_empty()
+    }
+    #[cfg(any(target_os = "windows", test))]
     fn expire_notice(&mut self, id: u64, serial: u64) -> bool {
         if self.session.id != id || self.notice_serial != serial || self.notice.is_none() || self.session.active(id) || !self.answer.is_empty() { return false; }
         self.notice = None;
@@ -1298,7 +1302,18 @@ fn completed_windows_input(app: &tauri::AppHandle, id: u64) {
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         let state = h.state::<AppState>();
         let mut r = state.runtime.lock().unwrap();
-        if r.expire_notice(id, serial) { drop(r); show_bar(&h, false); }
+        if r.expire_notice(id, serial) {
+            drop(r);
+            let _ = h.emit("session-updated", ());
+            if let Some(window) = h.get_webview_window("voicebar") {
+                let handle = h.clone();
+                let _ = h.run_on_main_thread(move || {
+                    let state = handle.state::<AppState>();
+                    let r = state.runtime.lock().unwrap();
+                    if r.can_hide_completed_bar(id, serial) { voice_bar::set_visible(&window, false); }
+                });
+            }
+        }
     });
 }
 
