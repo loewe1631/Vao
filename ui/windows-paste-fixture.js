@@ -86,7 +86,8 @@ try{
  await focus(one,'position',1);await capture();one.setSelectionRange(5,5);await delay(180);
  target=await call('current_capture');before=pastes;await deliver(target,'X');await delay(180);
  check('current_focus_uses_completion_caret',one.value==='positXion'&&pastes===before+1);
- await focus(one,'x'.repeat(9000),9000);await capture();
+ await focus(one,'x'.repeat(9000),9000);
+ check('current_focus_origin_snapshot_unavailable',await rejected(capture()));
  await focus(many,'',0);target=await call('current_capture');before=pastes;
  await deliver(target,'第一段🙂\n第二段');await delay(180);
  check('current_focus_unreadable_origin_does_not_block',many.value==='第一段🙂\n第二段'&&pastes===before+1);
