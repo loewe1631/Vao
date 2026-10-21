@@ -793,6 +793,8 @@ fn windows_target_mode_preserves_selection_origin_and_legacy_settings() {
 
 #[test]
 fn old_notice_timer_cannot_hide_new_recording_answer_or_notice() {
+    use crate::InputNotice;
+    use vao_core::Phase;
     let mut r = crate::Runtime::default();
     let id = r.session.begin().unwrap();
     for phase in [Phase::Listening, Phase::Processing, Phase::Ready, Phase::Completed] {
