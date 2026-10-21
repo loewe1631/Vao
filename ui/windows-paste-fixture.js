@@ -1,6 +1,7 @@
 // Native paste receipt and clipboard regressions. Synthetic data, explicit CLI only.
 const invoke=window.__TAURI__.core.invoke;
 const checks=[];
+let clipboardContract=null;
 let enters=0,submits=0,pastes=0,inputs=0,trusted=0;
 const one=document.querySelector('#one'),two=document.querySelector('#two'),many=document.querySelector('#many');
 document.addEventListener('keydown',e=>{if(e.key==='Enter')enters++;});
@@ -16,7 +17,7 @@ const deliver=(target,text)=>call('deliver',{target,text,paste:true});
 async function rejected(task){try{await task;return false;}catch{return true;}}
 try{
  await delay(800);
- const race=await call('clipboard_race');
+ const race=await call('clipboard_race');clipboardContract=race;
  check('paste_native_multiple_formats_restored',race.restored);
  check('paste_later_copy_not_overwritten',race.later_copy_preserved);
  check('paste_marker_mismatch_not_overwritten',race.wrong_marker_rejected);
@@ -75,6 +76,6 @@ try{
  await call('report',{passed:true,kind:'native WebView2 paste and clipboard transactions; synthetic only',checks,audio_captured:false,models_contacted:false});
  document.querySelector('#status').textContent='Passed';
 }catch(error){
- await call('report',{passed:false,checks,error:String(error),audio_captured:false,models_contacted:false});
+ await call('report',{passed:false,checks,clipboard_contract:clipboardContract,error:String(error),audio_captured:false,models_contacted:false});
  document.querySelector('#status').textContent='Failed: '+String(error);
 }
