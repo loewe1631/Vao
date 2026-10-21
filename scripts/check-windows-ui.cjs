@@ -13,6 +13,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
   const connection={base:'https://model.example/v1',model:'synthetic',protocol:'openai_chat'};
   const db={platform:'windows',version:'0.1.0-beta.5-windows.4',build:'20261020.3004',
    settings:{asr:{...connection,protocol:'openai_audio'},llm:connection,backup:{base:'',model:'',protocol:'openai_chat'},language:'auto',translation_language:'English',auto_input:true,windows_compatible_input:true,windows_return_to_origin:false,live_preview:false,input_context:false,expanded_context:false,dictionary:[],ui_language:'zh',theme:'system',trial_enabled:false,trial_consent_version:'',onboarding_complete:false,shortcuts:{record:'Control+Alt+Space',translate:'Control+Alt+KeyT',cancel:'Escape'}},
+   startup:{available:true,registered:false,system_disabled:false},
    profile:{revision:0,learning:true,personalization:true,rules:[],votes:[],undo:[]},history:[],
    permissions:{microphone:'not_determined',accessibility:'not_supported',input_monitoring:'not_required'},
    trial:{provisioned:false,consented:false,ready:true,asr_source:'custom',llm_source:'custom'}};
@@ -28,6 +29,9 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
     case 'request_permission':db.permissions.microphone='granted';return structuredClone(db.permissions);
     case 'save_shortcuts':if(fake.conflict)throw 'Shortcut unavailable';if(Object.values(args.shortcuts).some(x=>x.includes('Fn')))throw 'Fn is unavailable on Windows';db.settings.shortcuts=args.shortcuts;return {saved:true,active:true};
     case 'save_settings':db.settings=args.settings;return;
+    case 'login_startup_status':return structuredClone(db.startup);
+    case 'set_login_startup':if(fake.startupError)throw 'Startup change failed';db.startup={available:true,registered:args.enabled,system_disabled:args.enabled&&db.startup.system_disabled};return structuredClone(db.startup);
+    case 'open_startup_settings':return;
     case 'toggle_recording':state.session={id:1,phase:state.session.phase==='listening'?'processing':'listening'};return;
     case 'cancel':state.session.phase='cancelled';return;
     case 'dismiss_answer':state.answer='';return;
@@ -42,6 +46,24 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  check('onboarding_waits_for_actual_probe',await page.locator('#finish-setup').isDisabled());
  check('onboarding_offers_insertion',await page.locator('#setup-auto-input').count()===1);
  await page.locator('.nav [data-page="settings"]').click();
+ check('login_startup_default_off',await page.locator('#login-startup').getAttribute('aria-checked')==='false');
+ check('launch_does_not_register_startup',await page.evaluate(()=>!fake.calls.some(c=>c.command==='set_login_startup')));
+ await page.locator('#login-startup').click();
+ check('login_startup_opt_in_registers',await page.evaluate(()=>fake.db.startup.registered&&fake.calls.filter(c=>c.command==='set_login_startup').length===1));
+ await page.evaluate(()=>fake.startupError=true);
+ await page.locator('#login-startup').click();
+ check('startup_failure_keeps_checked_state',await page.locator('#login-startup').getAttribute('aria-checked')==='true');
+ await page.evaluate(()=>fake.startupError=false);
+ await page.locator('#login-startup').click();
+ check('login_startup_can_be_disabled',await page.evaluate(()=>!fake.db.startup.registered));
+ await page.evaluate(()=>{fake.db.startup={available:true,registered:true,system_disabled:true};window.dispatchEvent(new Event('focus'));});
+ await page.locator('#startup-system-settings').waitFor();
+ check('system_disable_has_explicit_settings_link',await page.locator('#startup-card').innerText().then(s=>s.includes('Windows 已禁用')));
+ await page.locator('#startup-system-settings').click();
+ check('startup_system_settings_only_on_click',await page.evaluate(()=>fake.calls.filter(c=>c.command==='open_startup_settings').length===1));
+ await page.locator('#login-startup').click();
+ check('system_disabled_entry_can_be_removed',await page.evaluate(()=>!fake.db.startup.registered));
+ check('startup_does_not_reset_model_or_shortcuts',await page.evaluate(()=>fake.db.settings.asr.model==='synthetic'&&fake.db.settings.shortcuts.record==='Control+Alt+Space'));
  check('current_caret_default',await page.locator('#return-to-origin').getAttribute('aria-checked')==='false');
  await page.locator('#return-to-origin').click();
  await page.waitForFunction(()=>fake.db.settings.windows_return_to_origin===true);
@@ -110,6 +132,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
   await page.locator('.nav [data-page="settings"]').click();
   check(`guide_${language}_navigation_returns`,await page.locator('#auto-input').count()===1);
   check(`automatic_input_label_${language}`,await page.locator('#auto-input').locator('..').locator('h3').innerText()===(language==='en'?'Automatic input':'自动输入'));
+  check(`login_startup_label_${language}`,await page.locator('#login-startup').locator('..').locator('h3').innerText()===(language==='en'?'Start when signing in to Windows':'随 Windows 登录启动'));
  }
  await page.goto('file://'+path.join(root,'ui/index.html')+'?bar=1');
  await page.waitForFunction(()=>!!fake.listeners['session-updated']);

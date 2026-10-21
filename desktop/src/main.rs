@@ -31,6 +31,8 @@ mod windows_uia;
 mod windows_files;
 #[cfg(target_os = "windows")]
 mod windows_paste;
+#[cfg(target_os = "windows")]
+mod windows_startup;
 mod windows_input_probe;
 
 use input_feedback::{FlowError, InputNotice};
@@ -341,6 +343,12 @@ fn show_main(app: &tauri::AppHandle) {
         let _ = w.set_focus();
     }
 }
+fn login_background_launch(args: &[String]) -> bool {
+    #[cfg(target_os = "windows")]
+    { windows_startup::background_launch(args) }
+    #[cfg(not(target_os = "windows"))]
+    { let _ = args; false }
+}
 fn show_bar(app: &tauri::AppHandle, show: bool) {
     let _ = app.emit("session-updated", ());
     if let Some(w) = app.get_webview_window("voicebar") {
@@ -419,7 +427,12 @@ async fn report_ui_ready(window: tauri::WebviewWindow, state: State<'_, AppState
             #[allow(unused_mut)]
             let mut info = json!({"version":env!("VAO_RELEASE_VERSION"),"bundle":env!("VAO_BUNDLE_ID"),"webview":"main","ipc":"ready","phase":r.session.phase,"hotkeys":r.hotkeys,"size":window.inner_size().ok().map(|s|[s.width,s.height]),"captured_audio":false,"permissions":permissions::snapshot(),"trial":trial::local_status(&state.store.lock().unwrap().get::<Settings>("settings"))});
             #[cfg(target_os = "windows")]
-            { info["overlay"] = overlay; }
+            {
+                info["overlay"] = overlay;
+                info["main_visible"] = json!(window.is_visible().unwrap_or(true));
+                info["tray_ready"] = json!(window.app_handle().tray_by_id("vao-tray").is_some());
+                info["login_background"] = json!(login_background_launch(&args));
+            }
             std::fs::write(path, serde_json::to_vec_pretty(&info).unwrap())
                 .map_err(|e| e.to_string())?;
         }
@@ -429,9 +442,41 @@ async fn report_ui_ready(window: tauri::WebviewWindow, state: State<'_, AppState
 #[tauri::command]
 fn bootstrap(state: State<AppState>) -> Result<Value, String> {
     let db = state.store.lock().unwrap();
-    Ok(
-        json!({"settings":db.get::<Settings>("settings"),"profile":db.get::<Profile>("profile"),"history":db.history()?,"version":env!("VAO_RELEASE_VERSION"),"build":env!("VAO_BUILD_NUMBER"),"platform":std::env::consts::OS,"permissions":permissions::snapshot(),"trial":trial::local_status(&db.get::<Settings>("settings"))}),
-    )
+    let data = json!({"settings":db.get::<Settings>("settings"),"profile":db.get::<Profile>("profile"),"history":db.history()?,"version":env!("VAO_RELEASE_VERSION"),"build":env!("VAO_BUILD_NUMBER"),"platform":std::env::consts::OS,"permissions":permissions::snapshot(),"trial":trial::local_status(&db.get::<Settings>("settings"))});
+    #[cfg(target_os = "windows")]
+    let data = {
+        let mut data = data;
+        data["startup"] = windows_startup::status().map(|s| json!(s)).unwrap_or_else(|_| json!({"available":false,"registered":false,"system_disabled":false}));
+        data
+    };
+    Ok(data)
+}
+
+#[tauri::command]
+fn login_startup_status(window: tauri::WebviewWindow) -> Result<Value, String> {
+    if window.label() != "main" { return Err("Main window only".into()); }
+    #[cfg(target_os = "windows")]
+    { windows_startup::status().map(|s| json!(s)) }
+    #[cfg(not(target_os = "windows"))]
+    { Err("Windows only".into()) }
+}
+
+#[tauri::command]
+fn set_login_startup(window: tauri::WebviewWindow, enabled: bool) -> Result<Value, String> {
+    if window.label() != "main" { return Err("Main window only".into()); }
+    #[cfg(target_os = "windows")]
+    { windows_startup::set_enabled(enabled).map(|s| json!(s)) }
+    #[cfg(not(target_os = "windows"))]
+    { let _ = enabled; Err("Windows only".into()) }
+}
+
+#[tauri::command]
+fn open_startup_settings(window: tauri::WebviewWindow) -> Result<(), String> {
+    if window.label() != "main" { return Err("Main window only".into()); }
+    #[cfg(target_os = "windows")]
+    { platform::windows::open_settings("ms-settings:startupapps") }
+    #[cfg(not(target_os = "windows"))]
+    { Err("Windows only".into()) }
 }
 
 fn validate_settings(s: &Settings) -> Result<(), String> {
@@ -1692,8 +1737,8 @@ fn main() {
     }
 
     let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            show_main(app)
+        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            if !login_background_launch(&args) { show_main(app); }
         }))
         .setup(|app| {
             #[cfg(target_os = "windows")]
@@ -1730,7 +1775,7 @@ fn main() {
             let stop = MenuItem::with_id(app, "cancel", "取消录音 / Cancel", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出 / Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &stop, &quit])?;
-            let mut tray = tauri::tray::TrayIconBuilder::new()
+            let mut tray = tauri::tray::TrayIconBuilder::with_id("vao-tray")
                 .tooltip("Vao")
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -1807,6 +1852,7 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            login_startup_status,set_login_startup,open_startup_settings,
             report_ui_ready,report_frontend_state,
             windows_input_probe::probe_windows_input,
             snapshot,
@@ -1828,8 +1874,19 @@ fn main() {
             profile_action,
             clear_history
         ]);
+    let context = tauri::generate_context!();
+    #[cfg(target_os = "windows")]
+    let context = {
+        let mut context = context;
+        if login_background_launch(&args) {
+            if let Some(main) = context.config_mut().app.windows.iter_mut().find(|w| w.label == "main") {
+                main.visible = false;
+            }
+        }
+        context
+    };
     builder
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("Vao startup failed")
         .run(|app, event| {
             #[cfg(target_os = "macos")]

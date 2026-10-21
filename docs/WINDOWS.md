@@ -2,7 +2,25 @@
 
 This branch develops the Windows x64 client. Candidates are unsigned GitHub Actions artifacts, not a public Windows release. Windows 10 1809+ and WebView2 are the build target; the first desktop test target is Windows 11 x64.
 
-## Candidate 3010 / 0.2.1 Windows preview 3
+## Candidate 3011 / 0.2.1 Windows preview 4
+
+Settings offers **Start when signing in to Windows**, initially off. Enabling it
+registers this executable for the current user. Sign-in starts quietly in the
+system tray with shortcuts ready; it does not open the main window, record or
+activate a trial. Open Vao from its shortcut or tray menu to show the window.
+Closing the main window keeps the tray; Quit exits until the next launch/sign-in.
+
+The switch reads the actual registration. Windows Startup apps disabling an
+entry is shown separately and is never overwritten; use the provided system
+settings button to allow it. Moving a portable copy requires enabling startup
+again at its new path. In-place updates preserve the entry; uninstalling removes
+only the entry matching this bundle and installation path. An older installation
+cannot remove a newer path's startup command. Uninstall-then-reinstall requires
+opting in again. Preview and future release bundle identifiers stay separate.
+
+CI tests registry operations under isolated test keys, hidden sign-in startup
+and normal second-instance activation, plus an owned installer/update/uninstall
+fixture. Actual laptop sign-out/sign-in remains a separate acceptance step.
 
 Ordinary dictation now defaults to one Ctrl+V at the **current caret when the
 result is ready**. Keep the destination focused through processing. Starting in

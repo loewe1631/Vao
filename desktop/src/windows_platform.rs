@@ -25,6 +25,7 @@ pub fn open_settings(url: &str) -> Result<(), String> {
     if ![
         "ms-settings:privacy-microphone",
         "ms-settings:easeofaccess-keyboard",
+        "ms-settings:startupapps",
     ]
     .contains(&url)
     {
