@@ -1,205 +1,46 @@
-# Windows preview
+# Vao 0.2.1 for Windows
 
-This branch develops the Windows x64 client. Candidates are unsigned GitHub Actions artifacts, not a public Windows release. Windows 10 1809+ and WebView2 are the build target; the first desktop test target is Windows 11 x64.
+适用于 Windows 10（1809）及更新版本，64 位。安装程序为 **Vao-0.2.1-setup.exe**，包含 Vao 图标与中文、英文安装向导。
 
-## Candidate 3012 / 0.2.1 Windows preview 5
+## 安装与开始使用
 
-The user test download is a single `Vao-0.2.1-setup.exe`. The installer,
-application and uninstaller use the Vao icon at seven Windows icon sizes;
-welcome, completion and header artwork use the same existing brand. CI checks
-the actual executable icon resources, including the installed uninstaller.
-Portable archives and verification reports stay in the internal Actions artifact
-and are not part of the user download. This candidate does not publish a release
-or update the website. Existing preview identity and settings are preserved.
+1. 从 [Windows 0.2.1 发布页](https://github.com/loewe1631/Vao/releases/tag/windows-v0.2.1)下载安装程序并双击运行。首次安装需要网络；如果缺少 Microsoft WebView2，安装程序会下载其官方运行环境。
+2. 按向导完成安装，打开 Vao。在设置中检查麦克风访问，选择语音与文字服务；可使用免费体验服务，也可配置自有连接。
+3. 点击需要输入文字的文本框，按主快捷键开始录音，说完再按一次。默认主快捷键为 Ctrl+Alt+Space；可在设置中修改。
+4. 整理期间保持目标输入框获得焦点。结果完成时，文字粘贴到当前光标位置，不会替你发送消息。无法输入时可从历史复制结果。
 
-Settings offers **Start when signing in to Windows**, initially off. Enabling it
-registers this executable for the current user. Sign-in starts quietly in the
-system tray with shortcuts ready; it does not open the main window, record or
-activate a trial. Open Vao from its shortcut or tray menu to show the window.
-Closing the main window keeps the tray; Quit exits until the next launch/sign-in.
+本安装包尚无 Windows 代码签名。若系统拦截，请核对下载来源与发布页校验值，再根据系统提示决定是否运行。
 
-The switch reads the actual registration. Windows Startup apps disabling an
-entry is shown separately and is never overwritten; use the provided system
-settings button to allow it. Moving a portable copy requires enabling startup
-again at its new path. In-place updates preserve the entry; uninstalling removes
-only the entry matching this bundle and installation path. An older installation
-cannot remove a newer path's startup command. Uninstall-then-reinstall requires
-opting in again. Preview and future release bundle identifiers stay separate.
+早期 Windows 测试版用户请先退出并卸载旧测试版，再安装此版本。正式版与早期测试版分别保存设置和凭据，不自动导入旧数据；请在正式版重新选择连接、快捷键及登录启动选项。卸载旧测试版会清理其匹配的登录启动项，不会自动清除其凭据或历史。
 
-CI tests registry operations under isolated test keys, hidden sign-in startup
-and normal second-instance activation, plus an owned installer/update/uninstall
-fixture. Actual laptop sign-out/sign-in remains a separate acceptance step.
+## 日常功能
 
-Ordinary dictation now defaults to one Ctrl+V at the **current caret when the
-result is ready**. Keep the destination focused through processing. Starting in
-one app and finishing in another writes to the latter. No app-name list or
-complete text snapshot is required. Known password, readonly and disabled
-controls, provider failures and missing external focus refuse before dispatch.
-The focused native control and UIA element must remain the same during dispatch.
+- **听写与文字整理**：支持长录音、词典、文字排版和明确反馈形成的个人偏好。
+- **局部翻译**：录音中按翻译快捷键切换需要翻译的片段，主快捷键结束整段录音。默认翻译快捷键为 Ctrl+Alt+T。
+- **划词处理**：选中文字后按主快捷键，说出与原文相关的问题或修改要求；提问保留原文，修改尝试替换已校验的原选区。
+- **随 Windows 登录启动**：在设置中开启后，登录时在托盘待命，主窗口不弹出。单击托盘或再次打开 Vao 可显示主窗口。默认关闭。
+- **输入增强**：临时转写、参考输入框前后文和参考起始窗口标题分别可选，默认关闭。其发送范围见[数据处理说明](../PRIVACY.md)。
 
-Enable **Return to the starting input** to retain the original snapshot and
-receipt behavior. Its separate compatibility-paste option remains available for
-opaque editors. Selection edits always use their original verified selection;
-selection questions remain answers and do not replace the source.
+普通听写从 A 开始、结果完成时光标停在 B，会输入到 B。请保持光标停在目标位置直到文字出现。如果开启“返回录音起始位置”，应用会尝试返回起始输入框，但部分应用无法恢复原光标。“返回起始位置时使用兼容粘贴”仅在该模式下生效。划词修改始终校验原选区。
 
-A dispatched paste closes the recording overlay without a completion bubble.
-Without a text receipt, the result remains unconfirmed in History and the paste
-text stays on the clipboard. Failures retain the result card; recording
-interruptions still show a warning. Neither mode sends Enter or
-a message, automatically retries, or restores the clipboard over a later copy.
-The same preview identity preserves settings; missing target-mode settings
-select the current-caret default. Automatic input and original-position
-compatibility paste default to on; return to the starting input, temporary
-transcription and both context options default to off. Compatibility paste
-only applies when returning to the starting input. Explicit saved choices
-remain unchanged. Synthetic CI checks are separate from
-real application acceptance.
+自动输入不会按 Enter、提交表单或发送消息，也不会因缺少接收确认而自动重复粘贴。结果保存在历史中；请核对目标内容后再手动复制，避免重复。密码、只读或已失效的输入位置会拒绝写入。
 
-## Candidate 3008 / 0.2.1 Windows preview
+## 设置与卸载
 
-This candidate integrates the shared Mac 0.2.1 features: long recordings,
-optional temporary transcripts, explicit Realtime ASR, protocol diagnostics,
-dictionary TXT/JSON import/export, scoped selection requests, and the updated
-hosted-service client contract. It does not change the hosted server.
+快捷键、词典、偏好和历史保存在本机；密钥保存在 Windows 凭据管理器。关闭主窗口后仍可通过托盘使用；选择“退出”才结束程序。登录启动关闭后，下次登录不再启动。Windows 如果禁用启动项，可从 Vao 设置打开系统启动应用页面调整。
 
-Normal launches now use the guarded Unicode adapter accepted in 3007, while
-native Edit/RichEdit insertion remains first. The historical opt-in instructions
-below describe earlier candidates. Existing settings and the preview identity
-are retained; new enhancement and compatibility settings default to off.
+在 Windows“设置 → 应用”中卸载 Vao。卸载会清理本安装路径匹配的登录启动项，但不会自动删除本机历史、设置或凭据。需要删除历史时，请先在应用内操作；凭据可在 Windows 凭据管理器中处理。
 
-Input context requires an unchanged verified original field and collapsed caret.
-Windows expanded context adds only the original window title (120 characters),
-not nearby document text or a domain. Unsupported context is omitted.
+开发构建与验证见 [Windows build](WINDOWS_BUILD.md)；许可证和第三方声明随安装包提供。
 
-Enable **Settings > Compatible paste input (experimental)** to test clipboard
-plus one Ctrl+V. Verified fields retain original-target guards and exact receipt.
-Opaque fields, including some document panes, have only window/native-focus
-checks: return to the original insertion position before stopping. Such delivery
-remains unconfirmed; the result and paste text are retained, without retry or
-Enter. Inspect the field before copying again. Clipboard restoration requires
-strict receipt and unchanged transaction ownership; later user copies win.
-Unsupported clipboard formats cause refusal before dispatch.
+## English
 
-CI retains both old native suites and adds a real WebView2 paste/undo/clipboard
-suite. These synthetic checks do not establish real WPS or microphone acceptance.
-For laptop tests, use synthetic text first: dsh/Edge short dictation and return,
-WPS with compatibility enabled, Chinese/emoji/multiple paragraphs and undo,
-recording beyond 130 seconds with a final phrase, transcript focus behavior,
-dictionary import/export/cancel, and copying other text while processing.
+Download **Vao-0.2.1-setup.exe** from the [Windows release](https://github.com/loewe1631/Vao/releases/tag/windows-v0.2.1). Requires Windows 10 (1809) or later, 64-bit. The installer downloads the official WebView2 runtime if missing. This build is not Windows code-signed; verify its source and release checksum before deciding whether to run it if Windows blocks it.
 
-Build on a Windows host with Rust MSVC, Visual C++ build tools, Node 22+ and WebView2:
+Open Vao, check microphone access and choose hosted or custom speech/text connections. Click a destination text field, press Ctrl+Alt+Space to start, then press it again to stop. Keep the field focused until processing finishes: ordinary dictation pastes at the current caret without sending a message. Ctrl+Alt+T marks translation segments; both shortcuts are configurable. Selection tools answer questions about the selected text or apply a requested edit to the verified selection.
 
-```powershell
-npm ci
-cd desktop
-npx tauri build --target x86_64-pc-windows-msvc --config tauri.windows.conf.json --bundles nsis -- --locked
-cd ..
-pwsh -File scripts/check-windows-startup.ps1
-python scripts/package-windows.py --commit (git rev-parse HEAD) --run-id 0
-```
+Sign-in startup is optional and off by default. When enabled, Vao stays hidden in the system tray after login. Open it from the tray or its shortcut to show the window. Windows may separately disable startup in system settings. Uninstalling removes only the startup entry matching this installation path; it does not erase local settings, history or Credential Manager entries.
 
-The `Windows candidate` workflow runs workspace tests and Clippy before producing a per-user NSIS installer, portable ZIP, source/run identity and SHA256SUMS. It does not publish Releases, sign binaries, update the website or merge branches. The existing Mac/Linux checks also remain enabled.
+Before installing over an early Windows test edition, quit and uninstall that edition. This release uses separate settings and credentials without automatic migration. Configure connections, shortcuts and startup again in Vao. Removing the test edition removes its matching startup entry.
 
-Keep candidate data separate: `app.vaovao.windows.preview`. Do not import another installation's credentials, settings, history or learning. Default shortcuts are Ctrl+Alt+Space (record), Ctrl+Alt+T (translation) and Escape (cancel while active). Hardware Fn is not supported on Windows; choose a normal combination in Settings.
-
-CI compilation is not microphone, hotkey, selection, focus or input-delivery acceptance. Test these in a logged-in desktop session. SSH belongs to a different session. Current platform gaps and desktop test instructions will be updated with each candidate.
-
-## Candidate 3007: empty Edit representations
-
-The opt-in Unicode adapter now recognizes an empty writable Edit whose owned
-Text range exactly equals its bounded accessible name, with a collapsed owned
-caret at a proven boundary. The name remains only in the transient snapshot;
-changing it or the content invalidates delivery. Nonempty field values are
-never removed as labels. The existing whole-field Value adapter retains its
-previous requirements.
-
-A complete single-LF empty paragraph with a collapsed owned boundary caret
-can disappear on the first native insertion. Its receipt accepts either the
-original exact expected text/caret or precisely the inserted text with the
-corresponding collapsed caret. Ordinary in-document LF, generated text and
-other mismatches retain receipt warnings; no input is resent or caret moved.
-
-Native WebView2 regressions now require verified empty input/textarea fields
-with names/placeholders, empty editable containers and paragraph/BR containers,
-at both paragraph caret boundaries, plus exact existing-text insertion. Generated pseudo-content still produces
-an unconfirmed receipt. Changed empty-field contents/name, nonempty names and
-real LF normalization are checked separately. Desktop dsh/Edge acceptance and
-WPS text-context support remain unresolved until tested on the laptop.
-
-### Structural diagnostics introduced in 3006
-
-Desktop feedback for 3005 includes visible dsh input followed by a receipt
-warning, an Edge Value/Text mismatch at capture, and a WPS pane without the
-required text/selection interfaces. These are unresolved compatibility issues.
-3006 adds structural diagnostics (lengths, offsets, newline/object-marker flags
-and equality results) to distinguish them without exporting field text or
-hashes. It preserves all capture, delivery and receipt requirements.
-
-CI also observes six owned field shapes: input/textarea placeholders, empty
-contenteditable, an empty paragraph with BR, generated placeholder content and
-existing editable text. Observations explicitly distinguish capture refusal,
-visible insertion and verified receipt; completing an observation does not
-mean that shape supports delivery. A normalization regression checks that a
-changed field produces a receipt warning and its consumed token cannot replay.
-
-### Explicit preview launch
-
-The portable archive includes `Start-Unicode-Preview.cmd`. Exit any running Vao
-before launching it. This explicitly enables a Unicode input preview for the
-current process; it does not change settings or the default input method.
-Launching Vao normally retains the existing verified native/UIA paths.
-
-The preview still requires a focused editable UIA field, a complete bounded
-content and selection snapshot, an unchanged original target and a verified
-post-input receipt. It sends one Unicode event batch after physical keys are
-released; it does not replace the whole field, move the caret after writing,
-paste, send Enter or retry a possible partial insertion. Controls that cannot
-prove these conditions retain the result for copying. Window-only identification
-is insufficient, including document panes without text/selection interfaces.
-
-Multiline output remains supported by the existing native Edit/RichEdit adapter.
-The UIA preview rejects line breaks and control characters until an editor
-contract can distinguish text insertion from sending. The CI runs both the
-original UIA tests and additional native WebView2 Unicode receipt, trusted input,
-undo/redo, conflict and window-restoration tests. CI success does not establish
-physical desktop recording acceptance.
-
-The preview launcher writes `input-preview.trace` beside the executable with
-stage names, HRESULTs and numeric/boolean metadata only. Field contents, selections,
-window titles and provider error descriptions are excluded. Only explicitly
-selected text enters the existing selection feature; complete field snapshots
-remain transient in the existing UIA worker.
-
-## Existing capability-based input
-
-Input routing now follows control capabilities rather than an application-name list. The existing native Edit/RichEdit path remains first. Other focused plain Edit controls can use Windows UI Automation when they expose both writable ValuePattern and a single TextPattern selection. The same adapter is intended for compatible Win32, XAML and web fields; a browser, chat product or executable name does not grant eligibility. Actual laptop acceptance remains pending.
-
-UIA targets live on a dedicated MTA worker with provider connection/transaction timeouts, a bounded request deadline and recording generations. Every recording invalidates previous adapters and tokens. Capture checks the focused element's ancestry under the original root window, root and element process creation times, non-password/enabled/editable state, contents and selection. Delivery restores only the original root, confirms the exact focused element and unchanged snapshot, sets the plain value through its provider, restores the caret by a verified text range and checks the received contents/caret. It does not inject keys, use the clipboard, send Enter or overwrite a rich document through a generic value fallback. A write and a user edit are not atomic; a receipt failure can follow a partial write. Inspect the source before copying to avoid duplication.
-
-Full field snapshots stay in memory; only explicit selected text enters the shared model path. Native Win32 snapshots allow at most 256K UTF-16 units. UIA fields and resulting values must additionally stay below 8 KiB of UTF-8 text: some providers truncate both Value and Text consistently, so agreement alone cannot establish that a large field was read in full. Chromium's [string serializer](https://chromium.googlesource.com/chromium/src/+/9dffde6c9419b8cf0caa061a4e2f192607916b40/third_party/blink/renderer/modules/accessibility/ax_object.cc) truncates values at 10,000 UTF-8 bytes; the smaller UIA bound applies to every provider without checking app names. UIA calls can allocate a provider value before its length can be checked; oversized values are rejected immediately. Unknown/opaque editors, protected fields, ambiguous selections, provider errors and conflicts preserve the result for copying. UIA ValuePattern has no portable multiline capability flag, so this first UIA adapter preserves multiline insertion results for copying instead of risking a single-line field stripping line breaks. The native multiline Edit/RichEdit path is unchanged.
-
-The user's metadata-only desktop inspection confirmed compatible Value/Text patterns in Edge webpage search and Windows Search. WPS's inspected document pane exposed neither; the inspected dsh focus returned a Chrome pane instead of an editable element. These are unresolved compatibility cases, not an executable allowlist to grow one app at a time. A specialized editor path is appropriate only when its real interface and target/selection protection can be verified.
-
-Windows CI also runs `--windows-input-probe --smoke-test <output.json>` against actual WebView2 fields, with separate state, no audio/model calls and no user content. It checks Unicode/selection receipt, page input events, stale/one-shot tokens, A/B/A field changes, content/caret/field conflicts, protected/disabled/oversized inputs and no Enter/form submission. Native unit fixtures additionally check A/B/A across processes and UIA restoration to a foreign process. The browser IPC doubles continue to check the interface; the native checks and user laptop acceptance are separate evidence.
-
-## Candidate 3003 scope
-
-Candidate 3002 was tested by the user: dictation reached Notepad, switching apps during recording or translation returned to the original field, and a selected-text follow-up question succeeded. This confirms those reported flows on that device, not every application. Clicking the overlay exposed a native "Vao Voice Bar" caption. Candidate 3003 replaces the Windows non-client drag loop with bounded physical mouse polling and non-activating position updates; a persistent style guard prevents framework restyles from restoring caption/edge styles. The isolated native probe checks repeated clicks, movement, release and attempted restyling without injecting global mouse/keyboard input. Actual laptop click/drag appearance remains a user acceptance step.
-
-| Area | Implementation | Remaining evidence/work |
-| --- | --- | --- |
-| Install/start | Per-user NSIS, portable ZIP, isolated identity, WebView IPC probe | 3001 installation/start and 3002 runtime confirmed by user; 3003 upgrade/uninstall pending |
-| Credentials | Windows Credential Manager; URL-bound connection keys | Native round-trip test runs in Windows CI; user setup test |
-| Audio/models | CPAL WASAPI, microphone access probe, existing stage routing/cancellation | 3002 dictation, translation, cross-app return and selected-text question confirmed by user; 3003 regression pending |
-| Shortcuts | Ordinary customizable RegisterHotKey combinations, conflict rollback | Physical triggers and conflicts on laptop; no hardware Fn |
-| Overlay | No native frame/shadow, content-sized height, WS_EX_NOACTIVATE, work-area/DPI placement and dragging | Focus, multiple monitors and scaling on laptop |
-| Result | Verified native-field insertion, overlay/history and explicit copy; failures preserve text | Clipboard test on laptop |
-| Selection/input | Native Edit/RichEdit plus capability-based UIA plain Edit snapshots; one-shot insertion and receipt checks | 3002 Notepad flows accepted; 3004 UIA, dsh and WPS compatibility need physical desktop evidence |
-
-Install the candidate in the normal logged-in user desktop, then configure custom ASR/LLM connections or explicitly enroll in the trial. Test Ctrl+Alt+Space twice, a clear Chinese/English recording, translation, Escape cancellation, no microphone, denied microphone access and a failed model connection. Confirm the result remains available and focus is preserved. Enable automatic insertion and test Notepad: put the caret in the field before the recording shortcut, switch apps while recording, then finish. Text should return to the original field without sending. Changed content/caret, a different field, closed/disabled/read-only/password/unsupported controls preserve the result for copying. Native and eligible UIA selected text support edits/questions through the shared pipeline. The guide currently advertises dictation and translation only.
-
-`--build-info <output.json>` writes build identity and exits without starting the UI, touching credentials or making network/audio requests. `--windows-smoke --smoke-test <output.json>` uses isolated local state and reports native WebView/IPC startup. The CI probe terminates only the process it starts. These probes do not certify real desktop receipt.
-
-The native Win32 adapter supports focused `Edit`, `RichEdit20W`, `RICHEDIT50W` and `RichEditD2DPT` controls only when the Win32 text and selection APIs respond consistently. Windows 11 Notepad still needs real-device receipt validation. It captures only the explicitly focused control at recording start, keeps at most 256K UTF-16 units in memory, and sends only the selected portion to the model. No input snapshot is written to history/logs. Process creation time, window/control identity, full contents and caret/selection must still match. Foreground restoration must be accepted by Windows. Direct `EM_REPLACESEL` is followed by a content/caret receipt check; no synthesized keyboard/Enter or clipboard writes are used. The final check and write are not an atomic transaction against concurrent user edits. A receipt failure may follow a partial write: inspect the source before copying, to avoid duplicates. Other fields are evaluated by the UIA capability adapter; opaque or unverified fields keep results for copying.
-
-The Windows runner includes a separate native Edit/RichEdit fixture process for real message receipt, Unicode/newlines, selected replacement, content/caret/field conflicts, stale/reused tokens, app restoration, closed/disabled/password/read-only targets and clipboard preservation. Browser guide/overlay checks use IPC doubles. Neither is real laptop acceptance. Upgrades retain the same preview identity, settings, history, learning and credentials.
+Automatic insertion never presses Enter, submits or automatically retries. Unsupported inputs keep results in History for copying. Review the destination before copying again to avoid duplicates. Returning to the starting input is optional and cannot restore the original caret in every app. Temporary transcripts and bounded input/title context are optional and off by default. See [privacy](../PRIVACY.md).

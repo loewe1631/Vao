@@ -1743,7 +1743,7 @@ fn main() {
         }))
         .setup(|app| {
             #[cfg(target_os = "windows")]
-            if let Some(main) = app.get_webview_window("main") { main.set_title("Vao Windows Preview")?; }
+            if let Some(main) = app.get_webview_window("main") { main.set_title("Vao")?; }
             let args: Vec<String> = std::env::args().collect();
             // UI regression tests must never mutate the user's preferences/history.
             let path = if args.iter().any(|a| a == "--verify-ui" || (cfg!(target_os = "windows") && (a == "--windows-smoke" || a == "--windows-input-probe"))) {

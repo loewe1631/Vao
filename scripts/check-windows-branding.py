@@ -98,7 +98,15 @@ def main():
     expected = icon_frames(ROOT / 'desktop/icons/windows.ico')
     checks = {name: check_pe(getattr(args, name), expected)
               for name in ('installer', 'application', 'installed', 'uninstaller')}
-    report = {'passed': True, 'checks': checks, 'scope': 'built default PE icon resources; user desktop visual acceptance is separate'}
+    # Tauri changes this fixed marker while making an NSIS package, then restores
+    # the standalone executable. No other installed application difference is valid.
+    application = args.application.read_bytes()
+    marker = b'__TAURI_BUNDLE_TYPE_VAR_UNK'
+    assert application.count(marker) == 1
+    assert args.installed.read_bytes() == application.replace(marker, b'__TAURI_BUNDLE_TYPE_VAR_NSS')
+    report = {'passed': True, 'checks': checks,
+              'installed_matches_build_except_bundle_marker': True,
+              'scope': 'default PE icons and complete installed application bytes; user desktop visual acceptance is separate'}
     args.output.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Vao Windows Preview",
-  "version": "0.2.1-windows.preview.5",
-  "identifier": "app.vaovao.windows.preview",
+  "productName": "Vao",
+  "version": "0.2.1",
+  "identifier": "app.vaovao.windows",
   "bundle": {
     "active": true,
     "targets": [
@@ -19,7 +19,7 @@
       "../docs/WINDOWS.md": "WINDOWS.md",
       "../docs/WINDOWS_NOTICES.md": "WINDOWS_NOTICES.md"
     },
-    "shortDescription": "Windows dictation preview",
+    "shortDescription": "Voice input, refinement and translation",
     "windows": {
       "nsis": {
         "installerIcon": "icons/windows.ico",

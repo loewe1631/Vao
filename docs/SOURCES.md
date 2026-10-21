@@ -4,7 +4,7 @@ The application code under crates/, desktop/src/, platform/, ui/app.js, ui/style
 
 ## Brand assets
 
-ui/assets/logo.svg, desktop/icons/32x32.png, desktop/icons/128x128.png and desktop/icons/icon.icns are Vao brand exports dated 2026-10-17. No icon-renderer application code was copied from another product. Brand and trademark rights are separate from dependency licenses.
+ui/assets/logo.svg, desktop/icons/32x32.png, desktop/icons/128x128.png and desktop/icons/icon.icns are Vao brand exports dated 2026-10-17. The Windows ICO and installer BMP files under desktop/icons/windows* are exports of the same Vao SVG, rendered by scripts/generate-windows-branding.cjs on 2026-10-21. No icon-renderer application code was copied from another product. Brand and trademark rights are separate from dependency licenses.
 
 ## Runtime dependencies
 

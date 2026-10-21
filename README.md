@@ -6,7 +6,7 @@ Your words. More like you.
 
 Vao is an open-source Mac voice-input app. It turns speech into usable text, chooses writing styles from your content and destination app, and remembers the layout choices you explicitly ask it to keep.
 
-**Apple Silicon · macOS 12+ · Public beta.** Windows preview development is on `codex/windows`; see [candidate scope and testing](docs/WINDOWS.md). Windows is not yet released; Intel Mac is not shipped. Current direct downloads are not Apple-notarized. See [release notes](RELEASE_NOTES.md) for source and binary versions.
+**Apple Silicon · macOS 12+ · Public beta.** Windows x64 0.2.1 is available as a [single installer](https://github.com/loewe1631/Vao/releases/tag/windows-v0.2.1); see the [Windows guide](docs/WINDOWS.md). Intel Mac is not shipped. Current direct downloads are not Apple-notarized. See [release notes](RELEASE_NOTES.md) for source and binary versions.
 
 ## Features
 

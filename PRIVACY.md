@@ -1,12 +1,12 @@
 # Vao privacy / 数据处理说明
 
-Version 2026-10-21. Applies to Vao 0.2.0, the direct-download Mac release.
+Version 2026-10-21. Applies to Vao 0.2.1 for Mac and Windows.
 
 ## 本机保存
 
-录音使用有界队列和仅本用户可读写的临时会话文件；文件打开后立即移除文件名，处理完成、取消或退出后关闭。不保留音频历史，不承诺介质上的安全擦除。文字历史保留最近七天、最多 200 条，可在应用内删除；逻辑删除不保证清除备份或介质残留。词典和明确反馈形成的偏好本机保存，可编辑、暂停、撤销或清空。应用不会将一般键盘输入作为学习材料。
+录音使用有界队列和仅本用户可读写的临时会话文件；Mac 在打开后移除文件名，Windows 独占打开并在关闭时删除；处理完成、取消或退出后关闭。不保留音频历史，不承诺介质上的安全擦除。文字历史保留最近七天、最多 200 条，可在应用内删除；逻辑删除不保证清除备份或介质残留。词典和明确反馈形成的偏好本机保存，可编辑、暂停、撤销或清空。应用不会将一般键盘输入作为学习材料。
 
-API Key、随机安装标识及体验凭据保存在 macOS 钥匙串，不进入设置导出。词典导入支持 UTF-8 TXT 和 JSON，合并去重；导出文件只包含词条，不包含密钥、历史、偏好或安装标识。导出位置和文件分享由你决定，词条本身也可能包含私人名称。
+API Key、随机安装标识及体验凭据保存在 macOS 钥匙串或 Windows 凭据管理器，不进入设置导出。词典导入支持 UTF-8 TXT 和 JSON，合并去重；导出文件只包含词条，不包含密钥、历史、偏好或安装标识。导出位置和文件分享由你决定，词条本身也可能包含私人名称。
 
 ## 划词用途判断
 
@@ -20,7 +20,7 @@ API Key、随机安装标识及体验凭据保存在 macOS 钥匙串，不进入
 
 模型请求会发送录音、待整理文字、词典及适用偏好；选区操作还包含所选文字。开启上下文增强后会发送下文说明范围内的参考文字。服务在请求期间处理，不保存音频或文字正文，不用于训练。运维日志只含请求编号、路径、状态和耗时；网络设施仍会处理来源地址。设备记录用于鉴权和撤销，使用计数保留约 35 天。新开通不再记录网络摘要；既有按日变化的网络摘要随后续开通清理超过约 35 天的记录。
 
-当前没有服务端自助删除入口，可通过项目 issue 询问处理方式。**不要在 issue 中提交密钥、录音或私人正文**；先请求私密渠道，见 SECURITY.md。重新安装不自动清除钥匙串或服务端记录。
+当前没有服务端自助删除入口，可通过项目 issue 询问处理方式。**不要在 issue 中提交密钥、录音或私人正文**；先请求私密渠道，见 SECURITY.md。重新安装不自动清除钥匙串、Windows 凭据管理器或服务端记录。
 
 ## 自有模型
 
@@ -44,32 +44,36 @@ API Key、随机安装标识及体验凭据保存在 macOS 钥匙串，不进入
 
 ## English
 
-Audio uses a bounded queue and an owner-only session file, unlinked immediately and closed after processing, cancellation or exit. No audio history is retained. Text history lasts seven days, up to 200 results. Deletion is logical, without guarantees about backups or media erasure. Vocabulary and explicit layout feedback stay locally. Keys and installation credentials stay in Keychain. Dictionary TXT/JSON exports contain terms only, without keys, history, preferences or installation identifiers; terms may themselves be private.
+Audio uses a bounded queue and an owner-only session file, unlinked immediately on Mac or exclusively opened with deletion on close on Windows. Files close after processing, cancellation or exit. No audio history is retained. Text history lasts seven days, up to 200 results. Deletion is logical, without guarantees about backups or media erasure. Vocabulary and explicit layout feedback stay locally. Keys and installation credentials stay in macOS Keychain or Windows Credential Manager. Dictionary TXT/JSON exports contain terms only, without keys, history, preferences or installation identifiers; terms may themselves be private.
 
 Optional hosted access requires consent and sends a random installation secret and notice version, not hardware identifiers. The service stores keyed installation hashes, credential hashes, consent, revocation and request counters. No expiry, daily use quota or daily enrollment quota is enforced, including for existing credentials; revocations remain effective. Numeric expiry/quota placeholders remain solely for legacy-client compatibility, with an `unlimited` flag for new clients. Resource bounds remain: two ASR slots, four text slots, four total active requests, up to eight queued requests, bounded request bodies/audio slices, model context, an ASR hint budget of 512 tokens (longer hints are reduced without rejecting audio; saved vocabulary still accompanies text refinement), and timeouts. Free shared service does not guarantee stability or response times. Consider your own cloud/local models for regular use.
 
-Model requests send audio, current text, vocabulary, relevant preferences, selected text when applicable and enabled context. Audio/text bodies are processed temporarily, not retained or used for training. Operational logs exclude content; infrastructure handles network addresses. Usage counters last about 35 days. New enrollments no longer store source-network digests; old digests older than about 35 days are cleaned during subsequent enrollments. Device records support authentication and revocation. Reinstallation does not erase Keychain or server records. For record-handling questions, request a private channel through the project; never post credentials or private content in issues.
+Model requests send audio, current text, vocabulary, relevant preferences, selected text when applicable and enabled context. Audio/text bodies are processed temporarily, not retained or used for training. Operational logs exclude content; infrastructure handles network addresses. Usage counters last about 35 days. New enrollments no longer store source-network digests; old digests older than about 35 days are cleaned during subsequent enrollments. Device records support authentication and revocation. Reinstallation does not erase Keychain, Credential Manager or server records. For record-handling questions, request a private channel through the project; never post credentials or private content in issues.
 
-Custom connections go directly to your provider under its policy, without silent fallback to hosted access. A configured backup text connection handles only limited failures. Microphone and Accessibility support recording, shortcuts, selection and original-target insertion; messages are never automatically sent. Input fingerprints remain native memory and are not sent to models.
+Custom connections go directly to your provider under its policy, without silent fallback to hosted access. A configured backup text connection handles only limited failures. On Mac, Microphone and Accessibility support recording, shortcuts, selection and original-target insertion; messages are never automatically sent. Input fingerprints remain native memory and are not sent to models.
 
 All input-enhancement options are off by default. File preview sends overlapping recent audio windows; final recognition runs separately. Realtime preview requires the public transcription WebSocket contract. Only complete confirmed coverage can be reused for ordinary final dictation, otherwise the same connection's file API is attempted. The hosted service currently uses files. Temporary text is excluded from history/learning, except when confirmed text becomes the original of a normal final result. Cancellation cannot recall transmitted audio or guarantee remote cancellation.
 
-Surrounding-input context sends up to 500 characters per side, 8 KiB total. Its separate expanded option adds up to 1200 visible-text characters, 120 title characters and a website domain from the originally captured window, without full URL/path/query. Known sensitive applications, password controls and unverifiable inputs are skipped; other visible material, including messages, can still be private. Data goes to the chosen text service and configured backup when needed. Raw context is session-only, excluded from history/learning, never an instruction, and omitted for restricted Vao refine, translation and selection workflows.
+On Mac, surrounding-input context sends up to 500 characters per side, 8 KiB total. Its separate expanded option adds up to 1200 visible-text characters, 120 title characters and a website domain from the originally captured window, without full URL/path/query. Known sensitive applications, password controls and unverifiable inputs are skipped; other visible material, including messages, can still be private. Data goes to the chosen text service and configured backup when needed. Raw context is session-only, excluded from history/learning, never an instruction, and omitted for restricted Vao refine, translation and selection workflows.
 
 Selection and insertion may temporarily use the clipboard. Multiple formats are preserved where possible and restored only if another app has not updated it. Transient/concealed markers are advisory; third-party clipboard tools may ignore them.
 
 Connection diagnostics send only fixed synthetic speech or a fixed correction sentence to the selected provider/protocol, using its service allowance. They do not enable the microphone, include history/dictionary/context, or change saved connections. Reports remain in the current app session only.
 
-## Windows 开发预览 / Windows development preview
+## Windows 输入与本机存储 / Windows input and local storage
 
-Windows 候选使用独立的 `app.vaovao.windows.preview` 数据和凭据标识。密钥、随机安装标识和体验凭据保存在 Windows 凭据管理器；卸载不会自动清除凭据或本机历史。麦克风访问检查只短暂打开设备并丢弃样本，不请求模型。长录音使用仅所有者可访问、独占打开且关闭自动删除的临时文件；不会因超过两分钟直接丢弃。
+正式 Windows 版本与早期测试版分别保存设置和凭据，不自动迁移数据。密钥、随机安装标识和体验凭据保存在 Windows 凭据管理器；卸载不会自动清除凭据或本机历史。麦克风访问检查只短暂打开设备并丢弃样本，不请求模型。长录音使用仅所有者可访问、独占打开且关闭自动删除的临时文件。
 
-默认输入路径验证起始进程、字段、内容与光标，通过原生文本操作或单次 Unicode 合成输入写入，并核对完整接收；不按 Enter 或自动发送。完整字段快照仅留有界内存，不落日志或历史。输入增强默认关闭；启用前后文时，仅在普通听写中向所选文字服务发送起始可验证字段光标前后各最多500字符。Windows 的扩展参考仅增加原窗口最多120字符标题，不扫描页面/文档、不采集域名。不支持、敏感、密码或已变化目标省略上下文。原始上下文不参与历史或学习。
+普通听写默认在结果完成时，使用剪贴板和一次 Ctrl+V 输入到当前光标位置。处理期间请保持目标输入框获得焦点；不会返回录音起始应用。不会按 Enter、提交或自动重发。无法输入时保留结果；未取得完整接收确认时保留粘贴文字供核对。剪贴板仅备份有界、可安全复制的内存格式；无法安全处理的格式会在写入前拒绝。只有取得严格文本/光标确认且剪贴板序号、事务标记均未变化时才尝试恢复旧内容；用户之后的复制优先。
 
-“兼容粘贴输入（实验）”默认关闭。开启后，适用目标以剪贴板和一次 Ctrl+V 写入；不透明目标仅能核对窗口/原生焦点身份，结束前需回到原输入位置，不能保证恢复原光标。剪贴板只备份有界、可安全复制的内存格式，不支持格式在写入前拒绝。只有取得严格文本/光标收据、剪贴板序号和事务标记均未变化时才尝试恢复旧内容；用户新的复制优先。无法确认接收或延迟接收时保留结果和粘贴文字供核对，不自动重发；请检查原框后再复制以免重复。显式复制结果也会更新剪贴板。
+“返回录音起始位置”默认关闭。开启后校验起始进程、字段、内容和光标；其兼容粘贴选项默认开启，仅在该模式下生效。部分应用无法恢复原光标，请在结果完成前回到原输入位置。划词修改始终校验原选区。完整字段快照仅留有界内存，不落日志或历史。显式复制结果也会更新剪贴板。
 
-The Windows candidate uses a separate `app.vaovao.windows.preview` data and Credential Manager identity. Uninstalling does not automatically clear credentials or local history. Microphone access checks discard samples and contact no model. Long recordings use owner-restricted, exclusively opened temporary storage deleted on handle close.
+输入增强默认关闭；启用前后文时，仅在普通听写中向所选文字服务发送起始可验证字段光标前后各最多 500 字符。Windows 的窗口参考最多增加起始窗口标题的 120 个字符，不扫描页面、文档或采集域名。无法读取、密码、只读或已变化的目标会跳过上下文。原始上下文不参与历史或学习。
 
-Default insertion verifies the original process, field, contents and caret, uses a native text operation or one Unicode input batch, and checks receipt. It never sends Enter. Bounded full-field snapshots remain in native memory. Enhancements are off by default. If enabled for ordinary dictation, surrounding context contains at most 500 characters on each side of the original verified caret. Windows expanded context adds only the original title, at most 120 characters; it does not scan pages/documents or collect domains. Unverifiable, changed, password and known sensitive targets are skipped. Raw context is excluded from history and learning.
+The Windows release stores settings and credentials separately from early test editions, without automatic migration. Keys and installation credentials stay in Windows Credential Manager. Uninstalling does not automatically erase them or local history. Microphone access checks discard samples and contact no model. Long recordings use owner-restricted, exclusively opened temporary files deleted on close.
 
-Experimental compatible paste is off by default. It uses the clipboard and one Ctrl+V. Opaque targets only permit window/native-focus identity checks; return to the original insertion position before stopping, with no exact-caret recovery guarantee. Only bounded memory-backed clipboard formats are supported. Old contents are restored only after a strict text/caret receipt and unchanged sequence/transaction marker; later user copies take priority. Unconfirmed or delayed receipt keeps the result and paste text available for inspection, without automatic retry. Inspect the original before copying to avoid duplication. Explicit result copying also updates the clipboard.
+Ordinary dictation defaults to the clipboard plus one Ctrl+V at the current caret when the result is ready. Keep the destination focused during processing; this mode does not return to the recording's starting app. It never presses Enter, submits or automatically retries. Unavailable inputs keep the result; unconfirmed receipt keeps paste text for inspection. Only bounded safely copied memory-backed clipboard formats are supported. Old contents are restored only after strict text/caret receipt and unchanged clipboard sequence/transaction marker. Later user copies win.
+
+Returning to the starting input is off by default. If enabled, it verifies the original process, field, contents and caret. Its compatibility paste option defaults to on and applies only in this mode. Some apps cannot restore the original caret; return there before processing finishes. Selection edits always verify their original selection. Full-field snapshots stay in bounded memory, outside logs and history. Explicit copying also updates the clipboard.
+
+Input enhancements are off by default. Ordinary-dictation context contains up to 500 characters per side of the original verified caret. Windows window context adds only up to 120 characters of the starting title; no page/document scan or domain collection. Unreadable, changed, password and readonly inputs skip context. Raw reference data stays out of history and learning.

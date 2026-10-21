@@ -6,7 +6,7 @@
 
 Vao 是一款开源的 Mac 语音输入工具：把口述整理成可用文字，根据内容与目标应用自动选择表达方式，并记住你明确选择的排版偏好。
 
-**Apple Silicon · macOS 12+ · 公开测试阶段。** Windows 开发预览位于 `codex/windows`，见[候选范围与测试](docs/WINDOWS.md)；尚未发布 Windows 版，Intel Mac 未交付。当前官网下载包尚未经过 Apple 公证。源码与安装包版本见[版本说明](RELEASE_NOTES.md)。
+**Apple Silicon · macOS 12+ · 公开测试阶段。** Windows x64 0.2.1 提供[单一安装程序](https://github.com/loewe1631/Vao/releases/tag/windows-v0.2.1)，见[Windows 使用说明](docs/WINDOWS.md)；Intel Mac 未交付。当前官网下载包尚未经过 Apple 公证。源码与安装包版本见[版本说明](RELEASE_NOTES.md)。
 
 ## 主要功能
 

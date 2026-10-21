@@ -11,7 +11,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  page.on('pageerror',error=>errors.push(String(error)));
  await page.addInitScript(()=>{
   const connection={base:'https://model.example/v1',model:'synthetic',protocol:'openai_chat'};
-  const db={platform:'windows',version:'0.1.0-beta.5-windows.4',build:'20261020.3004',
+  const db={platform:'windows',version:'0.2.1',build:'20261021.3013',
    settings:{asr:{...connection,protocol:'openai_audio'},llm:connection,backup:{base:'',model:'',protocol:'openai_chat'},language:'auto',translation_language:'English',auto_input:true,windows_compatible_input:true,windows_return_to_origin:false,live_preview:false,input_context:false,expanded_context:false,dictionary:[],ui_language:'zh',theme:'system',trial_enabled:false,trial_consent_version:'',onboarding_complete:false,shortcuts:{record:'Control+Alt+Space',translate:'Control+Alt+KeyT',cancel:'Escape'}},
    startup:{available:true,registered:false,system_disabled:false},
    profile:{revision:0,learning:true,personalization:true,rules:[],votes:[],undo:[]},history:[],
@@ -40,8 +40,10 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
   }}};
  });
  await page.goto('file://'+path.join(root,'ui/index.html'));
- await page.locator('.windows-preview').waitFor();
- check('preview_identifies_native_field_scope',await page.locator('.windows-preview').innerText().then(s=>s.includes('标准编辑框回填')&&s.includes('3004')));
+ await page.locator('.sidebar-foot').waitFor();
+ check('release_has_no_development_banner',await page.locator('.windows-preview').count()===0);
+ check('release_shows_clean_version',await page.locator('.sidebar-foot').innerText()==='0.2.1');
+ check('release_brand_has_no_beta_label',!(await page.locator('.sidebar .brand').innerText()).includes('BETA'));
  check('no_enrollment_or_copy_on_launch',await page.evaluate(()=>!fake.calls.some(c=>['enroll_trial','copy_result'].includes(c.command))));
  check('onboarding_waits_for_actual_probe',await page.locator('#finish-setup').isDisabled());
  check('onboarding_offers_insertion',await page.locator('#setup-auto-input').count()===1);
@@ -108,7 +110,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  await page.locator('.nav [data-page="home"]').click();
  check('ready_does_not_require_macos_accessibility',await page.locator('#top-status').innerText()==='可开始录音');
  await page.locator('#lang').click();
- check('english_preview_is_explicit',await page.locator('.windows-preview').innerText().then(s=>s.includes('standard text-field insertion')));
+ check('english_release_has_no_development_banner',await page.locator('.windows-preview').count()===0);
 
  for(const language of ['en','zh']){
   if(await page.evaluate(()=>fake.db.settings.ui_language)!==language)await page.locator('#lang').click();
@@ -133,6 +135,12 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
   check(`guide_${language}_navigation_returns`,await page.locator('#auto-input').count()===1);
   check(`automatic_input_label_${language}`,await page.locator('#auto-input').locator('..').locator('h3').innerText()===(language==='en'?'Automatic input':'自动输入'));
   check(`login_startup_label_${language}`,await page.locator('#login-startup').locator('..').locator('h3').innerText()===(language==='en'?'Start when signing in to Windows':'随 Windows 登录启动'));
+  for(const route of ['home','guide','habits','history','dictionary','models','settings','about']){
+   await page.locator(`.nav [data-page="${route}"]`).click();
+   const text=await page.locator('.page').innerText();
+   check(`public_copy_${language}_${route}`,!/(Windows 预览|Windows preview|开发预览|development preview|请在笔记本实测|test on your PC|公开测试版|public beta|实验|experimental|BETA|20261021\.3013)/i.test(text));
+   if(['settings','about'].includes(route))await page.screenshot({path:path.join(out,`windows-public-${language}-${route}.png`),fullPage:true});
+  }
  }
  await page.goto('file://'+path.join(root,'ui/index.html')+'?bar=1');
  await page.waitForFunction(()=>!!fake.listeners['session-updated']);

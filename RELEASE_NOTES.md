@@ -1,3 +1,21 @@
+# Vao 0.2.1 for Windows · build20261021.3013
+
+Windows 10（1809）及更新版本，64 位。下载文件：`Vao-0.2.1-setup.exe`。
+
+- 支持听写、长录音、文字整理、局部翻译、划词处理、词典和个人排版偏好。
+- 普通听写默认在结果完成时输入到当前光标，不自动发送消息；无法输入时保留结果供复制。可选返回起始输入位置。
+- 可选随 Windows 登录启动，在托盘待命，不弹出主窗口。
+- 统一 Vao 名称与 0.2.1 版本，移除界面中的开发提示条及 Windows 测试阶段标签。安装程序、应用和卸载程序均使用 Vao 图标。
+- 正式版与早期 Windows 测试版数据隔离。早期用户请先退出并卸载旧测试版，再安装正式版；设置、凭据和自启动需重新配置，不自动迁移。
+
+Windows 代码尚未签名。安装说明与 WebView2 要求见 [Windows guide](docs/WINDOWS.md)，数据发送与保存范围见 [privacy](PRIVACY.md)。
+
+This Windows release provides dictation, long recordings, refinement, partial translation, selection tools, vocabulary and personal layout preferences. Ordinary dictation pastes once at the current caret when ready, without sending; unsupported inputs keep the result for copying. Sign-in startup is optional and stays in the tray. The app and installer show Vao 0.2.1 without Windows development banners. Quit and uninstall early test editions before installing; their settings/credentials do not migrate automatically. The installer is unsigned and uses WebView2; see the linked guide.
+
+Windows source is tagged `windows-v0.2.1`. The separate Mac `v0.2.1` release and assets remain unchanged.
+
+---
+
 # Vao 0.2.1 · build20261021.1202
 
 Mac direct download · Apple Silicon · macOS 12+. Not Apple-notarized; not an App Store build.

@@ -4,7 +4,7 @@ Source releases do not require Apple Developer Program membership. Free/open-sou
 
 ## Build identity
 
-`release.json` owns the product, version, build and bundle identity. The host version/identifier must agree; compilation checks this. Source publication maintenance changes are listed separately in RELEASE_NOTES.md and do not replace an existing website binary automatically.
+`release.json` owns the Mac product, version, build and bundle identity; `release.windows.json` owns the Windows equivalents. The host version/identifier must agree; compilation checks this. Source publication maintenance changes are listed separately in RELEASE_NOTES.md and do not replace an existing website binary automatically.
 
 For local development:
 
@@ -38,3 +38,7 @@ Before opening the repository to contributions, enable GitHub private vulnerabil
 ## App Store
 
 This client is not sandbox-enabled or ready for App Store submission. Cross-app AX integration, private API usage, entitlements, signing and AGPL/store-term compatibility need a separate review. A paid membership or direct-download notarization does not establish App Store acceptance. The shared-source plan and remaining work are in [App Store preparation](APP_STORE.md).
+
+## Windows release
+
+Windows binaries use the per-user NSIS installer and the dedicated Windows icon/brand assets. The public filename is `Vao-0.2.1-setup.exe`. Windows metadata and application identity are independent from Mac; the release tag is `windows-v0.2.1`. The current Windows installer has no code signature. Verify source, build identity, installer payload, icon resources and checksums before uploading it. Retain license resources. Publish user installer/source/checksums, while keeping synthetic runner traces and internal candidate reports out of the release download list. See [Windows guide](WINDOWS.md) and [Windows build](WINDOWS_BUILD.md).
