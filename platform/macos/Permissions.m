@@ -21,7 +21,7 @@ int vao_has_credential(const char *slot) {
     LAContext *context = [[LAContext alloc] init];
     context.interactionNotAllowed = YES;
     NSDictionary *query = @{(__bridge NSString *)kSecClass: (__bridge NSString *)kSecClassGenericPassword,
-        (__bridge NSString *)kSecAttrService: @"app.vaovao.desktop",
+        (__bridge NSString *)kSecAttrService: (NSBundle.mainBundle.bundleIdentifier ?: @"app.vaovao.desktop"),
         (__bridge NSString *)kSecAttrAccount: [NSString stringWithUTF8String:slot],
         (__bridge NSString *)kSecMatchLimit: (__bridge NSString *)kSecMatchLimitOne,
         (__bridge NSString *)kSecReturnAttributes: @YES,

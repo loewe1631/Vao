@@ -2,6 +2,38 @@
 
 This branch develops the Windows x64 client. Candidates are unsigned GitHub Actions artifacts, not a public Windows release. Windows 10 1809+ and WebView2 are the build target; the first desktop test target is Windows 11 x64.
 
+## Candidate 3008 / 0.2.1 Windows preview
+
+This candidate integrates the shared Mac 0.2.1 features: long recordings,
+optional temporary transcripts, explicit Realtime ASR, protocol diagnostics,
+dictionary TXT/JSON import/export, scoped selection requests, and the updated
+hosted-service client contract. It does not change the hosted server.
+
+Normal launches now use the guarded Unicode adapter accepted in 3007, while
+native Edit/RichEdit insertion remains first. The historical opt-in instructions
+below describe earlier candidates. Existing settings and the preview identity
+are retained; new enhancement and compatibility settings default to off.
+
+Input context requires an unchanged verified original field and collapsed caret.
+Windows expanded context adds only the original window title (120 characters),
+not nearby document text or a domain. Unsupported context is omitted.
+
+Enable **Settings > Compatible paste input (experimental)** to test clipboard
+plus one Ctrl+V. Verified fields retain original-target guards and exact receipt.
+Opaque fields, including some document panes, have only window/native-focus
+checks: return to the original insertion position before stopping. Such delivery
+remains unconfirmed; the result and paste text are retained, without retry or
+Enter. Inspect the field before copying again. Clipboard restoration requires
+strict receipt and unchanged transaction ownership; later user copies win.
+Unsupported clipboard formats cause refusal before dispatch.
+
+CI retains both old native suites and adds a real WebView2 paste/undo/clipboard
+suite. These synthetic checks do not establish real WPS or microphone acceptance.
+For laptop tests, use synthetic text first: dsh/Edge short dictation and return,
+WPS with compatibility enabled, Chinese/emoji/multiple paragraphs and undo,
+recording beyond 130 seconds with a final phrase, transcript focus behavior,
+dictionary import/export/cancel, and copying other text while processing.
+
 Build on a Windows host with Rust MSVC, Visual C++ build tools, Node 22+ and WebView2:
 
 ```powershell

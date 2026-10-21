@@ -1,12 +1,16 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Vao Windows Preview",
-  "version": "0.1.0-beta.5-windows.7",
+  "version": "0.2.1-windows.preview.1",
   "identifier": "app.vaovao.windows.preview",
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "icon": ["icons/icon.ico"],
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico"
+    ],
     "resources": {
       "../LICENSE": "LICENSE",
       "../PROVENANCE.md": "PROVENANCE.md",
@@ -19,10 +23,16 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["SimpChinese", "English"],
+        "languages": [
+          "SimpChinese",
+          "English"
+        ],
         "displayLanguageSelector": true
       },
-      "webviewInstallMode": {"type": "downloadBootstrapper", "silent": true}
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      }
     }
   }
 }

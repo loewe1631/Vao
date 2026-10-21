@@ -34,3 +34,22 @@ body{-webkit-user-select:none;user-select:none}input,textarea,[contenteditable=t
 
 .windows-bar .bar-notice.answer{flex-shrink:0;max-height:calc(100vh - 20px)}
 .windows-bar #bar-delivery-hint{padding:8px 16px;color:#ffd7a0;font-size:12px;line-height:1.6;border-bottom:1px solid #ffffff18;flex-shrink:0}
+.bar-transcript{width:100%;max-width:420px;border:1px solid #ffffff22;border-radius:14px;background:#202937f5;color:#f2f5fa;padding:12px 16px;flex-shrink:0;box-shadow:0 3px 12px #0002;pointer-events:none;text-align:left}
+#transcript-caption{font-size:11px;color:#aab8ca;margin-bottom:5px;letter-spacing:.2px}
+#transcript-text{font-size:14px;line-height:1.65;max-height:70px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
+#transcript-status{font-size:11px;line-height:1.5;color:#aab8ca}
+.enhancements .setting>div{max-width:680px}.enhancements .setting p{line-height:1.7}
+.enhancement-footer{padding-top:14px;display:flex;align-items:baseline;gap:8px 24px;flex-wrap:wrap}
+.enhancement-footer>.muted{margin:0;font-size:12px}
+.enhancement-details{flex:1;min-width:220px;text-align:right}
+.enhancement-details summary{font-size:12px;color:var(--sub)}
+.enhancement-details[open]{flex-basis:100%;text-align:left}
+.enhancement-details p{font-size:12px;line-height:1.8;color:var(--sub);max-width:680px;margin:12px 0 0}
+.dictionary-actions{display:flex;align-items:center;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;margin-top:20px}
+.dictionary-transfer{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dictionary-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:8px 14px;font-size:13px;white-space:nowrap}
+.dictionary-transfer button{background:transparent;color:var(--sub)}
+.dictionary-transfer svg{width:15px;height:15px;stroke-width:1.6;flex-shrink:0}
+.dictionary-actions+p.muted{margin:14px 0 0;font-size:12px;line-height:1.7}
+
+.windows-bar .bar-transcript{max-width:100%;margin-bottom:10px}

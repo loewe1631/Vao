@@ -23,6 +23,10 @@ pub struct Settings {
     pub language: String,
     pub translation_language: String,
     pub auto_input: bool,
+    pub live_preview: bool,
+    pub windows_compatible_input: bool,
+    pub input_context: bool,
+    pub expanded_context: bool,
     pub dictionary: Vec<String>,
     pub ui_language: String,
     pub theme: String,
@@ -49,6 +53,10 @@ impl Default for Settings {
             language: "auto".into(),
             translation_language: "English".into(),
             auto_input: true,
+            live_preview: false,
+            windows_compatible_input: false,
+            input_context: false,
+            expanded_context: false,
             dictionary: vec![],
             ui_language: "zh".into(),
             theme: "system".into(),
@@ -195,5 +203,20 @@ mod tests {
         db.conn.execute("UPDATE results SET created=unixepoch()-604801 WHERE id=?", [record.id]).unwrap();
         assert!(db.result(record.id).is_err());
         assert!(db.feedback(record.id, Layout::Numbered, true).is_err());
+    }
+}
+
+#[cfg(test)]
+mod migration_tests {
+    use super::*;
+    #[test]
+    fn legacy_windows_settings_keep_connections_and_do_not_enable_enhancements() {
+        let old = serde_json::json!({"asr":{"base":"https://synthetic.example/v1","model":"old-asr","protocol":"openai_audio"},"dictionary":["Vao"],"auto_input":false,"ui_language":"en","shortcuts":{"record":"Control+Shift+KeyK","translate":"Control+Alt+KeyT","cancel":"Escape"}});
+        let settings: Settings = serde_json::from_value(old).unwrap();
+        assert_eq!(settings.asr.model,"old-asr");
+        assert_eq!(settings.dictionary,vec!["Vao"]);
+        assert_eq!(settings.shortcuts.record,"Control+Shift+KeyK");
+        assert!(!settings.auto_input);
+        assert!(!settings.live_preview && !settings.input_context && !settings.expanded_context && !settings.windows_compatible_input);
     }
 }

@@ -9,7 +9,7 @@ ROOT_FILES = (
     '.gitignore', 'package.json', 'package-lock.json',
 )
 DESKTOP_FILES = ('Cargo.toml', 'build.rs', 'tauri.conf.json', 'tauri.windows.conf.json', 'Info.plist', 'entitlements.plist')
-TREES = ('crates', 'ui', 'platform', 'scripts', 'docs', '.github', 'licenses', 'xcode',
+TREES = ('crates', 'ui', 'platform', 'scripts', 'docs', '.github', 'licenses', 'xcode/Vao.xcodeproj',
          'desktop/src', 'desktop/icons', 'desktop/capabilities')
 GENERATED = {'.git', '.build', '.swiftpm', 'DerivedData', 'target', 'dist',
              'artifacts', 'logs', 'node_modules', '__pycache__', 'gen', 'xcuserdata'}

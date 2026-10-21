@@ -105,7 +105,11 @@ class SourceReleaseTests(unittest.TestCase):
             private = project / 'xcuserdata/local.xcuserdatad/UserInterfaceState.xcuserstate'
             private.parent.mkdir(parents=True)
             private.write_text('private editor state')
+            cache = root / 'xcode/27.1-sdk/Xcode/CachedSpecifications-xcodebuild'
+            cache.parent.mkdir(parents=True)
+            cache.write_bytes(b'\x00local build cache')
             inventory, findings = checker.inspect(root)
             self.assertFalse(findings)
             self.assertIn(shared.relative_to(root).as_posix(), inventory)
             self.assertNotIn(private.relative_to(root).as_posix(), inventory)
+            self.assertNotIn(cache.relative_to(root).as_posix(), inventory)

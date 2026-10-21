@@ -14,8 +14,14 @@ pub async fn probe_windows_input(
         use windows_sys::Win32::System::Threading::GetCurrentProcessId;
         let root = window.hwnd().map_err(|e| e.to_string())?.0 as usize;
         match action.as_str() {
-            "mode" => {
-                Ok(serde_json::json!({"unicode_preview":crate::windows_uia::unicode_preview()}))
+            "mode" => Ok(
+                serde_json::json!({"unicode_preview":crate::windows_uia::unicode_preview(),"paste_preview":std::env::args().any(|a|a=="--windows-paste-preview")}),
+            ),
+            "context" => {
+                let target = request.ok_or("Missing synthetic context target")?;
+                tauri::async_runtime::spawn_blocking(move || crate::windows_input::context(&target))
+                    .await
+                    .map_err(|_| "Synthetic context fixture interrupted")?
             }
             "cover" => {
                 use tauri::Manager;
@@ -37,6 +43,14 @@ pub async fn probe_windows_input(
                     .set_focus()
                     .map_err(|_| "Owned cover focus unavailable")?;
                 Ok(serde_json::json!({"ok":true}))
+            }
+            "clipboard_seed" | "clipboard_status" | "clipboard_race" => {
+                let operation = action.trim_start_matches("clipboard_").to_owned();
+                tauri::async_runtime::spawn_blocking(move || {
+                    crate::windows_paste::fixture_clipboard(&operation)
+                })
+                .await
+                .map_err(|_| "Synthetic clipboard fixture interrupted")?
             }
             "capture" => tauri::async_runtime::spawn_blocking(move || {
                 crate::windows_input::capture(root as _, unsafe { GetCurrentProcessId() })

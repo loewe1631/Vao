@@ -9,7 +9,10 @@ pub enum InputNotice {
     NoMicrophone,
     MicrophoneUnavailable,
     SelectionUnreadable,
+    SelectionOutOfScope,
+    SelectionScopeUnavailable,
     DeliveryTargetUnavailable,
+    RecordingInterrupted,
 }
 
 pub enum FlowError {
@@ -33,7 +36,9 @@ impl From<InputNotice> for FlowError {
 }
 impl From<crate::models::ModelError> for FlowError {
     fn from(value: crate::models::ModelError) -> Self {
-        if value.no_speech {
+        if let Some(notice)=value.scope_notice {
+            Self::Notice(notice)
+        } else if value.no_speech {
             Self::Notice(InputNotice::NoSpeech)
         } else {
             Self::Error(value.message)

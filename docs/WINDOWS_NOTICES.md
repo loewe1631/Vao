@@ -50,6 +50,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | darling_core | 0.24.1 | MIT |
 | darling_macro | 0.24.1 | MIT |
 | dasp_sample | 0.11.0 | MIT OR Apache-2.0 |
+| data-encoding | 2.11.1 | MIT |
 | defmt | 1.2.0 | MIT OR Apache-2.0 |
 | defmt-macros | 1.2.0 | MIT OR Apache-2.0 |
 | defmt-parser | 1.1.0 | MIT OR Apache-2.0 |
@@ -165,6 +166,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | png | 0.17.16 | MIT OR Apache-2.0 |
 | potential_utf | 0.1.6 | Unicode-3.0 |
 | powerfmt | 0.2.1 | MIT OR Apache-2.0 |
+| ppv-lite86 | 0.2.21 | MIT OR Apache-2.0 |
 | precomputed-hash | 0.1.1 | MIT |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 |
 | quick-xml | 0.42.0 | MIT |
@@ -173,7 +175,10 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | quinn-udp | 0.5.16 | MIT OR Apache-2.0 |
 | quote | 1.0.47 | MIT OR Apache-2.0 |
 | rand | 0.10.3 | MIT OR Apache-2.0 |
+| rand | 0.9.5 | MIT OR Apache-2.0 |
+| rand_chacha | 0.9.0 | MIT OR Apache-2.0 |
 | rand_core | 0.10.1 | MIT OR Apache-2.0 |
+| rand_core | 0.9.5 | MIT OR Apache-2.0 |
 | rand_pcg | 0.10.2 | MIT OR Apache-2.0 |
 | raw-window-handle | 0.6.2 | MIT OR Apache-2.0 OR Zlib |
 | ref-cast | 1.0.27 | MIT OR Apache-2.0 |
@@ -187,10 +192,12 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | rustc-hash | 2.1.3 | Apache-2.0 OR MIT |
 | rustc_version | 0.4.1 | MIT OR Apache-2.0 |
 | rustls | 0.23.46 | Apache-2.0 OR ISC OR MIT |
+| rustls-native-certs | 0.8.5 | Apache-2.0 OR ISC OR MIT |
 | rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 |
-| rustls-webpki | 0.103.15 | ISC |
+| rustls-webpki | 0.103.16 | ISC |
 | ryu | 1.0.23 | Apache-2.0 OR BSL-1.0 |
 | same-file | 1.0.6 | Unlicense/MIT |
+| schannel | 0.1.30 | MIT |
 | schemars | 0.8.22 | MIT |
 | schemars | 0.9.0 | MIT |
 | schemars | 1.2.3 | MIT |
@@ -212,6 +219,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | serialize-to-javascript | 0.1.2 | MIT OR Apache-2.0 |
 | serialize-to-javascript-impl | 0.1.2 | MIT OR Apache-2.0 |
 | servo_arc | 0.4.3 | MIT OR Apache-2.0 |
+| sha1 | 0.10.7 | MIT OR Apache-2.0 |
 | sha2 | 0.10.9 | MIT OR Apache-2.0 |
 | shlex | 2.0.1 | MIT OR Apache-2.0 |
 | simd-adler32 | 0.3.10 | MIT |
@@ -252,6 +260,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | tokio | 1.53.3 | MIT |
 | tokio-macros | 2.7.2 | MIT |
 | tokio-rustls | 0.26.6 | MIT OR Apache-2.0 |
+| tokio-tungstenite | 0.28.0 | MIT |
 | tokio-util | 0.7.20 | MIT |
 | toml | 0.9.12+spec-1.1.0 | MIT OR Apache-2.0 |
 | toml | 1.1.8+spec-1.1.0 | MIT OR Apache-2.0 |
@@ -268,6 +277,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | tracing-core | 0.1.36 | MIT |
 | tray-icon | 0.23.1 | MIT OR Apache-2.0 |
 | try-lock | 0.2.5 | MIT |
+| tungstenite | 0.28.0 | MIT OR Apache-2.0 |
 | typeid | 1.0.3 | MIT OR Apache-2.0 |
 | typenum | 1.20.1 | MIT OR Apache-2.0 |
 | unic-char-property | 0.9.0 | MIT/Apache-2.0 |
@@ -281,6 +291,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | untrusted | 0.9.0 | ISC |
 | url | 2.5.8 | MIT OR Apache-2.0 |
 | urlpattern | 0.3.0 | MIT |
+| utf-8 | 0.7.6 | MIT OR Apache-2.0 |
 | utf8_iter | 1.0.4 | Apache-2.0 OR MIT |
 | uuid | 1.28.0 | Apache-2.0 OR MIT |
 | vcpkg | 0.2.15 | MIT/Apache-2.0 |
@@ -290,7 +301,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | walkdir | 2.5.0 | Unlicense/MIT |
 | want | 0.3.2 | MIT |
 | web_atoms | 0.2.6 | MIT OR Apache-2.0 |
-| webpki-roots | 1.0.9 | CDLA-Permissive-2.0 |
+| webpki-roots | 1.0.10 | CDLA-Permissive-2.0 |
 | webview2-com | 0.38.2 | MIT |
 | webview2-com-macros | 0.8.1 | MIT |
 | webview2-com-sys | 0.38.2 | MIT |

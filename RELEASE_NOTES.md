@@ -1,3 +1,55 @@
+# Vao 0.2.1 · build20261021.1202
+
+Mac direct download · Apple Silicon · macOS 12+. Not Apple-notarized; not an App Store build.
+
+## 修复
+
+- 修复词典导入、导出窗口关闭后，辅助进程未响应并影响其他窗口交互的问题。
+- 文件选择器改为单次进程，选取完成或取消后退出并回收；不占用录音和原窗口回填所用的适配进程。
+- 保留现有词典与配置，导入仍合并去重。异常退出或无效响应会报告错误，不会被当作用户取消。
+
+## Fixes
+
+- Fixed an unresponsive helper after closing dictionary import/export dialogs, which could disrupt interaction with other windows.
+- File dialogs now run in separate, one-shot processes, exit after selection or cancellation, and are reaped by the parent. They no longer occupy the recording/input-target bridge.
+- Existing settings and dictionary terms are preserved. Import still merges and deduplicates; process failures and invalid replies are reported rather than treated as cancellation.
+
+All 0.2.0 features remain available. See [testing](docs/TESTING.md), [privacy](PRIVACY.md) and [distribution](docs/DISTRIBUTION.md).
+
+---
+
+# Vao 0.2.0 · build20261021.1200
+
+Mac direct download · Apple Silicon · macOS 12+. Not Apple-notarized; not an App Store build.
+
+## 新增与改进
+
+- 录音期间可选显示临时转写，独立开关，默认关闭；保留最终整理、一次回填。支持兼容的文件识别与显式选择的 OpenAI Realtime 转写服务。
+- 可选读取起始输入框前后文及有限窗口参考文字，帮助续写衔接；分别授权开启，默认关闭。参考内容不进入历史或学习。
+- 不再统一限制录音为两分钟；长音频按片段识别，保留取消与原窗口回填保护。
+- 词典支持 TXT / JSON 导入、合并去重与导出，导出仅含词条。
+- 语音和文字连接按当前所选协议测试，显示测试原文、实际返回和耗时。语音测试使用合成短句，不开启麦克风。
+- 划词用途聚焦所选文字的编辑、翻译、回复组织及相关理解；无关请求通过小气泡提示，不打开主界面或写入结果。自有文字模型会增加一次用途判断请求。
+- 简化模型、增强和词典界面；移除侧栏平台标签，仅显示版本。
+- 默认免费共享服务不设使用期限或每日额度；繁忙时仍有资源排队，不保证稳定性和速度。
+
+## Changes
+
+- Optional temporary transcription during recording, bounded original-input/window context, and compatible OpenAI Realtime transcription. Each enhancement is off by default.
+- Long recordings use bounded recognition segments instead of a universal two-minute cutoff. Final text retains protected insertion into the original target.
+- TXT/JSON dictionary import/export with validation, merge and deduplication; exports contain terms only.
+- Protocol-specific speech and text connection tests show the fixed input, actual output and elapsed time. Speech tests do not enable the microphone.
+- Selection operations focus on editing, translating, replying and understanding selected text. Custom text connections perform one additional purpose check; unrelated or failed checks stop with a notice.
+- Simplified controls and platform-neutral sidebar version. Free shared access has no expiry or daily quota, while queues and physical resource limits remain.
+
+- Updated TLS certificate validation dependencies for RUSTSEC-2026-0382 / RUSTSEC-2026-0381.
+
+## Limits
+
+File-window previews are temporary excerpts, not a complete final transcript, and can add requests/cost. Realtime requires service/model support; file fallback does not prove Realtime compatibility. Model purpose checks can misclassify requests and cannot guarantee prevention of prompt injection. Context is bounded reference data, not permission to read an entire app. Real output quality depends on the selected models and destination support. See [privacy](PRIVACY.md), [testing](docs/TESTING.md) and [distribution](docs/DISTRIBUTION.md).
+
+---
+
 # Vao 0.1.0-beta.5
 
 ## Source release · build 20261019.1011
@@ -13,7 +65,7 @@
 - Bounded trial JSON responses and blocked unfinished/expired results from learning.
 - Supported separate Cargo build caches during packaging.
 
-This is a source release. No new installable binary accompanies this tag; the website download remains Beta4/build20261019.1009 until a separately accepted binary update. Installed applications are not updated by a source publication.
+The initial source tag was followed by matching Beta5/build20261019.1011 DMG and ZIP downloads on GitHub Releases and the website. This historical release is superseded by 0.2.0.
 
 ## Previous binary release · 0.1.0-beta.4 / build 20261019.1009
 

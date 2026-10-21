@@ -156,6 +156,7 @@ fn rich_text(text: &[u16]) -> Vec<u16> {
 }
 
 pub fn capture(root: HWND, pid: u32) -> Result<Value, String> {
+    crate::windows_paste::clear();
     let epoch = crate::windows_uia::invalidate();
     capture_native(root, pid).or_else(|error| {
         // A recognized native control's refusal (protected state, size,
@@ -274,6 +275,9 @@ impl Target {
 }
 
 pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
+    if request["target"]["input_adapter"] == "compat_paste" {
+        return crate::windows_paste::deliver(request, write);
+    }
     if matches!(
         request["target"]["input_adapter"].as_str(),
         Some("uia_value" | "uia_unicode")
@@ -340,6 +344,43 @@ pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
         return Err("输入框未确认完整接收，请检查原文后复制，避免重复 / Receipt not confirmed; inspect the original field before copying to avoid duplication".into());
     }
     Ok(json!({"ok":true,"verified":true}))
+}
+
+pub fn opaque_candidate(root: HWND, pid: u32) -> bool {
+    focused(root, pid).is_ok_and(|field| !supported(&class(field)))
+}
+pub fn context_value(text: &[u16], start: usize, end: usize) -> Result<Value, String> {
+    if start != end || end > text.len() {
+        return Err(UNAVAILABLE.into());
+    }
+    let before = String::from_utf16(&text[..start]).map_err(|_| UNAVAILABLE)?;
+    let after = String::from_utf16(&text[end..]).map_err(|_| UNAVAILABLE)?;
+    let before: String = before
+        .chars()
+        .rev()
+        .take(500)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    let after: String = after.chars().take(500).collect();
+    Ok(json!({"version":1,"before_cursor":before,"after_cursor":after}))
+}
+pub fn context(target: &Value) -> Result<Value, String> {
+    let token = target["input_token"].as_str().ok_or(UNAVAILABLE)?;
+    if matches!(
+        target["input_adapter"].as_str(),
+        Some("uia_value" | "uia_unicode")
+    ) {
+        return crate::windows_uia::context(token);
+    }
+    let saved = TARGET.lock().map_err(|_| UNAVAILABLE)?;
+    let saved = saved
+        .as_ref()
+        .filter(|t| t.token == token)
+        .ok_or(UNAVAILABLE)?;
+    saved.verify()?;
+    context_value(&saved.text, saved.start, saved.end)
 }
 
 #[cfg(test)]

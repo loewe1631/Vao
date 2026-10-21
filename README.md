@@ -17,6 +17,11 @@ Vao is an open-source Mac voice-input app. It turns speech into usable text, cho
 - **Translate a segment.** Start translated recording directly, or turn translation on and off while recording.
 - **Switch apps while speaking.** Consult another app, then return to the starting input when it still passes target validation.
 
+- **Optional input enhancements.** Independent recording-preview switch, bounded input context and optional nearby text; Realtime requires an explicitly compatible service.
+- **Portable vocabulary.** Merge and deduplicate TXT/JSON imports; export terms only.
+
+Selection operations cover editing, translation, composing replies and understanding the selected text. Custom text services run an additional purpose check, adding a request, waiting time and possible cost. Unrelated requests or failed checks stop. Dictated questions remain input text rather than questions answered by Vao.
+
 Adaptation currently learns explicit layout choices for messages, tasks and technical writing. It does not monitor unrelated edits or learn silently from model output. Long-term adaptation quality remains to be evaluated. See [writing presets](docs/WRITING_PRESETS.md).
 
 ## Install and start
@@ -40,23 +45,24 @@ Cross-app insertion depends on the destination's Accessibility support. Closed w
 
 ## Models and optional trial
 
-Configure ASR and text independently. Enter a URL and optional key, fetch models, select one and save; Advanced allows manual IDs. A model list proves discovery only. The text test shows fixed input, actual output and round-trip latency. Test ASR with a short recording.
+Configure ASR and text independently. Enter a URL and optional key, fetch models, select one and save; Advanced allows manual IDs. A model list proves discovery only. Speech and text connection tests validate the selected protocol and show the fixed input, actual output and round-trip latency. Speech tests use a built-in English phrase without enabling the microphone; provider usage applies. Realtime diagnostics require final WebSocket transcription and never fall back to file recognition. Follow with a short real recording to check your microphone and output quality.
 
 | Stage | Supported contract |
 | --- | --- |
 | ASR | OpenAI-compatible multipart `/v1/audio/transcriptions`, returning JSON `text` |
+| Realtime ASR (explicit selection) | OpenAI Realtime transcription WebSocket sessions; requires compatible service and model support, independently of file transcription |
 | Text, translation, selected-text requests | `/v1/chat/completions`, returning a final non-streaming message |
 | Restricted refinement | Vao `/v1/refine`; ordinary dictation only |
 
 For local ASR consider **Qwen3-ASR-1.7B**, or **0.6B** with fewer resources, through a server exposing this contract. NVIDIA and Apple Silicon MLX services need protocol checks; a model name does not prove compatibility. Model weights and servers are not bundled. Remote endpoints require HTTPS; loopback HTTP is supported.
 
-The optional hosted trial is for testing before connecting your own service. It requires explicit privacy consent and issues an individual credential; no shared API key is embedded. Shared capacity and queues can slow responses; availability and quality are not guaranteed. Use your own cloud or local models for regular use. [Limits and data processing](PRIVACY.md).
+The optional hosted trial is for testing before connecting your own service. It requires explicit privacy consent and issues an individual credential; no shared API key is embedded. Shared capacity and queues can slow responses; availability and quality are not guaranteed. Use your own cloud or local models for regular use. [Service and data processing](PRIVACY.md).
 
 Custom ASR and LLM connections take priority independently. Failures never silently fall back to the trial. An explicitly configured backup LLM handles only transport errors, HTTP 429 and server errors.
 
 ## Privacy
 
-Audio is processed in session memory and sent to the chosen ASR; it is not saved in history. Local text history is limited to seven days and 200 results. Keys stay in macOS Keychain. Dictionary terms and relevant preferences accompany model requests. Selected text is sent for the selected-text operation. Read [PRIVACY.md](PRIVACY.md) for permissions, clipboard use and retention.
+Audio uses a temporary session buffer and is sent to the chosen ASR; no audio history is retained. Local text history is limited to seven days and 200 results. Keys stay in macOS Keychain. Dictionary terms and relevant preferences accompany model requests. Selected text is sent for the selected-text operation. Read [PRIVACY.md](PRIVACY.md) for permissions, clipboard use and retention.
 
 ## Build and check
 

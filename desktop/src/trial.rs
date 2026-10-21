@@ -47,8 +47,8 @@ pub async fn enroll(consent: bool) -> Result<Value, String> {
     let status = response.status();
     if !status.is_success() {
         return Err(match status.as_u16() {
-            429 => "今日开通人数或请求频率已达上限，请稍后再试，或配置自有模型 / Enrollment limit reached; retry later or connect your models".into(),
-            403 => "此安装的体验已到期或被停用，请配置自有模型 / Trial expired or disabled; connect your models".into(),
+            429 => "共享服务繁忙，请稍后再试，或配置自有模型 / Shared service busy; retry later or connect your models".into(),
+            403 => "此安装的服务凭据已停用，请配置自有模型 / Service credential disabled; connect your models".into(),
             _ => format!("体验开通失败（HTTP {}），请稍后重试 / Enrollment failed", status.as_u16()),
         });
     }
@@ -62,7 +62,7 @@ pub async fn enroll(consent: bool) -> Result<Value, String> {
     }
     platform::save_secret(SLOT, token)?;
     // Never return the credential to the WebView, logs or release reports.
-    Ok(json!({"device":value["device"],"max_audio_seconds":120,"enrolled":true}))
+    Ok(json!({"device":value["device"],"max_audio_seconds":value["max_audio_seconds"],"enrolled":true}))
 }
 #[derive(Clone)]
 pub struct Route {
@@ -77,7 +77,7 @@ pub fn resolve(
 ) -> Result<Route, String> {
     if !custom.base.trim().is_empty() || !custom.model.trim().is_empty() {
         if custom.base.trim().is_empty() || custom.model.trim().is_empty() {
-            return Err("自有连接未填写完整，请补全或使用“恢复体验服务” / Complete the custom connection or restore trial".into());
+            return Err("自有连接未填写完整，请补全或清空自有连接 / Complete or clear the custom connection".into());
         }
         models::endpoint(&custom.base, "models")?;
         return Ok(Route {

@@ -1,0 +1,67 @@
+// Native paste receipt and clipboard regressions. Synthetic data, explicit CLI only.
+const invoke=window.__TAURI__.core.invoke;
+const checks=[];
+let enters=0,submits=0,pastes=0,inputs=0,trusted=0;
+const one=document.querySelector('#one'),two=document.querySelector('#two'),many=document.querySelector('#many');
+document.addEventListener('keydown',e=>{if(e.key==='Enter')enters++;});
+document.addEventListener('paste',()=>pastes++);
+document.addEventListener('input',e=>{inputs++;if(e.isTrusted)trusted++;});
+document.querySelector('#form').addEventListener('submit',e=>{e.preventDefault();submits++;});
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const call=(action,request)=>invoke('probe_windows_input',{action,request:request||null});
+function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw Error(name);}
+async function focus(element,text,start=0,end=start){element.value=text;element.focus();element.setSelectionRange(start,end);await delay(180);}
+const capture=()=>call('capture');
+const deliver=(target,text)=>call('deliver',{target,text,paste:true});
+async function rejected(task){try{await task;return false;}catch{return true;}}
+try{
+ await delay(800);
+ const race=await call('clipboard_race');
+ check('paste_native_multiple_formats_restored',race.restored);
+ check('paste_later_copy_not_overwritten',race.later_copy_preserved);
+ check('paste_marker_mismatch_not_overwritten',race.wrong_marker_rejected);
+ await focus(one,'前😀后',1,3);let target=await capture();
+ check('paste_keeps_strict_snapshot',target.input_adapter==='uia_unicode'&&target.delivery_supported);
+ check('paste_selected_unicode_receipt',(await deliver(target,'新词🙂')).verified===true&&one.value==='前新词🙂后'&&one.selectionStart===5);
+ check('paste_single_trusted_input',pastes===1&&inputs===1&&trusted===1);
+ check('paste_receipt_restores_clipboard',(await call('clipboard_status')).baseline);
+ check('paste_one_undo',document.execCommand('undo')&&one.value==='前😀后');
+ check('paste_redo',document.execCommand('redo')&&one.value==='前新词🙂后');
+ check('paste_token_cannot_replay',await rejected(deliver(target,'NO')));
+ await focus(many,'prefix\nsuffix',7);target=await capture();
+ const beforePaste=pastes;
+ check('paste_multiline_receipt',(await deliver(target,'第一段🙂\n第二段')).verified===true&&many.value==='prefix\n第一段🙂\n第二段suffix');
+ check('paste_multiline_one_dispatch',pastes===beforePaste+1);
+ check('paste_multiline_one_undo',document.execCommand('undo')&&many.value==='prefix\nsuffix');
+ await focus(one,'baseline',3);target=await capture();one.value='changed';await delay(180);let before=pastes;
+ check('paste_changed_text_no_dispatch',await rejected(deliver(target,'NO'))&&one.value==='changed'&&pastes===before);
+ await focus(one,'baseline',3);target=await capture();one.setSelectionRange(1,1);await delay(180);
+ check('paste_changed_caret_no_dispatch',await rejected(deliver(target,'NO'))&&one.value==='baseline'&&pastes===before);
+ await focus(one,'field A',0);target=await capture();await focus(two,'field B',0);
+ check('paste_changed_field_no_dispatch',await rejected(deliver(target,'NO'))&&one.value==='field A'&&two.value==='field B'&&pastes===before);
+ check('paste_pre_dispatch_rejections_keep_clipboard',(await call('clipboard_status')).baseline);
+ await focus(one,'前🙂后',3);target=await capture();const context=await call('context',target);
+ check('windows_context_utf16_cursor',context.before_cursor==='前🙂'&&context.after_cursor==='后');
+ check('windows_context_keeps_delivery_token',(await deliver(target,'中')).verified===true&&one.value==='前🙂中后');
+ await focus(one,'x'.repeat(520)+'🙂'+'y'.repeat(520),522);target=await capture();const bounded=await call('context',target);
+ check('windows_context_bounded_each_side',Array.from(bounded.before_cursor).length===500&&Array.from(bounded.after_cursor).length===500&&bounded.before_cursor.endsWith('🙂'));
+ one.value='changed';await delay(180);
+ check('windows_context_changed_field_omitted',await rejected(call('context',target)));
+ await focus(one,'',0);target=await capture();await call('cover');await delay(250);
+ check('paste_returns_to_original_field',(await deliver(target,'跨窗口🙂')).verified===true&&one.value==='跨窗口🙂'&&document.hasFocus());
+ // Delayed paste consumer: report uncertainty, keep clipboard, never auto resend.
+ await focus(one,'',0);target=await capture();before=pastes;
+ one.addEventListener('paste',e=>{e.preventDefault();const text=e.clipboardData.getData('text/plain');setTimeout(()=>document.execCommand('insertText',false,text),1900);},{once:true});
+ check('paste_delayed_receipt_unconfirmed',await rejected(deliver(target,'未确认🙂')));
+ check('paste_unconfirmed_keeps_result_clipboard',(await call('clipboard_status')).pending);
+ await delay(700);
+ check('paste_delayed_consumer_exactly_once',one.value==='未确认🙂'&&pastes===before+1);
+ check('paste_unconfirmed_token_cannot_replay',await rejected(deliver(target,'NO'))&&one.value==='未确认🙂'&&pastes===before+1);
+ check('paste_never_enter_or_submit',enters===0&&submits===0);
+ await call('clipboard_seed');
+ await call('report',{passed:true,kind:'native WebView2 paste and clipboard transactions; synthetic only',checks,audio_captured:false,models_contacted:false});
+ document.querySelector('#status').textContent='Passed';
+}catch(error){
+ await call('report',{passed:false,checks,error:String(error),audio_captured:false,models_contacted:false});
+ document.querySelector('#status').textContent='Failed: '+String(error);
+}

@@ -1,7 +1,7 @@
 //! Capability-based UI Automation for plain Edit controls (Win32, XAML, web).
 //! All COM objects and transient field text remain on one MTA worker. No app
-//! allowlist, clipboard, window titles or background scan. Unicode preview is
-//! explicitly enabled and retains the same snapshot and receipt requirements.
+//! allowlist, window titles or background scan. The Unicode and opt-in paste
+//! transports retain the same snapshot and receipt requirements.
 use crate::windows_input::{process_created, LIMIT, UNAVAILABLE};
 use serde_json::{json, Value};
 use std::{
@@ -46,7 +46,10 @@ const VALUE_UTF8_LIMIT: usize = 8 * 1024;
 const RECEIPT: &str = "输入框未确认完整接收，请检查原文后复制，避免重复 / Receipt not confirmed; inspect the original field before copying to avoid duplication";
 
 pub fn unicode_preview() -> bool {
-    std::env::args().any(|arg| arg == "--windows-unicode-preview")
+    let args = std::env::args().collect::<Vec<_>>();
+    args.iter()
+        .any(|arg| arg == "--windows-unicode-preview" || arg == "--windows-paste-preview")
+        || (!cfg!(test) && !args.iter().any(|arg| arg == "--windows-input-probe"))
 }
 
 fn keys_released() -> bool {
@@ -78,6 +81,8 @@ enum Action {
     Clear,
     Capture { root: usize, pid: u32 },
     Deliver { request: Value, write: bool },
+    Compatibility { root: usize, pid: u32 },
+    Context { token: String },
 }
 struct Command {
     epoch: u64,
@@ -231,6 +236,56 @@ fn request(epoch: u64, action: Action) -> Result<Value, String> {
                                         )
                                     }
                                 }
+                                Action::Compatibility { root, pid } => {
+                                    if GetForegroundWindow() != *root as HWND {
+                                        Err(UNAVAILABLE.into())
+                                    } else {
+                                        let element = unavailable(automation.GetFocusedElement())?;
+                                        within(&automation, &element, *root, &command)?;
+                                        if unavailable(element.CurrentProcessId())? as u32 != *pid
+                                            || unavailable(element.CurrentIsPassword())?.as_bool()
+                                            || !unavailable(element.CurrentIsEnabled())?.as_bool()
+                                            || unavailable(element.CurrentControlType())?
+                                                == UIA_EditControlTypeId
+                                            || element
+                                                .GetCurrentPatternAs::<IUIAutomationTextPattern>(
+                                                    UIA_TextPatternId,
+                                                )
+                                                .is_ok()
+                                            || element
+                                                .GetCurrentPatternAs::<IUIAutomationValuePattern>(
+                                                    UIA_ValuePatternId,
+                                                )
+                                                .is_ok()
+                                        {
+                                            Err(UNAVAILABLE.into())
+                                        } else {
+                                            command.current().map(|_| json!({"ok":true}))
+                                        }
+                                    }
+                                }
+                                Action::Context { token } => {
+                                    let saved = target
+                                        .as_ref()
+                                        .filter(|t| t.token == *token)
+                                        .ok_or(UNAVAILABLE)?;
+                                    saved.identity(&automation, &command)?;
+                                    if snapshot(
+                                        &automation,
+                                        &saved.element,
+                                        &command,
+                                        saved.unicode,
+                                    )? != saved.snapshot
+                                    {
+                                        Err(UNAVAILABLE.into())
+                                    } else {
+                                        crate::windows_input::context_value(
+                                            &saved.snapshot.text,
+                                            saved.snapshot.start,
+                                            saved.snapshot.end,
+                                        )
+                                    }
+                                }
                             });
                             let _ = command.reply.send(result);
                         }
@@ -269,6 +324,24 @@ pub fn deliver(request_value: Value, write: bool) -> Result<Value, String> {
         Action::Deliver {
             request: request_value,
             write,
+        },
+    )
+}
+pub fn compatibility_allowed(root: HWND, pid: u32) -> Result<(), String> {
+    request(
+        EPOCH.load(Ordering::Acquire),
+        Action::Compatibility {
+            root: root as usize,
+            pid,
+        },
+    )
+    .map(|_| ())
+}
+pub fn context(token: &str) -> Result<Value, String> {
+    request(
+        EPOCH.load(Ordering::Acquire),
+        Action::Context {
+            token: token.to_owned(),
         },
     )
 }
@@ -724,7 +797,8 @@ impl Target {
         // ValuePattern has no portable multiline capability flag. A line break
         // could be silently stripped by a single-line editor. Until a richer
         // provider contract is established, preserve multiline results for copy.
-        if inserted.contains(&10) {
+        let paste = request["paste"] == true;
+        if inserted.contains(&10) && !paste {
             return Err(UNAVAILABLE.into());
         }
         let expected = [
@@ -749,9 +823,10 @@ impl Target {
             // semantics. Multiline remains rejected until a text-edit contract
             // can prove it will not submit a form or strip a line break.
             let inserted_string = String::from_utf16(&inserted).map_err(|_| UNAVAILABLE)?;
-            if inserted_string
-                .chars()
-                .any(|ch| ch.is_control() || matches!(ch, '\u{2028}' | '\u{2029}'))
+            if !paste
+                && inserted_string
+                    .chars()
+                    .any(|ch| ch.is_control() || matches!(ch, '\u{2028}' | '\u{2029}'))
             {
                 return Err(UNAVAILABLE.into());
             }
@@ -774,19 +849,26 @@ impl Target {
                 "start":self.snapshot.start,"end":self.snapshot.end,"inserted_units":inserted.len(),
                 "expected_units":expected.len(),"expected_caret":self.snapshot.start + inserted.len()}),
             );
-            diagnostic(json!({"uia_stage":"unicode_dispatch_once","events":events.len()}));
-            let queued = SendInput(
-                events.len() as u32,
-                events.as_ptr(),
-                std::mem::size_of::<INPUT>() as i32,
-            );
-            diagnostic(
-                json!({"uia_stage":"unicode_queued","queued_events":queued,"expected_events":events.len()}),
-            );
-            // Partial/zero queue acceptance never triggers another transport.
-            if queued as usize != events.len() {
-                return Err(RECEIPT.into());
-            }
+            let paste_transaction = if paste {
+                diagnostic(json!({"uia_stage":"paste_dispatch_once","events":4}));
+                Some(crate::windows_paste::dispatch(&inserted_string, || {
+                    self.verify_focused(automation, command)
+                })?)
+            } else {
+                diagnostic(json!({"uia_stage":"unicode_dispatch_once","events":events.len()}));
+                let queued = SendInput(
+                    events.len() as u32,
+                    events.as_ptr(),
+                    std::mem::size_of::<INPUT>() as i32,
+                );
+                diagnostic(
+                    json!({"uia_stage":"unicode_queued","queued_events":queued,"expected_events":events.len()}),
+                );
+                if queued as usize != events.len() {
+                    return Err(RECEIPT.into());
+                }
+                None
+            };
             let receipt_deadline = Instant::now() + Duration::from_millis(1500);
             let mut last_mismatch = None;
             loop {
@@ -806,11 +888,16 @@ impl Target {
                         && received.end == caret)
                         || normalized_empty_paragraph
                     {
+                        if let Some(transaction) = &paste_transaction {
+                            diagnostic(
+                                json!({"uia_stage":"paste_clipboard_restore","restored":transaction.restore()}),
+                            );
+                        }
                         diagnostic(
                             json!({"uia_stage":"unicode_receipt_verified","normalized_empty_paragraph":normalized_empty_paragraph}),
                         );
                         return Ok(
-                            json!({"ok":true,"verified":true,"input_adapter":"uia_unicode"}),
+                            json!({"ok":true,"verified":true,"input_adapter":if paste {"uia_paste"} else {"uia_unicode"}}),
                         );
                     }
                     // Keep only lengths, offsets and equality results. This

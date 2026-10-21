@@ -42,6 +42,13 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  check('onboarding_waits_for_actual_probe',await page.locator('#finish-setup').isDisabled());
  check('onboarding_offers_insertion',await page.locator('#setup-auto-input').count()===1);
  await page.locator('.nav [data-page="settings"]').click();
+ check('compatible_paste_initially_off',await page.locator('#compatible-input').getAttribute('aria-checked')==='false');
+ await page.locator('#compatible-input').click();
+ await page.waitForFunction(()=>fake.db.settings.windows_compatible_input===true);
+ check('compatible_paste_explicit_persistent_opt_in',await page.locator('#compatible-input').getAttribute('aria-checked')==='true');
+ check('compatible_paste_does_not_reset_connections',await page.evaluate(()=>fake.db.settings.asr.model==='synthetic'&&fake.db.settings.shortcuts.record==='Control+Alt+Space'));
+ await page.locator('#compatible-input').click();
+ await page.waitForFunction(()=>fake.db.settings.windows_compatible_input===false);
  check('windows_has_one_permission_row',await page.locator('.permission-row').count()===1);
  check('no_macos_reset_actions',await page.locator('[data-repair-permission]').count()===0);
  check('automatic_insertion_toggle',await page.locator('#auto-input').getAttribute('aria-checked')==='true');

@@ -15,7 +15,7 @@ use windows_sys::Win32::{
     UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId, IsWindow},
 };
 
-static CLIPBOARD: Mutex<()> = Mutex::new(());
+pub(crate) static CLIPBOARD: Mutex<()> = Mutex::new(());
 
 pub fn open_settings(url: &str) -> Result<(), String> {
     use windows_sys::{
@@ -57,6 +57,8 @@ pub fn call(request: Value) -> Result<Value, String> {
         }
         "deliver" => crate::windows_input::deliver(&request, true),
         "return_source" => crate::windows_input::deliver(&request, false),
+        "dictionary_import" => crate::windows_files::dictionary_dialog(false),
+        "dictionary_export" => crate::windows_files::dictionary_dialog(true),
         _ => Err("Windows adapter does not support this operation".into()),
     }
 }
@@ -142,7 +144,7 @@ fn copy(text: &str) -> Result<(), String> {
     Ok(())
 }
 
-unsafe fn clipboard_owner() -> Result<HWND, String> {
+pub(crate) unsafe fn clipboard_owner() -> Result<HWND, String> {
     use windows_sys::{
         core::w,
         Win32::UI::WindowsAndMessaging::{CreateWindowExW, HWND_MESSAGE},

@@ -1,5 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod audio;
+mod connection_test;
+mod context;
+mod dictionary_io;
+use dictionary_io::{import_dictionary,export_dictionary};
+mod preview;
+mod realtime;
+mod enhancements;
+use enhancements::{start_enhancements,session_key};
 mod hotkeys;
 mod input_feedback;
 #[cfg(test)]
@@ -19,6 +27,10 @@ mod writing_probe;
 mod windows_input;
 #[cfg(target_os = "windows")]
 mod windows_uia;
+#[cfg(target_os = "windows")]
+mod windows_files;
+#[cfg(target_os = "windows")]
+mod windows_paste;
 mod windows_input_probe;
 
 use input_feedback::{FlowError, InputNotice};
@@ -32,6 +44,11 @@ use vao_core::{Layout, Phase, Profile, Scene, Session};
 struct Runtime {
     session: Session,
     capture: Option<audio::Capture>,
+    input_context: Option<context::InputContext>,
+    preview_text: String,
+    preview_status: String,
+    realtime: Option<realtime::Handle>,
+    asr_access: Option<std::sync::Arc<tokio::sync::OnceCell<Result<String,String>>>>,
     target: Value,
     markers: Vec<usize>,
     translating: bool,
@@ -53,6 +70,7 @@ impl Default for Runtime {
         Self {
             session: Session::default(),
             capture: None,
+            input_context: None, preview_text:String::new(), preview_status:String::new(), asr_access:None,realtime:None,
             target: json!({}),
             markers: vec![],
             translating: false,
@@ -72,6 +90,22 @@ impl Default for Runtime {
     }
 }
 impl Runtime {
+    fn recording_warning(&mut self, id: u64) -> Option<u64> {
+        if self.session.id != id
+            || !matches!(self.session.phase, Phase::Ready | Phase::Completed)
+            || self.notice.is_some()
+            || !self.answer.is_empty()
+        {
+            return None;
+        }
+        self.notice_serial += 1;
+        self.notice = Some(InputNotice::RecordingInterrupted);
+        Some(self.notice_serial)
+    }
+    fn accept_preview(&mut self,id:u64,status:&str,text:Option<String>)->bool {
+        if self.session.id!=id||self.session.phase!=Phase::Listening{return false;}
+        self.preview_status=status.into();if let Some(text)=text{self.preview_text=text;}true
+    }
     fn pending_delivery(&self) -> bool {
         self.session.phase == Phase::Ready
             && self.answer.is_empty()
@@ -313,7 +347,7 @@ fn show_bar(app: &tauri::AppHandle, show: bool) {
                 (
                     r.target["display_id"].as_u64().unwrap_or(0) as u32,
                     r.session.id,
-                    !r.answer.is_empty(),
+                    if !r.answer.is_empty(){1}else if r.settings.live_preview && r.target["selection"].as_str().unwrap_or("").is_empty() && matches!(r.session.phase,Phase::Listening|Phase::Processing){2}else{0},
                 )
             };
             let handle = app.clone();
@@ -342,7 +376,7 @@ fn snapshot(state: State<AppState>) -> Value {
         .as_ref()
         .map(|c| c.level.load(Ordering::Relaxed) as f64 / 10000.)
         .unwrap_or(0.);
-    json!({"session":r.session,"level":level,"seconds":r.started.map(|t|t.elapsed().as_secs()).unwrap_or(0),"translating":r.translating,"detail":r.detail,"error":r.error,"result":r.result,"hotkeys":r.hotkeys,"uiLanguage":r.settings.ui_language,"translationLanguage":r.settings.translation_language,"theme":r.settings.theme,"notice":r.notice,"answer":r.answer,"selection":r.target["selection"].as_str().is_some_and(|s|!s.is_empty())})
+    json!({"session":r.session,"level":level,"seconds":r.started.map(|t|t.elapsed().as_secs()).unwrap_or(0),"translating":r.translating,"detail":r.detail,"error":r.error,"result":r.result,"hotkeys":r.hotkeys,"uiLanguage":r.settings.ui_language,"translationLanguage":r.settings.translation_language,"theme":r.settings.theme,"notice":r.notice,"answer":r.answer,"selection":r.target["selection"].as_str().is_some_and(|s|!s.is_empty()),"previewText":r.preview_text,"previewStatus":r.preview_status})
 }
 #[tauri::command]
 fn report_frontend_state(stage: String) {
@@ -414,7 +448,7 @@ fn validate_settings(s: &Settings) -> Result<(), String> {
     if !matches!(s.language.as_str(), "auto" | "zh" | "en") {
         return Err("不支持的识别语言".into());
     }
-    if !matches!(s.asr.protocol.as_str(), "openai_audio")
+    if !matches!(s.asr.protocol.as_str(), "openai_audio" | "openai_realtime")
         || ![&s.llm, &s.backup]
             .iter()
             .all(|c| matches!(c.protocol.as_str(), "openai_chat" | "vao_refine"))
@@ -463,6 +497,21 @@ async fn fetch_models(
         None => platform::connection_secret(&slot, &config.base)?,
     };
     models::list(&config, &secret).await
+}
+#[tauri::command]
+async fn test_asr(
+    slot: String,
+    config: ConnectionConfig,
+    key: Option<String>,
+) -> Result<Value, String> {
+    if slot != "asr" { return Err("invalid slot".into()); }
+    connection_test::validate_asr(&config)?;
+    let secret = match key {
+        Some(s) => s,
+        None => platform::connection_secret(&slot, &config.base)?,
+    };
+    let result = connection_test::asr(&config, &secret).await?;
+    serde_json::to_value(result).map_err(|_| "连接测试结果无效".into())
 }
 #[tauri::command]
 async fn test_llm(
@@ -640,7 +689,7 @@ async fn repair_permission(app: tauri::AppHandle, kind: String) -> Result<Value,
         return Err("请先完成当前录音或处理 / Finish the current recording first".into());
     }
     let result = std::process::Command::new("/usr/bin/tccutil")
-        .args(["reset", service, "app.vaovao.desktop"])
+        .args(["reset", service, env!("VAO_BUNDLE_ID")])
         .output()
         .map_err(|_| "无法重置授权 / Could not reset permission")?;
     if !result.status.success() {
@@ -775,6 +824,7 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
         r.settings = settings.clone();
         r.profile = profile;
         r.target = json!({});
+        r.input_context=None;r.preview_text.clear();r.preview_status.clear();r.asr_access=None;r.realtime=None;
         r.markers.clear();
         if translating {
             r.markers.push(0);
@@ -793,7 +843,25 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
         let target = tauri::async_runtime::spawn_blocking(|| platform::target(true))
             .await
             .map_err(|_| "读取输入位置失败")??;
-        let mut target = if target["bundle"].as_str() == Some("app.vaovao.desktop") {
+        #[cfg(target_os = "windows")]
+        let target = {
+            let mut target = target;
+            if settings.windows_compatible_input {
+                target["paste_transport"] = json!(true);
+                if target["delivery_supported"] != true {
+                    if let (Some(root),Some(pid))=(target["hwnd"].as_u64(),target["pid"].as_u64()) {
+                        let candidate = tauri::async_runtime::spawn_blocking(move || {
+                            let root=root as windows_sys::Win32::Foundation::HWND;
+                            if !windows_input::opaque_candidate(root,pid as u32) {return Err(windows_input::UNAVAILABLE.to_owned());}
+                            windows_paste::capture(root,pid as u32)
+                        }).await;
+                        if let Ok(Ok(input))=candidate {target.as_object_mut().unwrap().extend(input.as_object().unwrap().clone());}
+                    }
+                }
+            }
+            target
+        };
+        let mut target = if target["bundle"].as_str() == Some(env!("VAO_BUNDLE_ID")) {
             json!({})
         } else {
             target
@@ -849,6 +917,7 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
         r.detail = "聆听中 / Listening".into();
         drop(r);
         show_bar(&app, true);
+        start_enhancements(&app,id);
         Ok(())
     }
     .await;
@@ -885,6 +954,7 @@ async fn toggle_translation(app: tauri::AppHandle) -> Result<bool, String> {
     if r.markers.last() == Some(&pos) {
         return Err("切换太快，请稍后重试".into());
     }
+    r.realtime=None;
     r.markers.push(pos);
     r.translating = !r.translating;
     let translating = r.translating;
@@ -898,6 +968,7 @@ fn cancel(app: tauri::AppHandle) {
     let capture = {
         let mut r = state.runtime.lock().unwrap();
         r.session.cancel();
+        r.input_context=None;r.preview_text.clear();r.preview_status.clear();r.asr_access=None;r.realtime=None;
         r.notice = None;
         r.answer.clear();
         r.translating = false;
@@ -923,6 +994,7 @@ fn notify_input(app: &tauri::AppHandle, id: u64, notice: InputNotice) {
         r.translating = false;
         r.notice_serial += 1;
         r.notice = Some(notice);
+        if matches!(notice,InputNotice::SelectionOutOfScope|InputNotice::SelectionScopeUnavailable) {r.result=None;r.answer.clear();r.preview_text.clear();r.preview_status.clear();}
         r.error.clear();
         r.detail.clear();
         r.notice_serial
@@ -968,6 +1040,23 @@ fn delivery_notice(app: &tauri::AppHandle, id: u64, error: &str) {
         }
     });
 }
+/// A partial recording remains usable, but must never look silently complete.
+fn recording_warning(app: &tauri::AppHandle, id: u64) {
+    let serial = app.state::<AppState>().runtime.lock().unwrap().recording_warning(id);
+    let Some(serial) = serial else { return; };
+    show_bar(app, true);
+    let h = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(6)).await;
+        let state = h.state::<AppState>();
+        let mut r = state.runtime.lock().unwrap();
+        if r.session.id == id && r.notice_serial == serial && r.notice == Some(InputNotice::RecordingInterrupted) {
+            r.notice = None;
+            drop(r);
+            show_bar(&h, false);
+        }
+    });
+}
 fn task_app_hints(app: &tauri::AppHandle) -> Vec<String> {
     let Ok(dir) = app.path().app_data_dir() else {
         return Vec::new();
@@ -987,7 +1076,7 @@ fn handle_flow(app: &tauri::AppHandle, id: u64, result: Result<(), FlowError>) {
         Ok(()) => {}
         Err(FlowError::Notice(notice)) => {
             // A later empty translation segment must not hide an earlier valid transcript.
-            if app
+            if !matches!(notice,InputNotice::SelectionOutOfScope|InputNotice::SelectionScopeUnavailable) && app
                 .state::<AppState>()
                 .runtime
                 .lock()
@@ -1028,11 +1117,12 @@ fn fail(app: &tauri::AppHandle, id: u64, error: &str) {
 }
 
 async fn finish(app: tauri::AppHandle) -> Result<(), String> {
-    let (id, capture, settings, profile, target, markers) = {
+    let (id, capture, settings, profile, target, markers, input_context, asr_access, realtime) = {
         let state = app.state::<AppState>();
         let mut r = state.runtime.lock().unwrap();
         let id = r.session.id;
         r.session.advance(id, Phase::Processing)?;
+        r.preview_status=if r.settings.live_preview{"finalizing".into()}else{String::new()};
         r.detail = "识别中 / Transcribing".into();
         r.started = None;
         r.translating = false;
@@ -1042,34 +1132,44 @@ async fn finish(app: tauri::AppHandle) -> Result<(), String> {
             r.settings.clone(),
             r.profile.clone(),
             r.target.clone(),
-            r.markers.clone(),
+            r.markers.clone(),r.input_context.take(),r.asr_access.take(),r.realtime.take(),
         )
     };
     let stopped = tauri::async_runtime::spawn_blocking(move || capture.stop())
         .await
-        .map_err(|_| InputNotice::MicrophoneUnavailable)
-        .and_then(|r| r.map_err(|_| InputNotice::MicrophoneUnavailable));
-    let outcome=tokio::time::timeout(std::time::Duration::from_secs(420),async {
- let (samples,rate)=stopped?;input_feedback::check_audio(&samples,rate)?;
+        .map_err(|_| FlowError::Notice(InputNotice::MicrophoneUnavailable))
+        .and_then(|r| r.map_err(|_| FlowError::Notice(InputNotice::MicrophoneUnavailable)));
+    let duration=stopped.as_ref().map(|r|r.len()/audio::RATE as usize).unwrap_or(0);
+    let budget=(420+duration as u64*2).min(3600);
+    let outcome=tokio::time::timeout(std::time::Duration::from_secs(budget),async {
+ let recording=stopped?;recording.check()?;let rate=audio::RATE;
  let (asr_route,llm_route)=trial::routes(&settings)?;
- let asr_key=trial::key(&asr_route,"asr")?;let llm_key=trial::key(&llm_route,"llm")?;
- if asr_route.trial&&samples.len()>rate as usize*120{return Err("体验语音每段最多120秒，请缩短或使用自有模型 / Trial audio is limited to 120 seconds".into());}
+ let asr_key=if let Some(access)=asr_access{tokio::select!{v=session_key(&access)=>v?,_=cancelled(&app,id)=>return Err("cancelled".into())}}else{trial::key(&asr_route,"asr")?};let llm_key=trial::key(&llm_route,"llm")?;
  let mut effective=settings.clone();effective.asr=asr_route.config;effective.llm=llm_route.config;
- let mut asr_words=settings.dictionary.clone();if asr_route.trial{let mut n=0;asr_words.retain(|w|{n+=w.chars().count()+2;n<=300});}
- let segments=vao_core::split_segments(samples.len(),&markers)?;let mut originals=vec![];let mut outputs=vec![];let mut risk_flags=vec![];let mut used_scene=Scene::Chat;let mut used_layout=Layout::Paragraph;
+ let asr_words=settings.dictionary.clone();
+ let reusable=markers.is_empty()&&target["selection"].as_str().unwrap_or("").is_empty()&&recording.warning.is_none();
+ let realtime_text=if reusable {if let Some(handle)=realtime{tokio::select!{v=realtime::finish(handle,recording.len())=>v,_=cancelled(&app,id)=>return Err("cancelled".into())}}else{None}}else{drop(realtime);None};
+ let segments=vao_core::split_segments(recording.len(),&markers)?;let mut originals=vec![];let mut outputs=vec![];let mut risk_flags=if recording.warning.is_some(){vec!["audio_interrupted".into()]}else{vec![]};let mut used_scene=Scene::Chat;let mut used_layout=Layout::Paragraph;
  let selection=target["selection"].as_str().filter(|s|!s.is_empty());
  if selection.is_some()&&!markers.is_empty(){return Err("本版选区指令与局部翻译不能同时使用，请分两次操作".into());}
  for segment in segments {
   current(&app,id)?;
   if segment.end-segment.start<rate as usize/5{return Err("翻译边界片段过短，请留出短暂停顿后切换 / Translation segment too short".into());}
-  let wav=audio::wav(&samples[segment.start..segment.end],rate);
-  let transcript=tokio::select!{v=models::transcribe(&effective.asr,&asr_key,wav,&settings.language,&asr_words)=>v?,_=cancelled(&app,id)=>return Err("cancelled".into())};
+  let mut transcript=realtime_text.clone().unwrap_or_default();
+  let ranges=if realtime_text.is_some(){vec![]}else{recording.ranges(segment.start,segment.end)?};
+  for (start,end) in ranges {
+   current(&app,id)?;let wav=recording.wav(start,end)?;
+   let part=tokio::select!{v=models::transcribe(&effective.asr,&asr_key,wav,&settings.language,&asr_words)=>match v{Ok(text)=>text,Err(e) if e.no_speech=>continue,Err(e)=>return Err(e.into())},_=cancelled(&app,id)=>return Err("cancelled".into())};
+   transcript=preview::merge_text(&transcript,&part);
+   {let state=app.state::<AppState>();let mut r=state.runtime.lock().unwrap();if r.session.active(id){let retained=originals.iter().cloned().chain(std::iter::once(transcript.clone())).collect::<Vec<_>>().join("\n");r.result=Some(ResultRecord{id:0,created:now(),scene:Scene::Chat,layout:Layout::Paragraph,revision:profile.learned_revision,original:retained.clone(),text:retained,risks:vec!["unrefined".into()],app:target["name"].as_str().unwrap_or("").into(),delivery:"preview".into(),feedback:false});}}
+  }
+  if transcript.trim().is_empty(){return Err(InputNotice::NoSpeech.into());}
   current(&app,id)?; originals.push(transcript.clone());
   let hints=task_app_hints(&app);let hint_refs:Vec<&str>=hints.iter().map(String::as_str).collect();let app_label=format!("{} {}",target["name"].as_str().unwrap_or(""),target["bundle"].as_str().unwrap_or(""));let writing=vao_core::WritingPlan::resolve(&transcript,&app_label,&hint_refs,&profile);used_scene=writing.scene;used_layout=writing.layout;
   // Retain raw transcription before refinement, including on provider failure.
   {let state=app.state::<AppState>();let mut r=state.runtime.lock().unwrap();if r.session.active(id){r.result=Some(ResultRecord{id:0,created:now(),scene:used_scene,layout:used_layout,revision:profile.learned_revision,original:originals.join("\n"),text:originals.join("\n"),risks:vec!["unrefined".into()],app:target["name"].as_str().unwrap_or("").into(),delivery:"preview".into(),feedback:false});}}
   detail(&app,id,"思考中 / Refining");
-  let request=models::WritingRequest{text:&transcript,plan:&writing,dictionary:&settings.dictionary,translation:if segment.translate{Some(&settings.translation_language)}else{None},selection};
+  let request=models::WritingRequest{text:&transcript,plan:&writing,dictionary:&settings.dictionary,translation:if segment.translate{Some(&settings.translation_language)}else{None},selection,context:if markers.is_empty()&&selection.is_none(){input_context.as_ref()}else{None}};
   let output=tokio::select!{v=refine_with_backup(&effective,&llm_key,&request)=>v?,_=cancelled(&app,id)=>return Err("cancelled".into())};
   if output.used_original{risk_flags.push("unrefined".into());}let text=output.text;
   if !segment.translate&&selection.is_none(){risk_flags.extend(vao_core::risks(&transcript,&text));}
@@ -1078,10 +1178,12 @@ async fn finish(app: tauri::AppHandle) -> Result<(), String> {
  current(&app,id)?;
  let record=ResultRecord{id:0,created:now(),scene:used_scene,layout:used_layout,revision:profile.learned_revision,original:originals.join("\n"),text:outputs.join("\n"),risks:risk_flags,app:target["name"].as_str().unwrap_or("").into(),delivery:"preview".into(),feedback:false};
  let record={let state=app.state::<AppState>();let mut runtime=state.runtime.lock().unwrap();if !runtime.session.active(id){return Err("cancelled".into());}let record=state.store.lock().unwrap().add(record)?;runtime.session.advance(id,Phase::Ready)?;runtime.result=Some(record.clone());runtime.detail="已整理 / Ready".into();record};
+ {let state=app.state::<AppState>();let mut r=state.runtime.lock().unwrap();if r.session.id==id{r.preview_text.clear();r.preview_status.clear();}}
  show_bar(&app,false);escape_key(&app,false);
  route_result(&app,id,&target,&record,settings.auto_input);
+ if recording.warning.is_some(){recording_warning(&app,id);}
  let _=app.emit("result-ready",record.id);Ok::<(),FlowError>(())
- }).await.unwrap_or_else(|_|Err("本次处理超过420秒，已停止请求 / Session timed out".into()));
+ }).await.unwrap_or_else(|_|Err("本次处理等待超时，已停止请求 / Session timed out".into()));
     handle_flow(&app, id, outcome);
     Ok(())
 }
@@ -1098,16 +1200,14 @@ async fn refine_with_backup(
     s: &Settings,
     key: &str,
     request: &models::WritingRequest<'_>,
-) -> Result<models::WritingOutput, String> {
+) -> Result<models::WritingOutput, models::ModelError> {
     match models::refine_writing(&s.llm, key, request).await {
         Ok(v) => Ok(v),
         Err(e) if e.retryable && !s.backup.base.is_empty() => {
             let backup_key = platform::connection_secret("backup", &s.backup.base)?;
-            models::refine_writing(&s.backup, &backup_key, request)
-                .await
-                .map_err(|e| format!("主用与备用文字连接均失败：{}", e.message))
+            models::refine_writing(&s.backup, &backup_key, request).await
         }
-        Err(e) => Err(e.message),
+        Err(e) => Err(e),
     }
 }
 
@@ -1226,13 +1326,18 @@ fn deliver_inner(app: &tauri::AppHandle, id: u64) -> Result<(), String> {
         )
     };
     let response = platform::call(
-        json!({"action":"deliver","target":target,"text":text,"return_to_target":true,"allowed_key_events":key_events,"allowed_mouse_events":mouse_events}),
+        json!({"action":"deliver","target":target,"text":text,"return_to_target":true,"allowed_key_events":key_events,"allowed_mouse_events":mouse_events,"paste":target["paste_transport"]==true}),
     );
     let state = app.state::<AppState>();
     let mut r = state.runtime.lock().unwrap();
     match response {
-        Ok(_) => {
+        Ok(response) => {
             r.session.advance(id, Phase::Completed)?;
+            if response["verified"]==false {
+                r.error="已尝试粘贴，接收未确认。请检查原框；结果和剪贴板文字已保留，不会自动重试 / Paste dispatched, receipt unconfirmed. Check the field; result retained.".into();
+                if let Some(record)=r.result.as_mut(){record.delivery="paste_unconfirmed".into();let _=state.store.lock().unwrap().update(record);}
+                return Err(r.error.clone());
+            }
             r.detail = "已发送输入 / Paste sent".into();
             if let Some(record) = r.result.as_mut() {
                 record.delivery = "paste_sent".into();
@@ -1684,11 +1789,12 @@ fn main() {
             snapshot,
             fit_voicebar,drag_voicebar,dismiss_answer,locked_target_probe::probe_locked_target,overlay_probe::probe_overlay,overlay_probe::probe_overlay_event,
             bootstrap,
-            save_settings,save_shortcuts,shortcut_status,shortcut_capture,
+            save_settings,import_dictionary,export_dictionary,save_shortcuts,shortcut_status,shortcut_capture,
             save_key,
             key_status,
             fetch_models,
             test_llm,
+            test_asr,
             permissions,request_permission,trial_status,enroll_trial,test_trial,probe_capture,probe_voicebar,
             open_permission,repair_permission,restart_for_permissions,reveal_application,probe_selection,probe_input_feedback,probe_composer,
             toggle_recording,
