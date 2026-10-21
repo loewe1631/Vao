@@ -245,13 +245,13 @@ fn request(epoch: u64, action: Action) -> Result<Value, String> {
                                         if unavailable(element.CurrentProcessId())? as u32 != *pid
                                             || unavailable(element.CurrentIsPassword())?.as_bool()
                                             || !unavailable(element.CurrentIsEnabled())?.as_bool()
-                                            || !matches!(
-                                                unavailable(element.CurrentControlType())?,
-                                                UIA_PaneControlTypeId
-                                                    | UIA_DocumentControlTypeId
-                                                    | UIA_WindowControlTypeId
-                                                    | UIA_CustomControlTypeId
-                                            )
+                                            || ![
+                                                UIA_PaneControlTypeId,
+                                                UIA_DocumentControlTypeId,
+                                                UIA_WindowControlTypeId,
+                                                UIA_CustomControlTypeId,
+                                            ]
+                                            .contains(&unavailable(element.CurrentControlType())?)
                                             || element
                                                 .GetCurrentPatternAs::<IUIAutomationTextPattern>(
                                                     UIA_TextPatternId,
