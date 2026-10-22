@@ -1,6 +1,6 @@
 # Vao privacy / 数据处理说明
 
-Version 2026-10-21. Applies to Vao 0.2.1 for Mac and Windows.
+Version 2026-10-22. Applies to Vao 0.2.2 for Mac and 0.2.1 for Windows.
 
 ## 本机保存
 

@@ -330,6 +330,7 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | version_check | 0.9.5 | MIT/Apache-2.0 |
 | walkdir | 2.5.0 | Unlicense/MIT |
 | want | 0.3.2 | MIT |
+| webrtc-vad | 0.4.0 | MIT |
 | web_atoms | 0.2.6 | MIT OR Apache-2.0 |
 | webpki-roots | 1.0.10 | CDLA-Permissive-2.0 |
 | window-vibrancy | 0.6.0 | Apache-2.0 OR MIT |

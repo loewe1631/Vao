@@ -1,6 +1,6 @@
 # Architecture
 
-Vao uses a Rust core, Tauri UI and native platform adapters. Mac and Windows 0.2.1 are released through one download page, with separate source tags. The default branch and the detailed implementation below describe the Mac direct-download client, without App Sandbox; Windows source and platform differences are linked in [Windows build](WINDOWS_BUILD.md). Store distribution needs separate capability and license review.
+Vao uses a Rust core, Tauri UI and native platform adapters. Mac 0.2.2 and Windows 0.2.1 are released through separate download pages, with separate source tags. The default branch and the detailed implementation below describe the Mac direct-download client, without App Sandbox; Windows source and platform differences are linked in [Windows build](WINDOWS_BUILD.md). Store distribution needs separate capability and license review.
 
 ## Code map
 

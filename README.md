@@ -12,11 +12,11 @@
 
 Vao is an open-source voice-input app for macOS and Windows. It turns speech into usable text, chooses writing styles from your content and destination app, and remembers the layout choices you explicitly ask it to keep.
 
-**0.2.1 · Available for macOS and Windows.** The [unified release](https://github.com/loewe1631/Vao/releases/tag/v0.2.1) includes both platforms, matching sources and checksums.
+**Mac 0.2.2 · Windows 0.2.1.** [Mac 0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2) adds optional silence auto-stop; [Windows 0.2.1](https://github.com/loewe1631/Vao/releases/tag/v0.2.1) remains the current Windows release.
 
 | Platform | Download | Requirements |
 | --- | --- | --- |
-| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-build20261021.1202-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-build20261021.1202-mac-arm64.zip) | Apple Silicon · macOS 12+ |
+| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.zip) | Apple Silicon · macOS 12+ |
 | Windows | [EXE installer](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-setup.exe) | Windows 10 1809+ · x64; downloads WebView2 if missing |
 
 Mac downloads are not yet Apple-notarized; the Windows installer is not code-signed. See the [installation guide](https://vaovao.app/install/) for first-launch prompts. Intel Mac is not available. See [release notes](RELEASE_NOTES.md) for source and build identities.

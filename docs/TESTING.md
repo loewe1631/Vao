@@ -55,6 +55,10 @@ Real microphone, physical shortcut, another Mac's initial installation and actua
 [Writing presets](WRITING_PRESETS.md) documents the opt-in fixed-text replay. It opens settings read-only but sends fixture text to the selected model and consumes quota. A local/synthetic test pass cannot establish provider quality or universal semantic preservation.
 
 
+## 0.2.2 silence auto-stop
+
+With “Stop after silence” enabled, use the default five-second delay first. Speak valid audio, stop speaking, and confirm that the countdown appears near the deadline and the session finishes automatically. Continue speaking during the countdown and confirm that it resets. A session with no valid speech must remain open. Verify that the main shortcut still stops immediately, Escape cancels, and disabling the option restores manual-stop behavior. The local VAD does not upload audio; a detection failure must keep manual-stop behavior.
+
 ## 0.2.1 dictionary dialog regression
 
 Test importing and exporting a small synthetic TXT/JSON dictionary, then cancelling each file dialog. Confirm that the dialog helper exits after every selection or cancellation, Vao and Finder remain interactive, and no unresponsive dialog process remains. Imported terms should be saved and deduplicated; cancelled or invalid imports must not change the saved dictionary. Follow with dictation, translation and original-target insertion to check that the long-lived input bridge remains usable.

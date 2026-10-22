@@ -1,3 +1,23 @@
+# Vao 0.2.2 · macOS
+
+[Mac 下载 / Download](https://github.com/loewe1631/Vao/releases/tag/v0.2.2)
+
+- **Mac:** build20261022.1302 · Apple Silicon · macOS 12+ · source tag `v0.2.2`.
+- 录音设置新增“停说后自动结束”：默认关闭，可设置 2–30 秒，默认 5 秒；检测到有效语音后才开始计时，继续说话会清零倒计时。
+- 主快捷键仍可手动结束，Escape 仍可取消；静音检测在本机完成，检测不可用时保持手动结束。
+- Windows 继续使用 0.2.1；本次 Release 不包含 Windows 0.2.2。
+- 当前 Mac 下载包使用 ad-hoc 签名，尚未经过 Apple 公证，也不是 App Store 安装包；首次打开可能需要在系统设置中允许。
+
+## English summary
+
+- **Mac:** build20261022.1302 · Apple Silicon · macOS 12+ · source tag `v0.2.2`.
+- The recording settings add optional **Stop after silence**. It is off by default, accepts 2–30 seconds and defaults to 5 seconds. The timer starts only after valid speech and resets when speech resumes.
+- The main shortcut still stops immediately and Escape still cancels. Silence detection stays local; an unavailable detector keeps manual-stop behavior.
+- Windows remains on 0.2.1; this release does not claim Windows 0.2.2 parity.
+- Mac downloads are ad-hoc signed and not Apple-notarized or App Store builds; first launch may require approval in System Settings.
+
+---
+
 # Vao 0.2.1 · macOS & Windows
 
 [统一下载 / Downloads](https://github.com/loewe1631/Vao/releases/tag/v0.2.1)

@@ -12,11 +12,11 @@
 
 Vao 是一款面向 macOS 与 Windows 的开源语音输入工具：把口述整理成可用文字，根据内容与目标应用自动选择表达方式，并记住你明确选择的排版偏好。
 
-**0.2.1 · macOS 与 Windows 现已提供。** [统一发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.1)包含两个平台的安装包、对应源码与校验文件。
+**Mac 0.2.2 · Windows 0.2.1。** [Mac 0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2) 新增可选的停说后自动结束；Windows 继续使用 [0.2.1](https://github.com/loewe1631/Vao/releases/tag/v0.2.1)。
 
 | 平台 | 安装包 | 要求 |
 | --- | --- | --- |
-| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-build20261021.1202-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-build20261021.1202-mac-arm64.zip) | Apple Silicon · macOS 12+ |
+| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.zip) | Apple Silicon · macOS 12+ |
 | Windows | [EXE 安装程序](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-setup.exe) | Windows 10 1809+ · x64；缺少 WebView2 时自动下载 |
 
 Mac 尚未经过 Apple 公证，Windows 安装包尚无代码签名；首次打开提示见[安装指南](https://vaovao.app/install/)。Intel Mac 暂未提供。版本及源码对应关系见[版本说明](RELEASE_NOTES.md)。
