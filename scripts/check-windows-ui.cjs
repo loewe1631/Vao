@@ -11,7 +11,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  page.on('pageerror',error=>errors.push(String(error)));
  await page.addInitScript(()=>{
   const connection={base:'https://model.example/v1',model:'synthetic',protocol:'openai_chat'};
-  const db={platform:'windows',version:'0.2.1',build:'20261021.3013',
+  const db={platform:'windows',version:'0.2.2',build:'20261022.3014',
    settings:{asr:{...connection,protocol:'openai_audio'},llm:connection,backup:{base:'',model:'',protocol:'openai_chat'},language:'auto',translation_language:'English',auto_input:true,windows_compatible_input:true,windows_return_to_origin:false,live_preview:false,input_context:false,expanded_context:false,dictionary:[],ui_language:'zh',theme:'system',trial_enabled:false,trial_consent_version:'',onboarding_complete:false,shortcuts:{record:'Control+Alt+Space',translate:'Control+Alt+KeyT',cancel:'Escape'}},
    startup:{available:true,registered:false,system_disabled:false},
    profile:{revision:0,learning:true,personalization:true,rules:[],votes:[],undo:[]},history:[],
@@ -42,12 +42,30 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  await page.goto('file://'+path.join(root,'ui/index.html'));
  await page.locator('.sidebar-foot').waitFor();
  check('release_has_no_development_banner',await page.locator('.windows-preview').count()===0);
- check('release_shows_clean_version',await page.locator('.sidebar-foot').innerText()==='0.2.1');
+ check('release_shows_clean_version',await page.locator('.sidebar-foot').innerText()==='0.2.2');
  check('release_brand_has_no_beta_label',!(await page.locator('.sidebar .brand').innerText()).includes('BETA'));
  check('no_enrollment_or_copy_on_launch',await page.evaluate(()=>!fake.calls.some(c=>['enroll_trial','copy_result'].includes(c.command))));
  check('onboarding_waits_for_actual_probe',await page.locator('#finish-setup').isDisabled());
  check('onboarding_offers_insertion',await page.locator('#setup-auto-input').count()===1);
  await page.locator('.nav [data-page="settings"]').click();
+ check('legacy_auto_stop_default_off',await page.locator('#auto-stop').getAttribute('aria-checked')==='false');
+ check('auto_stop_delay_hidden_when_off',await page.locator('#silence-seconds').count()===0);
+ await page.locator('#auto-stop').click();
+ check('auto_stop_saved_without_changing_input_strategy',await page.evaluate(()=>fake.db.settings.auto_stop===true&&!fake.db.settings.windows_return_to_origin&&fake.db.settings.windows_compatible_input));
+ check('legacy_auto_stop_delay_is_five',await page.locator('#silence-seconds').inputValue()==='5');
+ for(const value of ['2','30','17']){
+  await page.locator('#silence-seconds').fill(value);await page.locator('#save-silence-seconds').click();
+  check('auto_stop_delay_saved_'+value,await page.evaluate(v=>fake.db.settings.silence_seconds===Number(v),value));
+ }
+ for(const value of ['1','31','2.5','']){
+  await page.locator('#silence-seconds').fill(value);await page.locator('#save-silence-seconds').click();
+  check('auto_stop_invalid_delay_rejected_'+value,await page.evaluate(()=>fake.db.settings.silence_seconds===17));
+ }
+ await page.locator('#silence-seconds').fill('5');await page.locator('#save-silence-seconds').click();
+ await page.locator('.nav [data-page="home"]').click();await page.locator('.nav [data-page="settings"]').click();
+ check('auto_stop_saved_across_navigation',await page.locator('#silence-seconds').inputValue()==='5');
+ await page.locator('#auto-stop').click();
+ check('auto_stop_can_be_disabled',await page.locator('#silence-seconds').count()===0&&await page.evaluate(()=>fake.db.settings.auto_stop===false));
  check('login_startup_default_off',await page.locator('#login-startup').getAttribute('aria-checked')==='false');
  check('launch_does_not_register_startup',await page.evaluate(()=>!fake.calls.some(c=>c.command==='set_login_startup')));
  await page.locator('#login-startup').click();
@@ -134,16 +152,31 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
   await page.locator('.nav [data-page="settings"]').click();
   check(`guide_${language}_navigation_returns`,await page.locator('#auto-input').count()===1);
   check(`automatic_input_label_${language}`,await page.locator('#auto-input').locator('..').locator('h3').innerText()===(language==='en'?'Automatic input':'自动输入'));
+  check(`auto_stop_label_${language}`,await page.locator('#auto-stop').locator('..').locator('h3').innerText()===(language==='en'?'Stop after a pause':'停说后自动结束'));
   check(`login_startup_label_${language}`,await page.locator('#login-startup').locator('..').locator('h3').innerText()===(language==='en'?'Start when signing in to Windows':'随 Windows 登录启动'));
   for(const route of ['home','guide','habits','history','dictionary','models','settings','about']){
    await page.locator(`.nav [data-page="${route}"]`).click();
    const text=await page.locator('.page').innerText();
-   check(`public_copy_${language}_${route}`,!/(Windows 预览|Windows preview|开发预览|development preview|请在笔记本实测|test on your PC|公开测试版|public beta|实验|experimental|BETA|20261021\.3013)/i.test(text));
+   check(`public_copy_${language}_${route}`,!/(Windows 预览|Windows preview|开发预览|development preview|请在笔记本实测|test on your PC|公开测试版|public beta|实验|experimental|BETA|20261022\.3014)/i.test(text));
    if(['settings','about'].includes(route))await page.screenshot({path:path.join(out,`windows-public-${language}-${route}.png`),fullPage:true});
   }
  }
  await page.goto('file://'+path.join(root,'ui/index.html')+'?bar=1');
  await page.waitForFunction(()=>!!fake.listeners['session-updated']);
+ for(const language of ['zh','en']){
+  await page.evaluate(lang=>{fake.state.session={id:2,phase:'listening'};fake.state.uiLanguage=lang;fake.state.autoStopCountdown=2;fake.listeners['session-updated']();},language);
+  await page.waitForFunction(()=>document.querySelector('#bar-label').textContent.includes('2'));
+  check('auto_stop_countdown_visible_'+language,await page.locator('#bar-label').innerText().then(x=>x.includes(language==='zh'?'即将结束':'Ending in')));
+  await page.evaluate(()=>{fake.state.autoStopCountdown=null;fake.listeners['session-updated']();});
+  await page.waitForFunction(()=>!document.querySelector('#bar-label').textContent.includes('2'));
+  check('auto_stop_resuming_voice_clears_countdown_'+language,await page.locator('.voicebar').isVisible());
+  await page.evaluate(()=>{fake.state.autoStopUnavailable=true;fake.listeners['session-updated']();});
+  await page.waitForFunction(()=>/shortcut|快捷键/.test(document.querySelector('#bar-label').textContent));
+  check('auto_stop_failure_retains_manual_recording_'+language,await page.locator('.voicebar').isVisible());
+  await page.evaluate(()=>{fake.state.autoStopUnavailable=false;fake.listeners['session-updated']();});
+ }
+ check('countdown_does_not_open_main_or_submit_from_ui',await page.evaluate(()=>!fake.calls.some(c=>['show_main','toggle_recording'].includes(c.command))));
+ await page.evaluate(()=>{fake.state.uiLanguage='zh';});
  await page.evaluate(()=>{fake.state.session={id:3,phase:'completed'};fake.state.answer='A saved result.';fake.state.result={id:3,text:'A saved result.',original:'synthetic',risks:[],delivery:'preview',scene:'chat',revision:0};fake.listeners['session-updated']();});
  await page.waitForFunction(()=>document.querySelector('#bar-message')?.textContent==='A saved result.');
  check('overlay_does_not_claim_implicit_copy',await page.locator('#bar-message').innerText()==='A saved result.');

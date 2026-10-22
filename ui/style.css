@@ -53,3 +53,5 @@ body{-webkit-user-select:none;user-select:none}input,textarea,[contenteditable=t
 .dictionary-actions+p.muted{margin:14px 0 0;font-size:12px;line-height:1.7}
 
 .windows-bar .bar-transcript{max-width:100%;margin-bottom:10px}
+
+.silence-delay{flex-wrap:wrap;justify-content:flex-end}.silence-delay input{width:84px;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--text)}.silence-delay span{color:var(--sub);font-size:12px}

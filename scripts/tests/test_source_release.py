@@ -113,3 +113,21 @@ class SourceReleaseTests(unittest.TestCase):
             self.assertIn(shared.relative_to(root).as_posix(), inventory)
             self.assertNotIn(private.relative_to(root).as_posix(), inventory)
             self.assertNotIn(cache.relative_to(root).as_posix(), inventory)
+
+    def test_windows_archive_uses_windows_version_without_relabelling_mac(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            seed(root)
+            (root / 'release.windows.json').write_text(json.dumps({'version': '0.0.1-test'}))
+            for name in ['source_manifest.py', 'check-source.py', 'package-source.py']:
+                (root / 'scripts' / name).write_bytes((SCRIPTS / name).read_bytes())
+            report = json.loads(subprocess.check_output([
+                sys.executable, '-B', str(root / 'scripts/package-source.py'), '--platform', 'windows'], cwd=root))
+            self.assertEqual(report['file'], 'Vao-0.0.1-test-windows-source.tar.gz')
+            with tarfile.open(root / 'dist/windows' / report['file']) as archive:
+                prefix = 'Vao-0.0.1-test-windows-source/'
+                self.assertTrue(all(m.name.startswith(prefix) for m in archive.getmembers()))
+                mac = json.load(archive.extractfile(prefix + 'release.json'))
+                win = json.load(archive.extractfile(prefix + 'release.windows.json'))
+                self.assertEqual(mac['version'], '0.0.0-test')
+                self.assertEqual(win['version'], '0.0.1-test')

@@ -6305,6 +6305,33 @@
     "directory": "../webpki-roots-1.0.10"
   },
   {
+    "name": "webrtc-vad",
+    "version": "0.4.0",
+    "license": "MIT",
+    "repository": "https://github.com/kaegi/webrtc-vad",
+    "authors": [
+      "kaegi <kaegi.dev@gmail.com>"
+    ],
+    "directory": "webrtc-vad-0.4.0",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "e710bb4810f36a853ff7cb28de520e23fd7991720f6b1770cc936f6c8135ff0a",
+        "source": "crate archive"
+      },
+      {
+        "file": "resources__libfvad__LICENSE",
+        "sha256": "78b16d4e803975e0c5d826339c607d0676192a40e2c510c10b2cb4ab4cde416a",
+        "source": "crate archive"
+      },
+      {
+        "file": "resources__libfvad__PATENTS",
+        "sha256": "01462e2068d1a04c2274f3389773014c14ed9bc3446b28303543bd3e3c064145",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "webview2-com",
     "version": "0.38.2",
     "license": "MIT",

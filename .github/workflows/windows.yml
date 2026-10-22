@@ -38,6 +38,8 @@ jobs:
       - name: Verify installer startup lifecycle
         run: pwsh -File scripts/check-windows-installer-startup.ps1
       - name: Package candidate and provenance
+        run: python scripts/package-source.py --platform windows
+      - name: Collect candidate and provenance
         run: python scripts/package-windows.py --commit ${{ github.sha }} --run-id ${{ github.run_id }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -45,6 +47,7 @@ jobs:
           path: |
             dist/windows/*.exe
             dist/windows/*.zip
+            dist/windows/*.tar.gz
             dist/windows/*.json
             dist/windows/*.trace
             dist/windows/SHA256SUMS

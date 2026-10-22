@@ -302,6 +302,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | want | 0.3.2 | MIT |
 | web_atoms | 0.2.6 | MIT OR Apache-2.0 |
 | webpki-roots | 1.0.10 | CDLA-Permissive-2.0 |
+| webrtc-vad | 0.4.0 | MIT; bundled libfvad/WebRTC BSD-3-Clause and PATENTS |
 | webview2-com | 0.38.2 | MIT |
 | webview2-com-macros | 0.8.1 | MIT |
 | webview2-com-sys | 0.38.2 | MIT |
@@ -346,3 +347,5 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | zerovec-derive | 0.11.6 | Unicode-3.0 |
 | zlib-rs | 0.6.8 | Zlib |
 | zmij | 1.0.23 | MIT |
+
+Local pause detection uses webrtc-vad 0.4.0. The crate includes libfvad/WebRTC native code. Its MIT license, bundled BSD license/attributions and patent grant are preserved in `licenses/windows/webrtc-vad-0.4.0/` and indexed with SHA256 in `licenses/windows/index.json`. Audio is not uploaded by this detector.

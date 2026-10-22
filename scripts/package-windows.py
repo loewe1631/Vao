@@ -51,6 +51,11 @@ def main():
     if not all(path.is_file() for path in evidence):
         raise SystemExit('Run the Windows startup probe before packaging')
     evidence.extend(sorted(out.glob('runner-*.json.trace')))
+    source_files = [out / f"Vao-{release['version']}-windows-source{suffix}"
+                    for suffix in ['.tar.gz', '-inventory.json']]
+    if not all(path.is_file() for path in source_files):
+        raise SystemExit('Package the matching Windows source before collecting the candidate')
+    evidence.extend(source_files)
     entries = {**report['files'], report_path.name: digest(report_path),
                **{path.name: digest(path) for path in evidence}}
     (out / 'SHA256SUMS').write_text(''.join(f'{sha}  {name}\n' for name, sha in entries.items()))

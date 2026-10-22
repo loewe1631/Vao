@@ -4864,7 +4864,7 @@ dependencies = [
 
 [[package]]
 name = "vao-core"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -4872,7 +4872,7 @@ dependencies = [
 
 [[package]]
 name = "vao-desktop"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "base64 0.22.1",
  "cc",
@@ -4898,6 +4898,7 @@ dependencies = [
  "tokio-tungstenite",
  "url",
  "vao-core",
+ "webrtc-vad",
  "windows 0.61.3",
  "windows-sys 0.61.2",
  "winreg",
@@ -5140,6 +5141,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c1c8e20c8a38fc7d65abfe74eb7280e4aa667e8eec8bc84996d2874810748d9"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "webrtc-vad"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39a1e40fd6ca90be95459152a2537f2ba4286ee1b13073f7ebcaa74fc94e3008"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

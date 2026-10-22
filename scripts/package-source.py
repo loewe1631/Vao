@@ -1,5 +1,6 @@
 """Create a checked, deterministic source archive; never install or publish it."""
 from pathlib import Path
+import argparse
 import gzip
 import hashlib
 import importlib.util
@@ -8,6 +9,9 @@ import re
 import tarfile
 
 root = Path(__file__).resolve().parent.parent
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--platform', choices=['macos', 'windows'], default='macos')
+args = parser.parse_args()
 spec = importlib.util.spec_from_file_location('source_check', root / 'scripts/check-source.py')
 checker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(checker)
@@ -17,12 +21,12 @@ except ValueError as error:
     raise SystemExit(str(error)) from error
 if findings:
     raise SystemExit(json.dumps({'passed': False, 'findings': findings}, indent=2))
-meta = json.loads((root / 'release.json').read_text())
+meta = json.loads((root / ('release.windows.json' if args.platform == 'windows' else 'release.json')).read_text())
 if not re.fullmatch(r'\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?', meta['version']):
     raise SystemExit('Invalid release version')
-prefix = 'Vao-' + meta['version'] + '-source'
-out = root / 'dist'
-out.mkdir(exist_ok=True)
+prefix = 'Vao-' + meta['version'] + ('-windows-source' if args.platform == 'windows' else '-source')
+out = root / 'dist/windows' if args.platform == 'windows' else root / 'dist'
+out.mkdir(parents=True, exist_ok=True)
 archive = out / (prefix + '.tar.gz')
 temporary = out / (prefix + '.tar.gz.tmp')
 try:
