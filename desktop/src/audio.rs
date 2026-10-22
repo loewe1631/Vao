@@ -179,6 +179,12 @@ pub struct Capture {
     auto_stop: Option<(u8, Arc<Mutex<crate::auto_stop::Status>>)>,
 }
 impl Capture {
+    // Windows permission probing opens and immediately drops a manual capture.
+    // It must not allocate VAD or arm a recording-session stop timer.
+    #[cfg(target_os = "windows")]
+    pub fn start() -> Result<Self, String> {
+        Self::start_with_auto_stop(None)
+    }
     pub fn start_with_auto_stop(seconds: Option<u8>) -> Result<Self, String> {
         let spool = Arc::new(Spool::new()?);
         let level = Arc::new(AtomicU32::new(0));
