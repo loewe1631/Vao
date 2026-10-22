@@ -15,7 +15,7 @@ impl Status {
         self.heard_speech && !self.unavailable && self.silence_ms >= seconds as u64 * 1000
     }
     pub fn countdown(self, seconds: u8) -> Option<u64> {
-        if !self.heard_speech || self.unavailable {
+        if !self.heard_speech || self.unavailable || self.silence_ms == 0 {
             return None;
         }
         let remaining = (seconds as u64 * 1000).saturating_sub(self.silence_ms);
@@ -167,6 +167,22 @@ mod tests {
         advance(&mut g, false, 1);
         assert!(g.status.due(5));
         assert!(!PauseGate::default().status.due(5));
+    }
+    #[test]
+    fn minimum_delay_hides_countdown_during_speech_and_restarts_after_resume() {
+        let mut g = PauseGate::default();
+        advance(&mut g, true, 12);
+        assert_eq!(g.status.countdown(2), None);
+        advance(&mut g, false, 1);
+        assert_eq!(g.status.countdown(2), Some(2));
+        advance(&mut g, false, 90);
+        g.push(true);
+        assert_eq!(g.status.countdown(2), None);
+        assert!(!g.status.due(2));
+        advance(&mut g, false, 99);
+        assert!(!g.status.due(2));
+        g.push(false);
+        assert!(g.status.due(2));
     }
     #[test]
     fn actual_vad_accepts_arbitrary_buffer_boundaries_and_quiet_audio() {
