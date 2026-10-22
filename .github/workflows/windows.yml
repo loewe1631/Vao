@@ -21,6 +21,13 @@ jobs:
       - run: npm ci
       - run: cargo +stable test --workspace --locked
       - run: cargo +stable clippy --workspace --all-targets --locked -- -D warnings
+      # Tauri normalizes desktop/Cargo.toml during its build. Archive the
+      # committed source first so release sources retain their exact Git bytes.
+      - name: Package committed Windows source
+        run: |
+          git diff --exit-code
+          if ($LASTEXITCODE -ne 0) { throw 'Tracked source changed before packaging' }
+          python scripts/package-source.py --platform windows
       - name: Build debug native probe
         working-directory: desktop
         run: npx tauri build --debug --config tauri.windows.conf.json --no-bundle -- --locked
@@ -37,8 +44,6 @@ jobs:
         run: pwsh -File scripts/check-windows-login-startup.ps1
       - name: Verify installer startup lifecycle
         run: pwsh -File scripts/check-windows-installer-startup.ps1
-      - name: Package candidate and provenance
-        run: python scripts/package-source.py --platform windows
       - name: Collect candidate and provenance
         run: python scripts/package-windows.py --commit ${{ github.sha }} --run-id ${{ github.run_id }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
