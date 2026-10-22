@@ -142,20 +142,29 @@ pub struct Capture {
     thread: Option<std::thread::JoinHandle<()>>,
     writer: Option<std::thread::JoinHandle<()>>,
     error: Arc<Mutex<Option<String>>>,
+    auto_stop: Option<(u8, Arc<Mutex<crate::auto_stop::Status>>)>,
 }
 impl Capture {
-    pub fn start() -> Result<Self, String> {
+    pub fn start_with_auto_stop(seconds: Option<u8>) -> Result<Self, String> {
         let spool = Arc::new(Spool::new()?);
         let level = Arc::new(AtomicU32::new(0));
         let error = Arc::new(Mutex::new(None));
         let (audio_tx, audio_rx) = mpsc::sync_channel::<Vec<i16>>(64);
         let output = spool.clone();
         let writer_error = error.clone();
+        let auto_status = seconds.map(|_| Arc::new(Mutex::new(crate::auto_stop::Status::default())));
+        let writer_status = auto_status.clone();
         let writer = std::thread::spawn(move || {
+            // Keep VAD work off the real-time CoreAudio callback. No detector
+            // is allocated or run when the user leaves auto-stop disabled.
+            let mut monitor = writer_status.as_ref().map(|_| crate::auto_stop::Monitor::new());
             while let Ok(pcm) = audio_rx.recv() {
                 if let Err(e) = output.append(&pcm) {
                     *writer_error.lock().unwrap() = Some(e);
                     break;
+                }
+                if let (Some(monitor), Some(shared)) = (&mut monitor, &writer_status) {
+                    *shared.lock().unwrap() = monitor.push(&pcm);
                 }
             }
         });
@@ -215,7 +224,18 @@ impl Capture {
             thread: Some(thread),
             writer: Some(writer),
             error,
+            auto_stop: seconds.zip(auto_status),
         })
+    }
+    pub fn auto_stop_status(&self) -> Option<(u8, crate::auto_stop::Status)> {
+        let (seconds, status) = self.auto_stop.as_ref()?;
+        let mut status = *status.lock().unwrap();
+        // Missing/disconnected audio is not a spoken pause.
+        status.unavailable |= self.error.lock().unwrap().is_some();
+        Some((*seconds, status))
+    }
+    pub fn auto_stop_due(&self) -> bool {
+        self.auto_stop_status().is_some_and(|(seconds, status)| status.due(seconds))
     }
     pub fn position(&self) -> usize {
         self.recording.len()

@@ -497,9 +497,13 @@ fn shortcut_settings_survive_reopen_and_legacy_settings_keep_models() {
     let mut settings: Settings = serde_json::from_str(old).unwrap();
     assert_eq!(settings.shortcuts, crate::hotkeys::Shortcuts::default());
     assert!(settings.auto_input); // Missing fields receive the new-install default.
+    assert!(!settings.auto_stop);
+    assert_eq!(settings.silence_seconds, 5);
     let explicit_preview: Settings = serde_json::from_str(r#"{"auto_input":false}"#).unwrap();
     assert!(!explicit_preview.auto_input); // Upgrades preserve the user's choice.
     settings.auto_input = false;
+    settings.auto_stop = true;
+    settings.silence_seconds = 7;
     settings.shortcuts.record = "Control+Shift+KeyR".into();
     let path = std::env::temp_dir().join(format!(
         "vao-shortcut-test-{}-{}.sqlite3",
@@ -517,11 +521,44 @@ fn shortcut_settings_survive_reopen_and_legacy_settings_keep_models() {
         let db = Store::open(&path).unwrap();
         let restored: Settings = db.get("settings");
         assert!(!restored.auto_input);
+        assert!(restored.auto_stop);
+        assert_eq!(restored.silence_seconds, 7);
         assert_eq!(restored.shortcuts, settings.shortcuts);
         assert_eq!(restored.asr.model, "synthetic-asr");
         assert_eq!(restored.dictionary, vec!["SyntheticTerm"]);
     }
     std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn auto_stop_delay_rejects_invalid_values_without_changing_other_settings() {
+    let mut settings = Settings::default();
+    for seconds in [0, 1, 31, 255] {
+        settings.silence_seconds = seconds;
+        assert!(crate::validate_settings(&settings).is_err());
+    }
+    for seconds in [2, 5, 17, 30] {
+        settings.silence_seconds = seconds;
+        assert!(crate::validate_settings(&settings).is_ok());
+    }
+    assert!(!settings.auto_stop);
+    assert!(!settings.live_preview);
+}
+
+#[test]
+fn automatic_and_manual_stop_claim_one_session_and_reject_stale_work() {
+    let mut r = crate::Runtime::default();
+    let id = r.session.begin().unwrap();
+    r.session.advance(id, vao_core::Phase::Listening).unwrap();
+    assert!(r.claim_finish(id));
+    assert!(!r.claim_finish(id));
+    r.session.cancel();
+    assert!(!r.claim_finish(id));
+    let next = r.session.begin().unwrap();
+    r.session.advance(next, vao_core::Phase::Listening).unwrap();
+    assert!(!r.claim_finish(id));
+    assert_eq!(r.session.phase, vao_core::Phase::Listening);
+    assert!(r.claim_finish(next));
 }
 
 #[test]

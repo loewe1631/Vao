@@ -28,6 +28,7 @@ base64 = "0.22.1"
 tokio-tungstenite = { version = "0.28", default-features = false, features = ["connect", "rustls-tls-native-roots"] }
 getrandom = "0.3.4"
 cpal = "0.15"
+webrtc-vad = "=0.4.0"
 global-hotkey = "0.6"
 rusqlite = { version = "0.32", features = ["bundled"] }
 url = "2"

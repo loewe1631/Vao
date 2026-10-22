@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod audio;
+mod auto_stop;
 mod connection_test;
 mod context;
 mod dictionary_io;
@@ -55,6 +56,7 @@ struct Runtime {
     answer: String,
     answer_serial: u64,
     bar_mouse_start: u32,
+    auto_stopped: bool,
 }
 impl Default for Runtime {
     fn default() -> Self {
@@ -77,10 +79,15 @@ impl Default for Runtime {
             answer: String::new(),
             answer_serial: 0,
             bar_mouse_start: 0,
+            auto_stopped: false,
         }
     }
 }
 impl Runtime {
+    fn claim_finish(&mut self, id: u64) -> bool {
+        self.session.id == id && self.session.phase == Phase::Listening
+            && self.session.advance(id, Phase::Processing).is_ok()
+    }
     fn recording_warning(&mut self, id: u64) -> Option<u64> {
         if self.session.id != id
             || !matches!(self.session.phase, Phase::Ready | Phase::Completed)
@@ -367,7 +374,10 @@ fn snapshot(state: State<AppState>) -> Value {
         .as_ref()
         .map(|c| c.level.load(Ordering::Relaxed) as f64 / 10000.)
         .unwrap_or(0.);
-    json!({"session":r.session,"level":level,"seconds":r.started.map(|t|t.elapsed().as_secs()).unwrap_or(0),"translating":r.translating,"detail":r.detail,"error":r.error,"result":r.result,"hotkeys":r.hotkeys,"uiLanguage":r.settings.ui_language,"translationLanguage":r.settings.translation_language,"theme":r.settings.theme,"notice":r.notice,"answer":r.answer,"selection":r.target["selection"].as_str().is_some_and(|s|!s.is_empty()),"previewText":r.preview_text,"previewStatus":r.preview_status})
+    let auto = r.capture.as_ref().and_then(audio::Capture::auto_stop_status);
+    let countdown = auto.and_then(|(seconds, status)| status.countdown(seconds));
+    let unavailable = auto.is_some_and(|(_, status)| status.unavailable);
+    json!({"session":r.session,"level":level,"seconds":r.started.map(|t|t.elapsed().as_secs()).unwrap_or(0),"translating":r.translating,"detail":r.detail,"error":r.error,"result":r.result,"hotkeys":r.hotkeys,"uiLanguage":r.settings.ui_language,"translationLanguage":r.settings.translation_language,"theme":r.settings.theme,"notice":r.notice,"answer":r.answer,"selection":r.target["selection"].as_str().is_some_and(|s|!s.is_empty()),"previewText":r.preview_text,"previewStatus":r.preview_status,"autoStopCountdown":countdown,"autoStopUnavailable":unavailable})
 }
 #[tauri::command]
 fn report_frontend_state(stage: String) {
@@ -410,6 +420,9 @@ fn bootstrap(state: State<AppState>) -> Result<Value, String> {
 }
 
 fn validate_settings(s: &Settings) -> Result<(), String> {
+    if !(2..=30).contains(&s.silence_seconds) {
+        return Err("停顿等待时间须为 2–30 秒 / Pause delay must be 2–30 seconds".into());
+    }
     for c in [&s.asr, &s.llm, &s.backup] {
         if !c.base.is_empty() {
             models::endpoint(&c.base, "models")?;
@@ -745,15 +758,17 @@ fn open_permission(kind: String) -> Result<(), String> {
 
 #[tauri::command]
 async fn toggle_recording(app: tauri::AppHandle) -> Result<(), String> {
-    let phase = app
-        .state::<AppState>()
-        .runtime
-        .lock()
-        .unwrap()
-        .session
-        .phase;
+    let (phase, id, auto_stopped) = {
+        let state = app.state::<AppState>();
+        let r = state.runtime.lock().unwrap();
+        (r.session.phase, r.session.id, r.auto_stopped)
+    };
     if phase == Phase::Listening {
-        finish(app).await
+        finish(app, id, false).await
+    } else if phase == Phase::Processing && auto_stopped {
+        // A stop key pressed at the automatic deadline must not open Settings
+        // or dispatch a second model request.
+        Ok(())
     } else if matches!(
         phase,
         Phase::Processing | Phase::Preparing | Phase::Delivering
@@ -792,6 +807,7 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
         r.answer.clear();
         r.bar_mouse_start = voice_bar::mouse_events();
         r.started = None;
+        r.auto_stopped = false;
         r.detail = "准备麦克风 / Preparing microphone".into();
         id
     };
@@ -827,7 +843,8 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
             return Err("请在设置中授予 Vao 麦克风权限 / Grant microphone access to Vao".into());
         }
         escape_key(&app, true);
-        let capture = tauri::async_runtime::spawn_blocking(audio::Capture::start)
+        let pause = settings.auto_stop.then_some(settings.silence_seconds);
+        let capture = tauri::async_runtime::spawn_blocking(move || audio::Capture::start_with_auto_stop(pause))
             .await
             .map_err(|_| FlowError::Notice(InputNotice::MicrophoneUnavailable))?
             .map_err(|_| {
@@ -850,6 +867,9 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
         drop(r);
         show_bar(&app, true);
         start_enhancements(&app,id);
+        if settings.auto_stop {
+            start_auto_stop(&app, id);
+        }
         Ok(())
     }
     .await;
@@ -1041,12 +1061,40 @@ fn fail(app: &tauri::AppHandle, id: u64, error: &str) {
     show_main(app);
 }
 
-async fn finish(app: tauri::AppHandle) -> Result<(), String> {
+fn start_auto_stop(app: &tauri::AppHandle, id: u64) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            let due = {
+                let state = app.state::<AppState>();
+                let r = state.runtime.lock().unwrap();
+                if r.session.id != id || r.session.phase != Phase::Listening {
+                    return;
+                }
+                r.capture.as_ref().is_some_and(audio::Capture::auto_stop_due)
+            };
+            if due {
+                // Recheck inside finish's session lock: voice may have resumed,
+                // or manual stop/cancel may have won since the observation.
+                let _ = finish(app.clone(), id, true).await;
+            }
+        }
+    });
+}
+
+async fn finish(app: tauri::AppHandle, expected_id: u64, automatic: bool) -> Result<(), String> {
     let (id, capture, settings, profile, target, markers, input_context, asr_access, realtime) = {
         let state = app.state::<AppState>();
         let mut r = state.runtime.lock().unwrap();
-        let id = r.session.id;
-        r.session.advance(id, Phase::Processing)?;
+        if automatic && !r.capture.as_ref().is_some_and(audio::Capture::auto_stop_due) {
+            return Ok(());
+        }
+        if !r.claim_finish(expected_id) {
+            return Ok(());
+        }
+        let id = expected_id;
+        r.auto_stopped = automatic;
         r.preview_status=if r.settings.live_preview{"finalizing".into()}else{String::new()};
         r.detail = "识别中 / Transcribing".into();
         r.started = None;
@@ -1474,6 +1522,15 @@ async fn probe_input_feedback(app: tauri::AppHandle) -> Result<Value, String> {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if let Some(index) = args.iter().position(|a| a == "--verify-silence-fixture") {
+        let seconds = args.iter().position(|a| a == "--silence-seconds")
+            .and_then(|i| args.get(i + 1)).and_then(|s| s.parse().ok()).unwrap_or(5);
+        match args.get(index + 1).ok_or("Expected a PCM16 fixture path".to_string())
+            .and_then(|p| auto_stop::verify_fixture(p, seconds)) {
+            Ok(report) => { println!("{report}"); return; }
+            Err(error) => { eprintln!("{error}"); std::process::exit(2); }
+        }
+    }
     if let Some(index) = args.iter().position(|a| a == "--verify-writing-fixtures") {
         let argument = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1));
         let Some(path) = args.get(index + 1) else { eprintln!("Expected a JSON fixture path"); std::process::exit(2); };
