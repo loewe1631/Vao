@@ -12,12 +12,12 @@
 
 Vao 是一款面向 macOS 与 Windows 的开源语音输入工具：把口述整理成可用文字，根据内容与目标应用自动选择表达方式，并记住你明确选择的排版偏好。
 
-**Mac 0.2.2 · Windows 0.2.1。** [Mac 0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2) 新增可选的停说后自动结束；Windows 继续使用 [0.2.1](https://github.com/loewe1631/Vao/releases/tag/v0.2.1)。
+**Mac 0.2.2 · Windows 0.2.2。** [统一 0.2.2 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.2)提供两个平台的安装包，均新增可选的停说后自动结束。
 
 | 平台 | 安装包 | 要求 |
 | --- | --- | --- |
 | macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.zip) | Apple Silicon · macOS 12+ |
-| Windows | [EXE 安装程序](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-setup.exe) | Windows 10 1809+ · x64；缺少 WebView2 时自动下载 |
+| Windows | [EXE 安装程序](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-setup.exe) | Windows 10 1809+ · x64；缺少 WebView2 时自动下载 |
 
 Mac 尚未经过 Apple 公证，Windows 安装包尚无代码签名；首次打开提示见[安装指南](https://vaovao.app/install/)。Intel Mac 暂未提供。版本及源码对应关系见[版本说明](RELEASE_NOTES.md)。
 
@@ -53,7 +53,7 @@ Mac 尚未经过 Apple 公证，Windows 安装包尚无代码签名；首次打�
 
 ## 安装与使用
 
-1. 从[官网](https://vaovao.app/)选择平台下载：Mac 将 **Vao.app** 拖入“应用程序”；Windows 运行 **Vao-0.2.1-setup.exe** 并按安装向导操作。
+1. 从[0.2.2 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.2)选择平台下载：Mac 将 **Vao.app** 拖入“应用程序”；Windows 运行 **Vao-0.2.2-setup.exe** 并按安装向导操作。
 2. 打开 Vao。首次系统安全提示及权限设置见[安装与授权指南](https://vaovao.app/install/)；Windows 的详细操作见 [Windows 指南](docs/WINDOWS.md)。
 3. 按开始页完成：主动开通体验或配置自有模型、按需授权、检查快捷键。
 4. 点击目标输入框，按主键开始，说完再按一次结束。
@@ -95,7 +95,7 @@ ASR、文字服务分别配置。填写地址与可选密钥，获取模型、�
 
 ## 源码与编译
 
-当前 `main` 保留 Mac 客户端和 Xcode 构建入口；Windows 发行源码位于 [`windows-v0.2.1`](https://github.com/loewe1631/Vao/tree/windows-v0.2.1)，后续开发在 [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows)。两个标签未合并，统一 Release 中的自动 “Source code” 对应 Mac 标签；Windows 请下载带 `windows-source` 的归档或检出其标签。Windows 构建步骤见 [Windows build](docs/WINDOWS_BUILD.md)。
+当前 `main` 保留 Mac 客户端和 Xcode 构建入口；Windows 发行源码位于 [`windows-v0.2.2`](https://github.com/loewe1631/Vao/tree/windows-v0.2.2)，后续开发在 [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows)。两个标签未合并，统一 Release 中的自动 “Source code” 对应 Mac 标签；Windows 请下载带 `windows-source` 的归档或检出其标签。Windows 构建步骤见 [Windows build](docs/WINDOWS_BUILD.md)。
 
 ### Mac 编译与检查
 

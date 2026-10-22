@@ -12,12 +12,12 @@
 
 Vao is an open-source voice-input app for macOS and Windows. It turns speech into usable text, chooses writing styles from your content and destination app, and remembers the layout choices you explicitly ask it to keep.
 
-**Mac 0.2.2 · Windows 0.2.1.** [Mac 0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2) adds optional silence auto-stop; [Windows 0.2.1](https://github.com/loewe1631/Vao/releases/tag/v0.2.1) remains the current Windows release.
+**Mac 0.2.2 · Windows 0.2.2.** The [unified 0.2.2 release](https://github.com/loewe1631/Vao/releases/tag/v0.2.2) adds optional silence auto-stop on both platforms.
 
 | Platform | Download | Requirements |
 | --- | --- | --- |
 | macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.zip) | Apple Silicon · macOS 12+ |
-| Windows | [EXE installer](https://github.com/loewe1631/Vao/releases/download/v0.2.1/Vao-0.2.1-setup.exe) | Windows 10 1809+ · x64; downloads WebView2 if missing |
+| Windows | [EXE installer](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-setup.exe) | Windows 10 1809+ · x64; downloads WebView2 if missing |
 
 Mac downloads are not yet Apple-notarized; the Windows installer is not code-signed. See the [installation guide](https://vaovao.app/install/) for first-launch prompts. Intel Mac is not available. See [release notes](RELEASE_NOTES.md) for source and build identities.
 
@@ -53,7 +53,7 @@ See [AI collaboration](AI_DEVELOPMENT.en.md) for the participating tools, models
 
 ## Install and start
 
-1. Choose your platform at [vaovao.app](https://vaovao.app/). On Mac, drag **Vao.app** to **Applications**; on Windows, run **Vao-0.2.1-setup.exe** and follow the installer.
+1. Choose your platform from the [0.2.2 release](https://github.com/loewe1631/Vao/releases/tag/v0.2.2). On Mac, drag **Vao.app** to **Applications**; on Windows, run **Vao-0.2.2-setup.exe** and follow the installer.
 2. Open Vao. See [installation and permissions](https://vaovao.app/install/) for system prompts and the [Windows guide](docs/WINDOWS.md) for platform-specific steps.
 3. Follow the first-run checklist: activate the optional trial or connect your models, grant needed permissions and check shortcuts.
 4. Click your destination input, press the main shortcut, speak, then press it again to finish.
@@ -95,7 +95,7 @@ Audio uses a temporary session buffer and is sent to the chosen ASR; no audio hi
 
 ## Source and builds
 
-The default `main` branch currently retains the Mac client and Xcode entry point. Windows release source is at [`windows-v0.2.1`](https://github.com/loewe1631/Vao/tree/windows-v0.2.1); ongoing development uses [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows). The tags remain separate. GitHub’s automatic “Source code” links on the unified release refer to the Mac tag; for Windows use the `windows-source` archive or its tag. See [Windows build steps](docs/WINDOWS_BUILD.md).
+The default `main` branch currently retains the Mac client and Xcode entry point. Windows release source is at [`windows-v0.2.2`](https://github.com/loewe1631/Vao/tree/windows-v0.2.2); ongoing development uses [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows). The tags remain separate. GitHub’s automatic “Source code” links on the unified release refer to the Mac tag; for Windows use the `windows-source` archive or its tag. See [Windows build steps](docs/WINDOWS_BUILD.md).
 
 ### Mac build and check
 

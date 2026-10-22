@@ -1,11 +1,11 @@
 # Windows build and validation
 
-Windows release metadata is in `release.windows.json` and `desktop/tauri.windows.conf.json`. The product version is 0.2.1; build identity is separate. The Windows Git tag is `windows-v0.2.1`; the existing Mac `v0.2.1` tag remains unchanged.
+Windows release metadata is in `release.windows.json` and `desktop/tauri.windows.conf.json`. The product version is 0.2.2, build 20261022.3014. The Windows source tag is `windows-v0.2.2` at `9803072d6ec7cdd69821b0bdd90d76f0cd1037b0`; the Mac `v0.2.2` tag remains unchanged. Both installers are available on the [unified release](https://github.com/loewe1631/Vao/releases/tag/v0.2.2).
 
 The default `main` branch currently contains the Mac client. Use the Windows release tag for a reproducible Windows build, or `codex/windows` for ongoing Windows development:
 
 ```sh
-git clone --branch windows-v0.2.1 https://github.com/loewe1631/Vao.git
+git clone --branch windows-v0.2.2 https://github.com/loewe1631/Vao.git
 cd Vao
 ```
 

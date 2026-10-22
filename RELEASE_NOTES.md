@@ -1,20 +1,20 @@
-# Vao 0.2.2 · macOS
+# Vao 0.2.2 · macOS & Windows
 
-[Mac 下载 / Download](https://github.com/loewe1631/Vao/releases/tag/v0.2.2)
+[统一下载 / Downloads](https://github.com/loewe1631/Vao/releases/tag/v0.2.2)
 
-- **Mac:** build20261022.1302 · Apple Silicon · macOS 12+ · source tag `v0.2.2`.
-- 录音设置新增“停说后自动结束”：默认关闭，可设置 2–30 秒，默认 5 秒；检测到有效语音后才开始计时，继续说话会清零倒计时。
-- 主快捷键仍可手动结束，Escape 仍可取消；静音检测在本机完成，检测不可用时保持手动结束。
-- Windows 继续使用 0.2.1；本次 Release 不包含 Windows 0.2.2。
-- 当前 Mac 下载包使用 ad-hoc 签名，尚未经过 Apple 公证，也不是 App Store 安装包；首次打开可能需要在系统设置中允许。
+- **Mac:** build20261022.1302 · Apple Silicon · macOS 12+ · source tag `v0.2.2` · `7d6f9eafe4f1eeac0b652d0c21dcca5b4b8fadae`.
+- **Windows x64:** build20261022.3014 · Windows 10 1809+ · source tag `windows-v0.2.2` · `9803072d6ec7cdd69821b0bdd90d76f0cd1037b0`.
+- 两个平台均新增可选“停说后自动结束”：默认关闭，可设置 2–30 秒，默认 5 秒；检测到有效语音后才计时，继续说话会清零倒计时。
+- 主快捷键仍可手动结束，Escape 仍可取消；停顿检测在本机完成，检测不可用时保留手动结束。
+- Windows 保留完成时当前光标输入、可选返回录音起始位置、私有音频临时文件与剪贴板保护；升级正式版保留原身份与设置。详见 [Windows 指南](docs/WINDOWS.md)。
+- Mac 包仍为 ad-hoc、未 Apple 公证、非 App Store 包；Windows 安装包尚无代码签名。
+- Release 的自动 Source code 对应 Mac 标签；Windows 使用专用 windows-source 归档/清单及其源码标签。Mac 校验文件为 SHA256SUMS，Windows 为 SHA256SUMS-windows。
 
 ## English summary
 
-- **Mac:** build20261022.1302 · Apple Silicon · macOS 12+ · source tag `v0.2.2`.
-- The recording settings add optional **Stop after silence**. It is off by default, accepts 2–30 seconds and defaults to 5 seconds. The timer starts only after valid speech and resets when speech resumes.
-- The main shortcut still stops immediately and Escape still cancels. Silence detection stays local; an unavailable detector keeps manual-stop behavior.
-- Windows remains on 0.2.1; this release does not claim Windows 0.2.2 parity.
-- Mac downloads are ad-hoc signed and not Apple-notarized or App Store builds; first launch may require approval in System Settings.
+Both platforms add optional silence auto-stop: off by default, 2–30 seconds, default five seconds. Valid speech arms the timer; resumed speech resets it. The main shortcut and Escape remain available. Local VAD adds no audio upload; an unavailable detector keeps manual stopping.
+
+Mac build20261022.1302 and Windows build20261022.3014 share one release page with distinct source tags. Windows retains current-caret insertion, optional return-to-start, private audio files and clipboard guards. Mac downloads remain ad-hoc signed and not Apple-notarized; the Windows installer is not code-signed.
 
 ---
 

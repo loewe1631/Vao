@@ -1,6 +1,6 @@
 # Architecture
 
-Vao uses a Rust core, Tauri UI and native platform adapters. Mac 0.2.2 and Windows 0.2.1 are released through separate download pages, with separate source tags. The default branch and the detailed implementation below describe the Mac direct-download client, without App Sandbox; Windows source and platform differences are linked in [Windows build](WINDOWS_BUILD.md). Store distribution needs separate capability and license review.
+Vao uses a Rust core, Tauri UI and native platform adapters. Mac and Windows 0.2.2 share one release page, with separate source tags. The default branch and the detailed implementation below describe the Mac direct-download client, without App Sandbox; Windows source and platform differences are linked in [Windows build](WINDOWS_BUILD.md). Store distribution needs separate capability and license review.
 
 ## Code map
 
@@ -84,4 +84,4 @@ Free-service authorization remains separate from use accounting. The separately 
 
 ## Windows implementation
 
-Windows release source is on tag `windows-v0.2.1`, with ongoing work on `codex/windows`. Its native adapters use Windows capture, UI Automation, Credential Manager, clipboard ownership checks, a nonactivating overlay, system shortcuts and an NSIS installer. Ordinary dictation defaults to the current caret when ready; returning to the original target is optional. Windows does not use the Mac Swift helper or hardware Fn event tap. Its expanded context contains only the starting window title, not Mac-style nearby static text or domains. See the [Windows guide](WINDOWS.md), [build notes](WINDOWS_BUILD.md) and [privacy details](../PRIVACY.md).
+Windows release source is on tag `windows-v0.2.2`, with ongoing work on `codex/windows`. Its native adapters use Windows capture, UI Automation, Credential Manager, clipboard ownership checks, a nonactivating overlay, system shortcuts and an NSIS installer. Ordinary dictation defaults to the current caret when ready; returning to the original target is optional. Windows does not use the Mac Swift helper or hardware Fn event tap. Its expanded context contains only the starting window title, not Mac-style nearby static text or domains. See the [Windows guide](WINDOWS.md), [build notes](WINDOWS_BUILD.md) and [privacy details](../PRIVACY.md).

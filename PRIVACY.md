@@ -1,6 +1,6 @@
 # Vao privacy / 数据处理说明
 
-Version 2026-10-22. Applies to Vao 0.2.2 for Mac and 0.2.1 for Windows.
+Version 2026-10-22. Applies to Vao 0.2.2 for Mac and Windows.
 
 ## 本机保存
 
@@ -21,6 +21,12 @@ API Key、随机安装标识及体验凭据保存在 macOS 钥匙串或 Windows 
 模型请求会发送录音、待整理文字、词典及适用偏好；选区操作还包含所选文字。开启上下文增强后会发送下文说明范围内的参考文字。服务在请求期间处理，不保存音频或文字正文，不用于训练。运维日志只含请求编号、路径、状态和耗时；网络设施仍会处理来源地址。设备记录用于鉴权和撤销，使用计数保留约 35 天。新开通不再记录网络摘要；既有按日变化的网络摘要随后续开通清理超过约 35 天的记录。
 
 当前没有服务端自助删除入口，可通过项目 issue 询问处理方式。**不要在 issue 中提交密钥、录音或私人正文**；先请求私密渠道，见 SECURITY.md。重新安装不自动清除钥匙串、Windows 凭据管理器或服务端记录。
+
+## 本机停顿检测
+
+“停说后自动结束”默认关闭。开启后使用本机 WebRTC VAD 判断本次录音的语音与停顿，不为检测新增音频上传或音频历史；既有识别、整理及可选增强仍按所选服务处理数据。
+
+Optional silence auto-stop uses local WebRTC VAD and adds no audio upload or audio history. Existing recognition, refinement and optional enhancements still use the selected services.
 
 ## 自有模型
 
