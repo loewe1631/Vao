@@ -35,6 +35,10 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
     case 'toggle_recording':state.session={id:1,phase:state.session.phase==='listening'?'processing':'listening'};return;
     case 'cancel':state.session.phase='cancelled';return;
     case 'dismiss_answer':state.answer='';return;
+    case 'update_status':return structuredClone(fake.update||{phase:'idle'});
+    case 'check_update':if(fake.updateFail)throw '尚未发布 Windows 更新清单';fake.update={phase:'available',version:'0.2.3',notes:'<script>synthetic unsafe notes</script>',total:512};return structuredClone(fake.update);
+    case 'download_update':fake.update={...fake.update,phase:'ready',downloaded:512};return structuredClone(fake.update);
+    case 'install_update':if(fake.installBlocked)throw '请先结束语音输入并处理待回填结果';fake.update={...fake.update,phase:'installing'};return;
     default:return;
    }
   }}};
@@ -135,6 +139,30 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  check('ready_does_not_require_macos_accessibility',await page.locator('#top-status').innerText()==='可开始录音');
  await page.locator('#lang').click();
  check('english_release_has_no_development_banner',await page.locator('.windows-preview').count()===0);
+
+ await page.locator('.nav [data-page="about"]').click();
+ check('windows_updates_are_available_in_about',await page.locator('#check-update').count()===1);
+ check('updates_are_not_checked_automatically',await page.evaluate(()=>!fake.calls.some(c=>c.command==='check_update')));
+ await page.evaluate(()=>fake.updateFail=true);await page.locator('#check-update').click();
+ await page.waitForFunction(()=>document.querySelector('#update-message').textContent.includes('尚未发布'));
+ check('missing_feed_is_not_claimed_current',!(await page.locator('#update-message').innerText()).includes('up to date'));
+ await page.evaluate(()=>fake.updateFail=false);await page.locator('#check-update').click();
+ await page.locator('#download-update').waitFor();
+ check('signed_release_notes_render_as_text',await page.locator('#update-message').locator('..').innerText().then(s=>s.includes('<script>synthetic unsafe notes</script>'))&&await page.locator('#update-message').locator('..').locator('script').count()===0);
+ await page.locator('#download-update').click();await page.locator('#install-update').waitFor();
+ await page.evaluate(()=>{window.confirm=()=>{throw Error('Native confirm must not be used');};});
+ await page.locator('#install-update').click();
+ check('update_install_requires_in_app_confirmation',await page.locator('#confirm-install-update').count()===1&&await page.evaluate(()=>!fake.calls.some(c=>c.command==='install_update')));
+ check('update_cancel_gets_default_focus',await page.locator('#cancel-install-update').evaluate(e=>e===document.activeElement));
+ await page.locator('#cancel-install-update').click();
+ check('cancel_update_preserves_verified_download',await page.locator('#install-update').count()===1&&await page.evaluate(()=>fake.update.phase==='ready'&&!fake.calls.some(c=>c.command==='install_update')));
+ await page.locator('#install-update').click();await page.evaluate(()=>fake.installBlocked=true);await page.locator('#confirm-install-update').click();
+ await page.waitForFunction(()=>document.querySelector('#update-message').textContent.includes('待回填'));
+ check('update_idle_gate_failure_is_visible',true);
+ await page.evaluate(()=>fake.installBlocked=false);await page.locator('#check-update').click();await page.locator('#download-update').click();await page.locator('#install-update').click();
+ await page.locator('#confirm-install-update').dblclick({delay:20,noWaitAfter:true}).catch(()=>{});
+ check('confirmed_installer_is_dispatched_once',await page.evaluate(()=>fake.calls.filter(c=>c.command==='install_update').length===2));
+ check('updater_does_not_modify_input_settings',await page.evaluate(()=>!fake.db.settings.windows_return_to_origin&&fake.db.settings.windows_compatible_input&&fake.db.settings.auto_input));
 
  for(const language of ['en','zh']){
   if(await page.evaluate(()=>fake.db.settings.ui_language)!==language)await page.locator('#lang').click();

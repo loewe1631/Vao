@@ -35,6 +35,7 @@ def main():
     files += [(ROOT / 'scripts/Start-Unicode-Preview.cmd', 'Start-Unicode-Preview.cmd')]
     files += [(ROOT / name, name) for name in ['LICENSE', 'PROVENANCE.md', 'THIRD_PARTY_NOTICES.md']]
     files += [(ROOT / 'docs/WINDOWS.md', 'WINDOWS.md')]
+    files += [(ROOT / 'docs/WINDOWS_UPDATES.md', 'WINDOWS_UPDATES.md')]
     files += [(ROOT / 'docs/WINDOWS_NOTICES.md', 'WINDOWS_NOTICES.md')]
     files += [(p, p.relative_to(ROOT).as_posix()) for p in sorted((ROOT / 'licenses').rglob('*')) if p.is_file()]
     with zipfile.ZipFile(portable, 'w', zipfile.ZIP_DEFLATED) as archive:

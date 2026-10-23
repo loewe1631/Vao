@@ -1,7 +1,7 @@
 {
   "product": "Vao",
-  "version": "0.2.3-intent.preview.1",
-  "build": "20261023.3015",
+  "version": "0.2.3-intent.preview.2",
+  "build": "20261023.3016",
   "bundle": "app.vaovao.windows",
   "binary": "vao.exe",
   "channel": "internal-preview",

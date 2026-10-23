@@ -145,6 +145,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | mime_guess | 2.0.5 | MIT |
 | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 |
 | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 |
+| minisign-verify | 0.2.5 | MIT |
 | mio | 1.2.4 | MIT |
 | muda | 0.19.3 | Apache-2.0 OR MIT |
 | new_debug_unreachable | 1.0.6 | MIT |

@@ -2895,6 +2895,23 @@
     "directory": "../mime_guess-2.0.5"
   },
   {
+    "name": "minisign-verify",
+    "version": "0.2.5",
+    "license": "MIT",
+    "repository": "https://github.com/jedisct1/rust-minisign-verify",
+    "authors": [
+      "Frank Denis <github@pureftpd.org>"
+    ],
+    "directory": "minisign-verify-0.2.5",
+    "files": [
+      {
+        "file": "LICENSE",
+        "sha256": "42c8695fbc468866d9756be99af0ba4e37d733f8daa3c8827c8d80b8bec1b2f9",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "miniz_oxide",
     "version": "0.8.9",
     "license": "MIT OR Zlib OR Apache-2.0",

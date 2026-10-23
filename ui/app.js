@@ -145,6 +145,20 @@ const words={
     ],
     "selectionNote": "仅处理原文编辑和相关问题。答案显示在声栏上方并复制；修改要求在自动输入开启时尝试替换原选区。自有模型会多一次用途判断，可能增加等待和费用。",
     "translationNote": "空闲时按翻译键，可直接开始翻译录音；录音中按翻译键开启或关闭局部翻译。按主快捷键结束整段录音。",
+    "softwareUpdate": "软件更新",
+    "checkUpdate": "检查更新",
+    "downloadUpdate": "下载更新",
+    "installUpdate": "退出并安装",
+    "updateHint": "手动检查新版本；更新保留设置、词典与历史。",
+    "updateChecking": "正在检查更新…",
+    "updateCurrent": "当前已是最新版本",
+    "updateAvailable": "发现新版本",
+    "updateDownloading": "正在下载并验证…",
+    "updateReady": "更新已验证，可以重启安装",
+    "updateInstalling": "正在启动 Windows 安装程序…",
+    "updateFailed": "暂时无法更新，请稍后重试",
+    "cancelUpdate": "暂不安装",
+    "updateConfirm": "现在退出并安装更新？请先结束语音输入并保存未完成的工作。设置、词典与历史会保留。",
     "aboutText": "围绕可解释、可撤销的个人习惯适配构建。首版支持 Apple Silicon Mac，macOS 12 或更新版本。",
     "aboutSource": "产品方向源于结合多种开源项目使用经验改编而来。",
     "limits": "当前测试边界",
@@ -434,6 +448,20 @@ const words={
     ],
     "selectionNote": "Edits and questions must relate to the selected text. Answers appear above the bar and are copied; edits try to replace the selection when automatic insertion is enabled. Custom models use one extra purpose-check call, which may add latency and cost.",
     "translationNote": "When idle, the translation shortcut starts a translated recording. During recording, it turns segment translation on or off. Use the main shortcut to finish the recording.",
+    "softwareUpdate": "Software update",
+    "checkUpdate": "Check for updates",
+    "downloadUpdate": "Download update",
+    "installUpdate": "Quit and install",
+    "updateHint": "Check manually. Updates preserve settings, dictionary and history.",
+    "updateChecking": "Checking for updates…",
+    "updateCurrent": "You are up to date",
+    "updateAvailable": "New version available",
+    "updateDownloading": "Downloading and verifying…",
+    "updateReady": "Update verified and ready to install",
+    "updateInstalling": "Starting the Windows installer…",
+    "updateFailed": "Update unavailable; please try again later",
+    "cancelUpdate": "Not now",
+    "updateConfirm": "Quit and install now? Finish voice input and save unfinished work first. Settings, dictionary and history will be kept.",
     "aboutText": "Built around explainable, reversible personal adaptation. This release supports Apple Silicon Mac running macOS 12 or later.",
     "aboutSource": "The product direction was shaped by experience using and adapting multiple open-source projects.",
     "limits": "Current limitations",
@@ -704,7 +732,10 @@ function autoStopSettings(){return `<div class="setting"><div><h3>${t('autoStop'
 Object.assign(words.zh,{completeBooks:"智能补全",completeBooksHint:"根据输入内容线索分析并补全信息。",semanticLimited:"当前文字连接使用旧版 /refine 协议，智能补全需要 Chat Completions。默认体验服务支持此功能。"});
 Object.assign(words.en,{completeBooks:"Smart completion",completeBooksHint:"Analyze clues in your input to complete missing information.",semanticLimited:"Smart completion requires Chat Completions. The built-in trial supports it; the legacy /refine protocol does not."});
 function settings(){return `<h1>${t('settings')}</h1><div class="card"><h2>${t('shortcutSettings')}</h2>${shortcutRow('record','primaryKey','shortcutTip')}${shortcutRow('translate','translateKey','translationNote')}${shortcutRow('cancel','cancel','')}<p class="muted">${t('shortcutHelp')}</p><button id="reset-shortcuts" class="quiet">${t('shortcutDefaults')}</button>${!snap.hotkeys?`<div class="notice warn">${t('shortcutFailed')}</div>`:''}<div class="setting"><div><h3>${t('autoInput')}</h3><p>${t('autoInputDesc')}</p></div>${switcher('auto-input',data.settings.auto_input)}</div>${autoStopSettings()}${semanticSettings()}${isWindows()?`<div class="setting"><div><h3>${t('returnToOrigin')}</h3><p>${t('returnToOriginHint')}</p></div>${switcher('return-to-origin',data.settings.windows_return_to_origin===true)}</div><div class="setting"><div><h3>${t('compatibleInput')}</h3><p>${t('compatibleInputHint')}</p></div>${switcher('compatible-input',data.settings.windows_compatible_input===true)}</div>`:''}<div class="setting"><h3>${t('recognitionLanguage')}</h3><select id="recognition-language">${[['auto',t('auto')],['zh','中文'],['en','English']].map(([v,l])=>`<option value="${v}" ${data.settings.language===v?'selected':''}>${l}</option>`).join('')}</select></div><div class="setting"><h3>${t('translationLanguage')}</h3><select id="translation-language">${['English','中文','日本語','한국어','Español','Français','Deutsch'].map(v=>`<option ${data.settings.translation_language===v?'selected':''}>${v}</option>`).join('')}</select></div></div>${startupCard()}${permissionsCard()}<div class="notice">${t('keysIndependent')}</div>`;}
-function about(){return `<div class="brand" style="padding:10px 0 25px"><img src="assets/logo.svg" alt=""><strong>Vao</strong>${isWindows()?'':'<span>BETA</span>'}</div><h1>${t('intro')}</h1><p>${t('aboutText')}</p><div class="card"><h2>${t('limits')}</h2><p>${t('limitsText')}</p></div><div class="notice">${t('aboutSource')}</div><p class="muted" style="margin-top:24px">${esc(data.version)} · AGPL-3.0-only${isWindows()?'':' · Rust / Tauri / SQLite'}</p>`;}
+let updateState={phase:'idle'},updateBusy=false,updateConfirming=false;
+function updateCard(){const busy=updateBusy||['checking','downloading','installing','installed'].includes(updateState.phase);const confirming=updateConfirming&&updateState.phase==='ready';const messages={idle:t('updateHint'),checking:t('updateChecking'),current:t('updateCurrent'),available:t('updateAvailable'),downloading:t('updateDownloading'),ready:t('updateReady'),installing:t('updateInstalling'),installed:t('updateInstalling'),failed:updateState.error||t('updateFailed')};return `<div class="card"><h2>${t('softwareUpdate')}</h2><p role="status" id="update-message">${esc(messages[updateState.phase]||messages.idle)}${updateState.version?' · '+esc(updateState.version):''}</p>${updateState.notes?`<p style="white-space:pre-wrap">${esc(updateState.notes)}</p>`:''}${updateState.phase==='downloading'?`<progress aria-label="${t('updateDownloading')}" value="${updateState.downloaded||0}" max="${updateState.total||1}"></progress>`:''}${confirming?`<div class="notice" role="group" aria-labelledby="update-confirm-message"><p id="update-confirm-message">${t('updateConfirm')}</p><div class="row"><button id="cancel-install-update" ${busy?'disabled':''}>${t('cancelUpdate')}</button><button id="confirm-install-update" class="primary" ${busy?'disabled':''}>${t('installUpdate')}</button></div></div>`:''}<div class="row"><button id="check-update" ${busy||confirming?'disabled':''}>${t('checkUpdate')}</button>${updateState.phase==='available'?`<button id="download-update" class="primary" ${busy?'disabled':''}>${t('downloadUpdate')}</button>`:''}${updateState.phase==='ready'&&!confirming?`<button id="install-update" class="primary" ${busy?'disabled':''}>${t('installUpdate')}</button>`:''}</div></div>`;}
+async function updateAction(command){if(updateBusy)return;updateConfirming=false;updateBusy=true;updateState={...updateState,phase:command==='check_update'?'checking':command==='download_update'?'downloading':'installing',error:null};render();try{updateState=await ipc(command)||updateState;}catch(e){updateState={...updateState,phase:'failed',error:String(e)};}finally{updateBusy=false;if(page==='about')render();}}
+function about(){return `<div class="brand" style="padding:10px 0 25px"><img src="assets/logo.svg" alt=""><strong>Vao</strong>${isWindows()?'':'<span>BETA</span>'}</div><h1>${t('intro')}</h1><p>${t('aboutText')}</p>${isWindows()?updateCard():''}<div class="card"><h2>${t('limits')}</h2><p>${t('limitsText')}</p></div><div class="notice">${t('aboutSource')}</div><p class="muted" style="margin-top:24px">${esc(data.version)} · AGPL-3.0-only${isWindows()?'':' · Rust / Tauri / SQLite'}</p>`;}
 function cardConfig(slot){const e=document.querySelector(`[data-slot="${slot}"]`),f=k=>e.querySelector(`[data-field="${k}"]`);return {base:f('base').value.trim(),model:(f('manual').dataset.dirty?f('manual').value:f('model').value).trim(),protocol:f('protocol').value};}
 const draftKey=slot=>{const key=document.querySelector(`#${slot}-key`).value;return key?key:null;};
 async function refresh(){if(native)data=await ipc('bootstrap');}
@@ -712,6 +743,12 @@ async function saveSettings(settings){await ipc('save_settings',{settings});awai
 function action(selector,fn){document.querySelectorAll(selector).forEach(e=>e.addEventListener('click',async ev=>{try{await fn(e,ev);}catch(error){toast(error);}}));}
 function bindAutoInputAction(){action('[data-enable-auto-input]',async()=>{await saveSettings({...data.settings,auto_input:true});render();focusResult();toast(t('autoInputEnabled'));});}
 function bind(){
+ action('#check-update',()=>updateAction('check_update'));
+ action('#download-update',()=>updateAction('download_update'));
+ action('#install-update',()=>{if(updateBusy||updateState.phase!=='ready')return;updateConfirming=true;render();document.querySelector('#cancel-install-update')?.focus();});
+ action('#cancel-install-update',()=>{updateConfirming=false;render();document.querySelector('#install-update')?.focus();});
+ action('#confirm-install-update',()=>{if(updateConfirming&&updateState.phase==='ready')return updateAction('install_update');});
+
  bindAutoInputAction();
  action('#login-startup',async e=>{if(startupBusy)return;startupBusy=true;startupEpoch++;e.disabled=true;try{data.startup=await ipc('set_login_startup',{enabled:!data.startup?.registered});}finally{startupBusy=false;render();}});
  action('#startup-system-settings',async()=>ipc('open_startup_settings'));
@@ -866,7 +903,7 @@ async function nativeRegressionCheck(){
   page='home';render();await ipc('report_frontend_state',{stage:JSON.stringify({kind:'native-checks',checks,error:failure})});
  }
 }
-async function init(){if(native)ipc('report_frontend_state',{stage:'init-start'}).catch(()=>{});try{await refresh();if(native)ipc('report_frontend_state',{stage:'bootstrap-done'}).catch(()=>{});snap=native?await ipc('snapshot'):snap;}catch(e){toast(e);}render();if(native){await window.__TAURI__.event.listen('shortcut-captured',event=>acceptCaptured(event.payload));await window.__TAURI__.event.listen('shortcut-capture-progress',event=>showCaptureProgress(event.payload));const verify=await ipc('report_ui_ready');if(verify&&!barMode)await nativeRegressionCheck();window.__TAURI__.event.listen('result-ready',()=>poll());window.__TAURI__.event.listen('session-updated',()=>poll());}if(!native)toast(t('browser'));async function tick(){await poll();setTimeout(tick,['preparing','listening','processing'].includes(snap.session.phase)?(barMode?90:180):900);}tick();}
+async function init(){if(native)ipc('report_frontend_state',{stage:'init-start'}).catch(()=>{});try{await refresh();if(native)ipc('report_frontend_state',{stage:'bootstrap-done'}).catch(()=>{});snap=native?await ipc('snapshot'):snap;}catch(e){toast(e);}render();if(native){await window.__TAURI__.event.listen('shortcut-captured',event=>acceptCaptured(event.payload));await window.__TAURI__.event.listen('shortcut-capture-progress',event=>showCaptureProgress(event.payload));const verify=await ipc('report_ui_ready');if(verify&&!barMode)await nativeRegressionCheck();window.__TAURI__.event.listen('result-ready',()=>poll());window.__TAURI__.event.listen('session-updated',()=>poll());}if(!native)toast(t('browser'));async function tick(){await poll();if(native&&isWindows()&&page==='about'&&updateBusy){try{const latest=await ipc('update_status');if(latest&&latest.phase){updateState=latest;render();}}catch{}}setTimeout(tick,['preparing','listening','processing'].includes(snap.session.phase)?(barMode?90:180):900);}tick();}
 window.addEventListener('focus',()=>{if(!barMode){refreshPermissions().catch(()=>{});refreshStartup().catch(()=>{});}});
 setInterval(()=>{if(page==='settings'&&!barMode&&!document.hidden){refreshPermissions().catch(()=>{});refreshStartup().catch(()=>{});}},5000);
 window.addEventListener('blur',()=>{if(captureArmed)stopCapture().catch(()=>{});});

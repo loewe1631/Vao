@@ -31,6 +31,7 @@ mod windows_paste;
 #[cfg(target_os = "windows")]
 mod windows_startup;
 mod windows_input_probe;
+mod windows_updater;
 
 use input_feedback::{FlowError, InputNotice};
 use serde_json::{json, Value};
@@ -386,6 +387,26 @@ fn snapshot(state: State<AppState>) -> Value {
     let countdown = auto.and_then(|(seconds, status)| status.countdown(seconds));
     let unavailable = auto.is_some_and(|(_, status)| status.unavailable);
     json!({"session":r.session,"level":level,"seconds":r.started.map(|t|t.elapsed().as_secs()).unwrap_or(0),"translating":r.translating,"detail":r.detail,"error":r.error,"result":r.result,"hotkeys":r.hotkeys,"uiLanguage":r.settings.ui_language,"translationLanguage":r.settings.translation_language,"theme":r.settings.theme,"notice":r.notice,"answer":r.answer,"selection":r.target["selection"].as_str().is_some_and(|s|!s.is_empty()),"autoStopCountdown":countdown,"autoStopUnavailable":unavailable})
+}
+#[tauri::command]
+fn update_status(state: State<windows_updater::Updates>) -> windows_updater::Status { state.status() }
+#[tauri::command]
+async fn check_update(state: State<'_, windows_updater::Updates>) -> Result<windows_updater::Status, String> { state.check().await }
+#[tauri::command]
+async fn download_update(state: State<'_, windows_updater::Updates>) -> Result<windows_updater::Status, String> { state.download().await }
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    let worker = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        worker.state::<windows_updater::Updates>().install(|| {
+            let state = worker.state::<AppState>();
+            let runtime = state.runtime.lock().unwrap();
+            !matches!(runtime.session.phase, Phase::Preparing | Phase::Listening | Phase::Processing | Phase::Ready)
+        })
+    }).await.map_err(|_| "更新安装中断 / Update installation interrupted".to_string())??;
+    // NSIS /R starts the updated installation after a successful install.
+    app.exit(0);
+    Ok(())
 }
 #[tauri::command]
 fn report_frontend_state(stage: String) {
@@ -872,6 +893,9 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
     let id = {
         let state = app.state::<AppState>();
         let mut r = state.runtime.lock().unwrap();
+        if app.state::<windows_updater::Updates>().installing.load(Ordering::SeqCst) {
+            return Err("正在安装更新，请稍候 / Installing update; please wait".into());
+        }
         let id = r.session.begin()?;
         #[cfg(target_os = "windows")]
         { windows_paste::clear(); windows_uia::invalidate(); }
@@ -1793,6 +1817,7 @@ fn main() {
     }
 
     let builder = tauri::Builder::default()
+        .manage(windows_updater::Updates::default())
         .plugin(tauri_plugin_single_instance::init(|app, args, _| {
             if !login_background_launch(&args) { show_main(app); }
         }))
@@ -1908,6 +1933,7 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            update_status,check_update,download_update,install_update,
             login_startup_status,set_login_startup,open_startup_settings,
             report_ui_ready,report_frontend_state,
             windows_input_probe::probe_windows_input,

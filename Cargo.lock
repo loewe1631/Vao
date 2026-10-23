@@ -2372,6 +2372,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "minisign-verify"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22f9645cb765ea72b8111f36c522475d2daa0d22c957a9826437e97534bc4e9e"
+
+[[package]]
 name = "mio"
 version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4864,7 +4870,7 @@ dependencies = [
 
 [[package]]
 name = "vao-core"
-version = "0.2.3-intent.preview.1"
+version = "0.2.3-intent.preview.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -4872,7 +4878,7 @@ dependencies = [
 
 [[package]]
 name = "vao-desktop"
-version = "0.2.3-intent.preview.1"
+version = "0.2.3-intent.preview.2"
 dependencies = [
  "base64 0.22.1",
  "cc",
@@ -4883,10 +4889,13 @@ dependencies = [
  "getrandom 0.3.4",
  "global-hotkey",
  "keyring",
+ "minisign-verify",
  "reqwest 0.12.28",
  "rusqlite",
+ "semver",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-macros",
@@ -4894,6 +4903,7 @@ dependencies = [
  "tauri-runtime",
  "tauri-runtime-wry",
  "tauri-utils",
+ "tempfile",
  "tokio",
  "tokio-tungstenite",
  "url",
