@@ -1,7 +1,7 @@
 {
   "product": "Vao",
-  "version": "0.2.4",
-  "build": "20261023.2019",
+  "version": "0.2.5",
+  "build": "20261023.2020",
   "bundle": "app.vaovao.desktop",
   "binary": "vao",
   "channel": "stable",

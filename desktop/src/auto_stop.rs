@@ -3,6 +3,7 @@ use webrtc_vad::{SampleRate, Vad, VadMode};
 
 const FRAME_SAMPLES: usize = 320; // 20 ms at the capture pipeline's 16 kHz.
 const FRAME_MS: u64 = 20;
+const COUNTDOWN_PAUSE_MS: u64 = 500; // Ignore brief gaps between syllables in the display only.
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Status {
@@ -15,7 +16,7 @@ impl Status {
         self.heard_speech && !self.unavailable && self.silence_ms >= seconds as u64 * 1000
     }
     pub fn countdown(self, seconds: u8) -> Option<u64> {
-        if !self.heard_speech || self.unavailable {
+        if !self.heard_speech || self.unavailable || self.silence_ms < COUNTDOWN_PAUSE_MS {
             return None;
         }
         let remaining = (seconds as u64 * 1000).saturating_sub(self.silence_ms);
@@ -149,6 +150,24 @@ mod tests {
         advance(&mut g, false, 1);
         assert!(g.status.due(5));
         assert!(!PauseGate::default().status.due(5));
+    }
+    #[test]
+    fn minimum_delay_countdown_requires_a_real_pause_and_clears_on_voice() {
+        let mut g = PauseGate::default();
+        advance(&mut g, true, 12);
+        assert_eq!(g.status.countdown(2), None);
+        advance(&mut g, false, 24); // 480 ms is an intra-speech gap, not a display countdown.
+        assert_eq!(g.status.countdown(2), None);
+        g.push(false);
+        assert_eq!(g.status.countdown(2), Some(2));
+        advance(&mut g, false, 25);
+        assert_eq!(g.status.countdown(2), Some(1));
+        g.push(true);
+        assert_eq!(g.status.countdown(2), None);
+        advance(&mut g, false, 99);
+        assert!(!g.status.due(2));
+        g.push(false);
+        assert!(g.status.due(2)); // Display hysteresis never adds to the configured stop delay.
     }
     #[test]
     fn actual_vad_accepts_arbitrary_buffer_boundaries_and_quiet_audio() {

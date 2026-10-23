@@ -1,3 +1,18 @@
+# Vao 0.2.5 · macOS
+
+Mac build20261023.2020 · Apple Silicon · macOS 12+ · source tag `v0.2.5`.
+
+- 修复停说等待设为 2 秒时，正在说话也出现“即将结束 2 秒”的问题。普通录音仅在持续停说后显示末段倒计时，继续说话即清除；实际停说结束时长不变。
+- 翻译录音时悬浮窗显示“翻译中”和声波，不显示时间倒计时；已开启的停说自动结束仍按原设置工作。
+- 包含 0.2.4 的应用内安装确认及 Cloudflare 直接更新。保留设置、词典、历史和连接；智能补全默认开启，尊重已有选择。Developer ID 签名、Apple 公证与票据。
+- 0.2.4 可直接在“关于 → 软件更新”升级；受影响的 0.2.3/早期测试版需手动安装本版一次。Windows 仍为 0.2.2。
+
+## English summary
+
+Fixes premature ending-soon text at the two-second pause setting. Ordinary recording shows the countdown only after a sustained pause and clears it on resumed speech. Translation recording shows Translating with the waveform and no countdown. The actual auto-stop delay is unchanged. Includes the fixed install confirmation and direct Cloudflare updates from 0.2.4. Signed, notarized and stapled; user data and saved choices are retained.
+
+---
+
 # Vao 0.2.4 · macOS
 
 Mac build20261023.2019 · Apple Silicon · macOS 12+ · source tag `v0.2.4`.

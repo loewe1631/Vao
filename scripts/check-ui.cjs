@@ -374,7 +374,7 @@ check('selected_text_immediately_prompts_voice_instruction',await page.locator('
 await page.screenshot({path:path.join(out,'overlay-selection.png'),omitBackground:true});
 await page.evaluate(()=>{fake.state.selection=false;fake.state.translating=true;fake.state.translationLanguage='English';fake.listeners['session-updated']();});
 await page.waitForFunction(()=>document.querySelector('#bar-label').textContent.includes('翻译中'));
-check('translation_overlay_shows_mode_and_destination',await page.locator('#bar-label').innerText()==='翻译中 · English');
+check('translation_overlay_shows_mode',await page.locator('#bar-label').innerText()==='翻译中');
 await page.screenshot({path:path.join(out,'overlay-translation-beta4.png'),omitBackground:true});
 await page.evaluate(()=>{fake.state.translating=false;fake.listeners['session-updated']();});
 await page.waitForFunction(()=>document.querySelector('#bar-label').textContent==='聆听中');
@@ -412,6 +412,11 @@ await page.setViewportSize({width:440,height:220});
 await page.evaluate(()=>{fake.state.autoStopCountdown=2;fake.listeners['session-updated']();});
 await page.waitForFunction(()=>document.querySelector('#bar-label').textContent.includes('2'));
 check('auto_stop_bar_countdown_visible',await page.locator('#bar-label').innerText().then(x=>x.includes('2')));
+await page.evaluate(()=>{fake.state.translating=true;fake.listeners['session-updated']();});
+await page.waitForFunction(()=>document.querySelector('#bar-label').textContent==='Translating'||document.querySelector('#bar-label').textContent==='翻译中');
+check('translation_recording_keeps_wave_without_countdown',await page.locator('.voicebar').isVisible()&&await page.locator('#bar-label').innerText().then(x=>!x.includes('2')));
+await page.evaluate(()=>{fake.state.translating=false;fake.listeners['session-updated']();});
+
 await page.evaluate(()=>{fake.state.autoStopCountdown=null;fake.listeners['session-updated']();});
 await page.waitForFunction(()=>!document.querySelector('#bar-label').textContent.includes('2'));
 check('auto_stop_resumed_speech_clears_countdown',await page.locator('.voicebar').isVisible());
