@@ -1,3 +1,22 @@
+# Vao 0.2.4 · macOS
+
+Mac build20261023.2019 · Apple Silicon · macOS 12+ · source tag `v0.2.4`.
+Windows remains at [0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2).
+
+- 修复“重启并安装”点击无响应：安装确认改为应用内显示，选择“暂不安装”会保留已验证的下载；确认后才安装并重启。
+- 更新清单与安装包改由独立 Cloudflare 域名提供，客户端升级无需连接 GitHub；签名、散列及系统安全检查保持。国内不同网络的连通性仍需实测。
+- 保留 0.2.3 的意图整理、线索补全与签名更新能力；智能补全默认开启，尊重已保存的开关选择。
+- 安装包采用 Developer ID 签名、Apple 公证与票据；更新保留设置、词典、历史和钥匙串，旧 App 留作回退。
+- **0.2.3 和受影响的早期测试版需手动安装本版一次**，之后可正常使用软件内更新。没有更新器的 0.2.2 同样需要手动安装。退出 Vao 后用 DMG 或 ZIP 中的 Vao.app 替换应用程序里的同名 App，无需清空数据或删除凭据。
+
+## English summary
+
+Fixes an unresponsive Restart and install button on Mac by showing confirmation inside the app. Not now retains the verified download; only explicit confirmation installs and restarts. The update feed and archive are served directly by Cloudflare at updates.vaovao.app; in-app updates do not require GitHub. Existing signature and system checks remain. Keeps the 0.2.3 features and saved settings. Downloads are Developer ID signed, Apple-notarized and stapled.
+
+Affected 0.2.3 and early preview users must manually install 0.2.4 once; subsequent in-app updates use the fixed flow. Quit Vao and replace Vao.app from the DMG or ZIP without deleting app data. Windows remains unchanged at 0.2.2.
+
+---
+
 # Vao 0.2.3 · macOS
 
 Mac build20261023.2017 · Apple Silicon · macOS 12+ · source tag `v0.2.3`.

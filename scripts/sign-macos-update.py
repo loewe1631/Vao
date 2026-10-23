@@ -27,8 +27,8 @@ def main():
     parser.add_argument('--notes-file',type=Path,required=True);parser.add_argument('--test-fixture',action='store_true')
     args=parser.parse_args();app=args.app.resolve()
     repo=Path(__file__).resolve().parent.parent
-    if not args.test_fixture and not args.download_url.startswith('https://github.com/loewe1631/Vao/releases/download/'):
-        parser.error('Production updates must use the official GitHub release download path')
+    if not args.test_fixture and not args.download_url.startswith('https://updates.vaovao.app/downloads/'):
+        parser.error('Production updates must use the official Cloudflare update download path')
     if args.test_fixture and not args.download_url.startswith('https://127.0.0.1:'):
         parser.error('Fixture updates require explicit loopback HTTPS')
     subprocess.run(['/usr/bin/codesign','--verify','--deep','--strict','-R','=anchor apple generic and identifier "app.vaovao.desktop" and certificate leaf[subject.OU] = "FP265645B8"',str(app)],check=True)

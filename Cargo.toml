@@ -2,7 +2,7 @@
 resolver = "2"
 members = ["crates/vao-core", "desktop"]
 [workspace.package]
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 license = "AGPL-3.0-only"
 [profile.release]

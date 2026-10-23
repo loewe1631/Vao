@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{io::Read, path::{Component, Path, PathBuf}, sync::{atomic::{AtomicBool, Ordering}, Mutex}, time::Duration};
 
-const FEED: &str = "https://github.com/loewe1631/Vao/releases/latest/download/macos-updater.json";
-const DOWNLOAD_PREFIX: &str = "https://github.com/loewe1631/Vao/releases/download/";
+const FEED: &str = "https://updates.vaovao.app/macos/stable.json";
+const DOWNLOAD_PREFIX: &str = "https://updates.vaovao.app/downloads/";
 const TEAM: &str = "FP265645B8";
 const BUNDLE: &str = "app.vaovao.desktop";
 const MAX_ARCHIVE: u64 = 128 * 1024 * 1024;
@@ -121,7 +121,7 @@ impl Source {
     fn allows(&self, url: &url::Url) -> bool {
         if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some() { return false; }
         if let Some(origin) = &self.fixture_origin { return url.origin().ascii_serialization() == *origin; }
-        url.host_str().is_some_and(|h| h == "github.com" || h == "release-assets.githubusercontent.com" || h == "objects.githubusercontent.com")
+        url.host_str().is_some_and(|h| h == "updates.vaovao.app")
     }
     fn client(&self) -> Result<reqwest::Client, String> {
         let allowed_origin = self.fixture_origin.clone();
@@ -131,7 +131,7 @@ impl Source {
                 let target = attempt.url();
                 let permitted = target.scheme() == "https" && target.username().is_empty() && target.password().is_none()
                     && if let Some(origin) = &allowed_origin {target.origin().ascii_serialization() == *origin}
-                    else {target.host_str().is_some_and(|h| matches!(h,"github.com"|"release-assets.githubusercontent.com"|"objects.githubusercontent.com"))};
+                    else {target.host_str().is_some_and(|h| h == "updates.vaovao.app")};
                 if attempt.previous().len() >= 5 || !permitted { attempt.stop() } else { attempt.follow() }
             }));
         if let Some(ca) = &self.ca { builder = builder.add_root_certificate(reqwest::Certificate::from_pem(ca).map_err(|_| "Invalid fixture certificate")?); }
@@ -341,10 +341,11 @@ mod tests {
     #[test]
     fn redirects_and_destinations_keep_transport_boundaries() {
         let source=Source::production();
-        for u in ["http://github.com/a","https://evil.test/a","https://user@github.com/a","https://github.com.evil.test/a"] {
+        for u in ["http://github.com/a","https://evil.test/a","https://user@github.com/a","https://github.com.evil.test/a", "http://updates.vaovao.app/downloads/a", "https://user@updates.vaovao.app/downloads/a", "https://updates.vaovao.app.evil.test/a", "https://github.com/loewe1631/Vao/releases/download/v0.2.4/a"] {
             assert!(!source.allows(&url::Url::parse(u).unwrap()));
         }
         assert!(source.allows(&url::Url::parse(FEED).unwrap()));
+        assert!(source.allows(&url::Url::parse(&format!("{DOWNLOAD_PREFIX}Vao-0.2.4-mac-arm64.app.tar.gz")).unwrap()));
         assert!(validate_destination(Path::new("/private/AppTranslocation/abc/Vao.app")).is_err());
         assert!(validate_destination(Path::new("/tmp/example/.Trash/Vao.app")).is_err());
     }

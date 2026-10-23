@@ -12,11 +12,11 @@
 
 Vao 是一款面向 macOS 与 Windows 的开源语音输入工具：把口述整理成可用文字，根据内容与目标应用自动选择表达方式，并记住你明确选择的排版偏好。
 
-**Mac 0.2.3 · Windows 0.2.2。** [Mac 0.2.3 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.3)新增意图整理、线索补全与签名软件更新；Windows 保持 [0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2)。
+**Mac 0.2.4 · Windows 0.2.2。** [Mac 0.2.4 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.4)修复软件内更新的安装确认；保留意图整理、线索补全与签名软件更新；Windows 保持 [0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2)。
 
 | 平台 | 安装包 | 要求 |
 | --- | --- | --- |
-| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.3/Vao-0.2.3-build20261023.2017-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.3/Vao-0.2.3-build20261023.2017-mac-arm64.zip) | Apple Silicon · macOS 12+ |
+| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.4/Vao-0.2.4-build20261023.2019-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.4/Vao-0.2.4-build20261023.2019-mac-arm64.zip) | Apple Silicon · macOS 12+ |
 | Windows | [EXE 安装程序](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-setup.exe) | Windows 10 1809+ · x64；缺少 WebView2 时自动下载 |
 
 Mac 已使用 Developer ID 签名、通过 Apple 公证并附带票据；Windows 安装包尚无代码签名；首次打开提示见[安装指南](https://vaovao.app/install/)。Intel Mac 暂未提供。版本及源码对应关系见[版本说明](RELEASE_NOTES.md)。
@@ -30,7 +30,7 @@ Mac 已使用 Developer ID 签名、通过 Apple 公证并附带票据；Windows
 - **整段或局部翻译**：直接开始翻译录音，或仅翻译普通录音中的某一段。
 - **录音中切换应用**：Mac 通过校验后回填起始位置；Windows 默认输入到结果就绪时的当前光标，可选返回起始输入框。
 
-- **简洁的Mac听写流程**：录音结束后识别并整理最终文本。Mac 0.2.3 移除临时转写和输入框/窗口参考；Windows保持各自已发行版本的行为。
+- **简洁的Mac听写流程**：录音结束后识别并整理最终文本。Mac 0.2.4 移除临时转写和输入框/窗口参考；Windows保持各自已发行版本的行为。
 - **智能补全**：根据输入内容线索分析并补全信息，默认开启，设置可关闭，保留已保存的选择；请核对推断内容。
 - **Mac 软件更新**：“关于”中手动检查、下载验签、确认重启安装；旧版需先手动升级一次。
 - **词典迁移**：TXT/JSON 导入合并去重，只导出词条。
