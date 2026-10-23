@@ -371,40 +371,6 @@ pub fn deliver(request: &Value, write: bool) -> Result<Value, String> {
 pub fn opaque_candidate(root: HWND, pid: u32) -> bool {
     focused(root, pid).is_ok_and(|field| !supported(&class(field)))
 }
-pub fn context_value(text: &[u16], start: usize, end: usize) -> Result<Value, String> {
-    if start != end || end > text.len() {
-        return Err(UNAVAILABLE.into());
-    }
-    let before = String::from_utf16(&text[..start]).map_err(|_| UNAVAILABLE)?;
-    let after = String::from_utf16(&text[end..]).map_err(|_| UNAVAILABLE)?;
-    let before: String = before
-        .chars()
-        .rev()
-        .take(500)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect();
-    let after: String = after.chars().take(500).collect();
-    Ok(json!({"version":1,"before_cursor":before,"after_cursor":after}))
-}
-pub fn context(target: &Value) -> Result<Value, String> {
-    let token = target["input_token"].as_str().ok_or(UNAVAILABLE)?;
-    if matches!(
-        target["input_adapter"].as_str(),
-        Some("uia_value" | "uia_unicode")
-    ) {
-        return crate::windows_uia::context(token);
-    }
-    let saved = TARGET.lock().map_err(|_| UNAVAILABLE)?;
-    let saved = saved
-        .as_ref()
-        .filter(|t| t.token == token)
-        .ok_or(UNAVAILABLE)?;
-    saved.verify()?;
-    context_value(&saved.text, saved.start, saved.end)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

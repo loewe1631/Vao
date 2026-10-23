@@ -83,7 +83,6 @@ enum Action {
     Deliver { request: Value, write: bool },
     Compatibility { root: usize, pid: u32 },
     PasteFocus { root: usize, token: Option<String> },
-    Context { token: String },
 }
 struct Command {
     epoch: u64,
@@ -294,28 +293,6 @@ fn request(epoch: u64, action: Action) -> Result<Value, String> {
                                         command.current().map(|_| json!({"token":token}))
                                     }
                                 }
-                                Action::Context { token } => {
-                                    let saved = target
-                                        .as_ref()
-                                        .filter(|t| t.token == *token)
-                                        .ok_or(UNAVAILABLE)?;
-                                    saved.identity(&automation, &command)?;
-                                    if snapshot(
-                                        &automation,
-                                        &saved.element,
-                                        &command,
-                                        saved.unicode,
-                                    )? != saved.snapshot
-                                    {
-                                        Err(UNAVAILABLE.into())
-                                    } else {
-                                        crate::windows_input::context_value(
-                                            &saved.snapshot.text,
-                                            saved.snapshot.start,
-                                            saved.snapshot.end,
-                                        )
-                                    }
-                                }
                             });
                             let _ = command.reply.send(result);
                         }
@@ -429,15 +406,6 @@ unsafe fn paste_element(
     command.current()?;
     Ok(element)
 }
-pub fn context(token: &str) -> Result<Value, String> {
-    request(
-        EPOCH.load(Ordering::Acquire),
-        Action::Context {
-            token: token.to_owned(),
-        },
-    )
-}
-
 #[derive(PartialEq, Eq)]
 struct Snapshot {
     text: Vec<u16>,

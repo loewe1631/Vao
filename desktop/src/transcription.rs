@@ -1,5 +1,4 @@
-/// Join overlapping *final* ASR chunks. Preview windows replace each other and
-/// never contribute text to the final result or to learning/history.
+/// Join overlapping final ASR chunks from a complete recording.
 pub fn merge_text(previous: &str, next: &str) -> String {
     if previous.is_empty() {
         return next.to_owned();

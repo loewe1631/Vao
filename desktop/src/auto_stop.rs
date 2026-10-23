@@ -3,6 +3,7 @@ use webrtc_vad::{SampleRate, Vad, VadMode};
 
 const FRAME_SAMPLES: usize = 320; // 20 ms at the capture pipeline's 16 kHz.
 const FRAME_MS: u64 = 20;
+const COUNTDOWN_PAUSE_MS: u64 = 500; // Display only; the stop deadline is unchanged.
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Status {
@@ -15,7 +16,7 @@ impl Status {
         self.heard_speech && !self.unavailable && self.silence_ms >= seconds as u64 * 1000
     }
     pub fn countdown(self, seconds: u8) -> Option<u64> {
-        if !self.heard_speech || self.unavailable || self.silence_ms == 0 {
+        if !self.heard_speech || self.unavailable || self.silence_ms < COUNTDOWN_PAUSE_MS {
             return None;
         }
         let remaining = (seconds as u64 * 1000).saturating_sub(self.silence_ms);
@@ -173,9 +174,11 @@ mod tests {
         let mut g = PauseGate::default();
         advance(&mut g, true, 12);
         assert_eq!(g.status.countdown(2), None);
-        advance(&mut g, false, 1);
+        advance(&mut g, false, 24);
+        assert_eq!(g.status.countdown(2), None);
+        g.push(false);
         assert_eq!(g.status.countdown(2), Some(2));
-        advance(&mut g, false, 90);
+        advance(&mut g, false, 66);
         g.push(true);
         assert_eq!(g.status.countdown(2), None);
         assert!(!g.status.due(2));

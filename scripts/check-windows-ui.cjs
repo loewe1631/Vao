@@ -12,7 +12,7 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  await page.addInitScript(()=>{
   const connection={base:'https://model.example/v1',model:'synthetic',protocol:'openai_chat'};
   const db={platform:'windows',version:'0.2.2',build:'20261022.3014',
-   settings:{asr:{...connection,protocol:'openai_audio'},llm:connection,backup:{base:'',model:'',protocol:'openai_chat'},language:'auto',translation_language:'English',auto_input:true,windows_compatible_input:true,windows_return_to_origin:false,live_preview:false,input_context:false,expanded_context:false,dictionary:[],ui_language:'zh',theme:'system',trial_enabled:false,trial_consent_version:'',onboarding_complete:false,shortcuts:{record:'Control+Alt+Space',translate:'Control+Alt+KeyT',cancel:'Escape'}},
+   settings:{asr:{...connection,protocol:'openai_audio'},llm:connection,backup:{base:'',model:'',protocol:'openai_chat'},language:'auto',translation_language:'English',auto_input:true,windows_compatible_input:true,windows_return_to_origin:false,complete_book_titles:true,dictionary:[],ui_language:'zh',theme:'system',trial_enabled:false,trial_consent_version:'',onboarding_complete:false,shortcuts:{record:'Control+Alt+Space',translate:'Control+Alt+KeyT',cancel:'Escape'}},
    startup:{available:true,registered:false,system_disabled:false},
    profile:{revision:0,learning:true,personalization:true,rules:[],votes:[],undo:[]},history:[],
    permissions:{microphone:'not_determined',accessibility:'not_supported',input_monitoring:'not_required'},
@@ -91,7 +91,13 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
  await page.locator('#return-to-origin').click();
  await page.waitForFunction(()=>fake.db.settings.windows_return_to_origin===false);
  check('compatible_paste_default_on',await page.locator('#compatible-input').getAttribute('aria-checked')==='true');
- check('enhancements_default_off',await page.locator('#live-preview').getAttribute('aria-checked')==='false'&&await page.locator('#input-context').getAttribute('aria-checked')==='false'&&await page.locator('#expanded-context').getAttribute('aria-checked')==='false');
+ check('input_enhancements_removed',await page.locator('#live-preview,#input-context,#expanded-context,#bar-transcript').count()===0);
+ check('smart_completion_default_on',await page.locator('#complete-book-titles').getAttribute('aria-checked')==='true');
+ await page.locator('#complete-book-titles').click();
+ await page.waitForFunction(()=>fake.db.settings.complete_book_titles===false);
+ check('smart_completion_opt_out_keeps_windows_mode',await page.evaluate(()=>fake.db.settings.windows_return_to_origin===false&&fake.db.settings.windows_compatible_input===true));
+ await page.locator('#complete-book-titles').click();
+ await page.waitForFunction(()=>fake.db.settings.complete_book_titles===true);
  check('automatic_input_label_has_no_origin_promise',await page.locator('#auto-input').locator('..').locator('h3').innerText()==='自动输入');
  check('automatic_input_explains_completion_caret',await page.locator('#auto-input').locator('..').innerText().then(s=>s.includes('结果完成时')&&s.includes('当前光标位置')));
  await page.locator('#compatible-input').click();
@@ -167,7 +173,10 @@ function check(name,passed){checks.push({name,passed:!!passed});if(!passed)throw
   await page.evaluate(lang=>{fake.state.session={id:2,phase:'listening'};fake.state.uiLanguage=lang;fake.state.autoStopCountdown=2;fake.listeners['session-updated']();},language);
   await page.waitForFunction(()=>document.querySelector('#bar-label').textContent.includes('2'));
   check('auto_stop_countdown_visible_'+language,await page.locator('#bar-label').innerText().then(x=>x.includes(language==='zh'?'即将结束':'Ending in')));
-  await page.evaluate(()=>{fake.state.autoStopCountdown=null;fake.listeners['session-updated']();});
+  await page.evaluate(()=>{fake.state.translating=true;fake.listeners['session-updated']();});
+  await page.waitForFunction(()=>/翻译中|Translating/.test(document.querySelector('#bar-label').textContent));
+  check('translation_hides_pause_countdown_'+language,!/即将结束|Ending in|2/.test(await page.locator('#bar-label').innerText()));
+  await page.evaluate(()=>{fake.state.translating=false;fake.state.autoStopCountdown=null;fake.listeners['session-updated']();});
   await page.waitForFunction(()=>!document.querySelector('#bar-label').textContent.includes('2'));
   check('auto_stop_resuming_voice_clears_countdown_'+language,await page.locator('.voicebar').isVisible());
   await page.evaluate(()=>{fake.state.autoStopUnavailable=true;fake.listeners['session-updated']();});

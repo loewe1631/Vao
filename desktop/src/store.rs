@@ -23,16 +23,18 @@ pub struct Settings {
     pub language: String,
     pub translation_language: String,
     pub auto_input: bool,
-    pub live_preview: bool,
     pub auto_stop: bool,
     pub silence_seconds: u8,
     pub windows_compatible_input: bool,
     pub windows_return_to_origin: bool,
-    pub input_context: bool,
-    pub expanded_context: bool,
+    /// Internal compatibility key retained for existing settings. The UI calls
+    /// this feature “智能补全”; an omitted key defaults to enabled.
+    pub complete_book_titles: bool,
     pub dictionary: Vec<String>,
     pub ui_language: String,
     pub theme: String,
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, serde_json::Value>,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -56,19 +58,40 @@ impl Default for Settings {
             language: "auto".into(),
             translation_language: "English".into(),
             auto_input: true,
-            live_preview: false,
             auto_stop: false,
             silence_seconds: 5,
             windows_compatible_input: cfg!(target_os = "windows"),
             windows_return_to_origin: false,
-            input_context: false,
-            expanded_context: false,
+            complete_book_titles: true,
             dictionary: vec![],
             ui_language: "zh".into(),
             theme: "system".into(),
+            extra: Default::default(),
         }
     }
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RefinementDiagnostic {
+    pub policy_version: String,
+    pub route: String,
+    pub model: String,
+    pub protocol: String,
+    pub semantic_effective: bool,
+    pub completion_requested: bool,
+    pub completion_effective: bool,
+    pub generation_attempts: usize,
+    pub repair_attempted: bool,
+    pub used_original: bool,
+    pub first_issues: Vec<String>,
+    pub final_issues: Vec<String>,
+    #[serde(default)]
+    pub completion_review: String,
+    #[serde(default)]
+    pub completion_applied: usize,
+    #[serde(default)]
+    pub completion_issues: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResultRecord {
     pub id: i64,
@@ -82,6 +105,17 @@ pub struct ResultRecord {
     pub app: String,
     pub delivery: String,
     pub feedback: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub refinement: Vec<RefinementDiagnostic>,
+}
+/// Retire old opt-ins on read/save without touching credentials or other settings.
+fn retire_input_enhancements(value: &mut serde_json::Value) {
+    if let Some(settings) = value.as_object_mut() {
+        for key in ["live_preview", "input_context", "expanded_context"] { settings.remove(key); }
+        if let Some(asr) = settings.get_mut("asr") {
+            if asr["protocol"] == "openai_realtime" { asr["protocol"] = "openai_audio".into(); }
+        }
+    }
 }
 pub struct Store {
     conn: Connection,
@@ -104,13 +138,32 @@ impl Store {
                 r.get::<_, String>(0)
             })
             .ok()
-            .and_then(|v| serde_json::from_str(&v).ok())
+            .and_then(|v| {
+                let mut value: serde_json::Value = serde_json::from_str(&v).ok()?;
+                if key == "settings" { retire_input_enhancements(&mut value); }
+                serde_json::from_value(value).ok()
+            })
             .unwrap_or_default()
     }
     pub fn set<T: Serialize>(&self, key: &str, value: &T) -> Result<(), String> {
         let v = serde_json::to_string(value).map_err(|e| e.to_string())?;
         self.conn.execute("INSERT INTO kv(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![key,v]).map_err(|e|e.to_string())?;
         Ok(())
+    }
+    /// Merge current settings into the stored object so fields introduced by a
+    /// newer build survive a Windows test build save.
+    pub fn save_settings_preserving(&self, settings: &Settings) -> Result<(), String> {
+        let mut value: serde_json::Value = self.get("settings");
+        let current = serde_json::to_value(settings).map_err(|e| e.to_string())?;
+        if let Some(old) = value.as_object_mut() {
+            if let Some(new) = current.as_object() {
+                old.extend(new.clone());
+            }
+        } else {
+            value = current;
+        }
+        retire_input_enhancements(&mut value);
+        self.set("settings", &value)
     }
     pub fn add(&self, mut r: ResultRecord) -> Result<ResultRecord, String> {
         self.conn
@@ -203,6 +256,7 @@ mod tests {
             id: 0, created: crate::now(), scene: Scene::Tasks, layout: Layout::Paragraph,
             revision: 0, original: "synthetic".into(), text: "synthetic".into(),
             risks: vec!["unrefined".into()], app: "Synthetic".into(), delivery: "preview".into(), feedback: false,
+                refinement: vec![],
         }).unwrap();
         assert!(db.feedback(record.id, Layout::Numbered, true).is_err());
         assert!(db.get::<Profile>("profile").votes.is_empty());
@@ -223,7 +277,8 @@ mod migration_tests {
         assert_eq!(settings.dictionary,vec!["Vao"]);
         assert_eq!(settings.shortcuts.record,"Control+Shift+KeyK");
         assert!(!settings.auto_input);
-        assert!(!settings.live_preview && !settings.input_context && !settings.expanded_context && !settings.windows_return_to_origin);
+        assert!(!settings.windows_return_to_origin);
+        assert!(settings.complete_book_titles);
         assert_eq!(settings.windows_compatible_input, cfg!(target_os = "windows"));
         let explicit: Settings = serde_json::from_value(serde_json::json!({"windows_compatible_input":false,"windows_return_to_origin":true})).unwrap();
         assert!(!explicit.windows_compatible_input && explicit.windows_return_to_origin);
