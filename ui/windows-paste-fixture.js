@@ -41,13 +41,14 @@ try{
  await focus(one,'field A',0);target=await capture();await focus(two,'field B',0);
  check('paste_changed_field_no_dispatch',await rejected(deliver(target,'NO'))&&one.value==='field A'&&two.value==='field B'&&pastes===before);
  check('paste_pre_dispatch_rejections_keep_clipboard',(await call('clipboard_status')).baseline);
- await focus(one,'前🙂后',3);target=await capture();const context=await call('context',target);
- check('windows_context_utf16_cursor',context.before_cursor==='前🙂'&&context.after_cursor==='后');
- check('windows_context_keeps_delivery_token',(await deliver(target,'中')).verified===true&&one.value==='前🙂中后');
- await focus(one,'x'.repeat(520)+'🙂'+'y'.repeat(520),522);target=await capture();const bounded=await call('context',target);
- check('windows_context_bounded_each_side',Array.from(bounded.before_cursor).length===500&&Array.from(bounded.after_cursor).length===500&&bounded.before_cursor.endsWith('🙂'));
+ await focus(one,'前🙂后',3);target=await capture();
+ check('windows_context_operation_removed',await rejected(call('context',target)));
+ check('windows_context_removal_keeps_delivery_token',(await deliver(target,'中')).verified===true&&one.value==='前🙂中后');
+ const longField='x'.repeat(520)+'🙂'+'y'.repeat(520);
+ await focus(one,longField,522);target=await capture();before=pastes;
+ check('windows_context_removal_preserves_long_field',await rejected(call('context',target))&&one.value===longField&&pastes===before);
  one.value='changed';await delay(180);
- check('windows_context_changed_field_omitted',await rejected(call('context',target)));
+ check('paste_long_changed_field_no_dispatch',await rejected(deliver(target,'NO'))&&one.value==='changed'&&pastes===before);
  await focus(one,'',0);target=await capture();await call('cover');await delay(250);
  check('paste_returns_to_original_field',(await deliver(target,'跨窗口🙂')).verified===true&&one.value==='跨窗口🙂'&&document.hasFocus());
  // Delayed paste consumer: report uncertainty, keep clipboard, never auto resend.

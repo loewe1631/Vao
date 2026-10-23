@@ -37,12 +37,6 @@ pub async fn probe_windows_input(
                 }
                 result
             }
-            "context" => {
-                let target = request.ok_or("Missing synthetic context target")?;
-                tauri::async_runtime::spawn_blocking(move || crate::windows_input::context(&target))
-                    .await
-                    .map_err(|_| "Synthetic context fixture interrupted")?
-            }
             "cover" => {
                 use tauri::Manager;
                 let cover =

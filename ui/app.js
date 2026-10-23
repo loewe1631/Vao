@@ -591,7 +591,7 @@ const scrollPositions={};let renderedPage=null;
 function shortcuts(){return {...initial.settings.shortcuts,...data.settings.shortcuts};}
 
 const connectionReports={},connectionEpochs={};
-function connectionProtocolName(protocol){return t(({openai_audio:'asrFile',openai_realtime:'asrRealtime',openai_chat:'openaiChat',vao_refine:'vaoRefine'})[protocol]||'protocol');}
+function connectionProtocolName(protocol){return t(({openai_audio:'asrFile',openai_chat:'openaiChat',vao_refine:'vaoRefine'})[protocol]||'protocol');}
 function connectionReportHtml(slot,config){
  const r=connectionReports[slot];if(!r||r.config!==JSON.stringify(config))return '';
  const protocol=esc(connectionProtocolName(config.protocol));
@@ -628,71 +628,37 @@ async function stopCapture(){captureEpoch++;captureArmed=false;clearTimeout(capt
 function showCaptureProgress(value){if(!captureArmed)return;const input=document.querySelector('#shortcut-input');if(input)input.value=value;const status=document.querySelector('#capture-status');if(status)status.textContent=value?displayKey(value)+' · '+t('captureNextKey'):t('captureReady');}
 function acceptCaptured(value){if(!captureArmed||!shortcutEditing)return;shortcutDraft=value;const input=document.querySelector('#shortcut-input');if(input){input.value=value;input.blur();}stopCapture().catch(toast);const status=document.querySelector('#capture-status');if(status)status.textContent=displayKey(value);}
 Object.assign(words.zh,{
-  "expandedContext": "参考起始窗口的附近文字",
-  "expandedContextHint": "扩展参考原窗口文字，需先开启“参考输入框前后文”。",
-  "livePreviewHint": "边说边看识别文字；录音期间会向语音服务发送音频。",
-  "enhancementScope": "下一次录音生效。",
   "asrFile": "音频文件识别（OpenAI 兼容）",
-  "asrRealtime": "实时转写（OpenAI Realtime 兼容）",
-  "realtimeHint": "实时协议需要服务支持 transcription 会话、PCM 24 kHz 与手动提交，并支持同一模型的文件识别以供关闭预览或失败时使用。仅在开启“录音时显示临时转写”时启用实时连接。普通文件接口不会自动变成实时服务。",
   "dictionaryImport": "导入词典",
   "dictionaryExport": "导出词典",
   "dictionaryTransferHint": "支持 TXT（每行一词）或 JSON；导入合并去重，导出仅含已保存词条。",
   "dictionarySaveFirst": "请先保存当前词典编辑，再导入或导出。",
   "dictionaryImported": "导入完成，新增词条：",
   "dictionaryExported": "词典已导出。",
-  "enrollDetails": "开通只提交随机安装标识与同意版本，不读取硬件编号。使用体验时，录音、当前文字、词典和本次处理所需偏好会通过 HTTPS 发送至 Vao 服务器；选区操作会发送所选文字，已开启的上下文增强会发送界面说明范围内的参考文字。服务临时处理，不保存录音或文字正文，不用于训练；运维日志不含正文。设备凭据仅存本机钥匙串，服务保存凭据摘要、撤销状态及请求计数；历史开通记录中的旧网络摘要按保留周期清理。自有连接直接访问你配置的服务，受其隐私政策约束。",
+  "enrollDetails": "开通只提交随机安装标识与同意版本，不读取硬件编号。使用体验时，录音、当前文字、词典和本次处理所需偏好会通过 HTTPS 发送至 Vao 服务器；选区操作会发送所选文字。服务临时处理，不保存录音或文字正文，不用于训练；运维日志不含正文。设备凭据仅存本机钥匙串，服务保存凭据摘要、撤销状态及请求计数；历史开通记录中的旧网络摘要按保留周期清理。自有连接直接访问你配置的服务，受其隐私政策约束。",
   "trialUnlimited": "免费共享 · 不设到期或每日额度",
-  "enhancedInput": "输入增强",
-  "livePreview": "录音时显示临时转写",
-  "inputContext": "参考输入框前后文",
-  "inputContextHint": "将光标附近文字发给文字模型，帮助术语和续写衔接。",
-  "enhancementDetails": "数据与兼容性说明",
-  "previewDetails": "临时文字可能变化，不会抢走输入焦点。实时协议持续发送音频，文件协议分段请求，可能增加用量；完整确认的实时转写可直接用于整理，失败时尝试同一连接的文件识别。结束后只回填一次最终稿。",
-  "contextDetails": "前后文仅用于普通听写，读取起始光标前后各最多 500 字符；扩展参考最多 1200 字符的原窗口可见文字、120 字符的标题及网页域名，不含完整网址。这些片段会发给当前文字服务及必要时已配置的备用服务，不写入历史或学习。敏感窗口和不可验证的输入框会跳过；选区指令与片段翻译保持独立。",
   "dictionaryTransfer": "词典文件",
   "chatProtocolHint": "适用于普通自有文字模型，使用 /chat/completions，支持听写、翻译和划词指令。",
-  "refineProtocolHint": "仅用于实现 /refine 接口、接收 text / preferences 并返回 text 的旧服务。不支持翻译、划词指令或上下文增强；普通自有模型请选择 OpenAI Chat Completions。",
-  "temporaryTranscript": "临时转写 · 供参考",
-  "previewStarting": "等待语音识别…",
-  "previewUnavailable": "临时转写暂不可用，结束后继续识别。",
-  "previewFinalizing": "正在核对完整录音…"
+  "refineProtocolHint": "仅用于实现 /refine 接口、接收 text / preferences 并返回 text 的旧服务。不支持翻译或划词指令；普通自有模型请选择 OpenAI Chat Completions。",
 });
 Object.assign(words.en,{
-  "expandedContext": "Use nearby text in the starting window",
-  "expandedContextHint": "Add text from the original window. Requires “Use surrounding input text”.",
-  "livePreviewHint": "See words as you speak. Audio is sent to your speech service during recording.",
-  "enhancementScope": "Effective from the next recording.",
   "asrFile": "Audio files (OpenAI compatible)",
-  "asrRealtime": "Realtime transcription (OpenAI Realtime compatible)",
-  "realtimeHint": "Requires transcription sessions, PCM 24 kHz and manual commits, plus file transcription with the same model for fallback or when preview is off. Realtime connects only when “Show transcription while recording” is on. A file API alone does not provide Realtime support.",
   "dictionaryImport": "Import dictionary",
   "dictionaryExport": "Export dictionary",
   "dictionaryTransferHint": "TXT (one term per line) or JSON. Imports merge unique terms; exports contain saved terms only.",
   "dictionarySaveFirst": "Save your dictionary edits before importing or exporting.",
   "dictionaryImported": "Import complete. Terms added: ",
   "dictionaryExported": "Dictionary exported.",
-  "enrollDetails": "Enrollment sends a random installation identifier and notice version, not hardware identifiers. Requests send audio, current text, vocabulary and relevant preferences over HTTPS. Selection operations include selected text; enabled context enhancements include the reference text described in settings. Audio and text are processed temporarily, not retained or used for training. Operational logs exclude content. Device credentials stay in Keychain; the service keeps credential hashes, revocation status and request counters. Old network digests are removed under the retention schedule. Custom connections go to your provider under its privacy policy.",
+  "enrollDetails": "Enrollment sends a random installation identifier and notice version, not hardware identifiers. Requests send audio, current text, vocabulary and relevant preferences over HTTPS. Selection operations include selected text. Audio and text are processed temporarily, not retained or used for training. Operational logs exclude content. Device credentials stay in Keychain; the service keeps credential hashes, revocation status and request counters. Old network digests are removed under the retention schedule. Custom connections go to your provider under its privacy policy.",
   "trialUnlimited": "Free shared service · No expiry or daily quota",
-  "enhancedInput": "Input enhancements",
-  "livePreview": "Show transcription while recording",
-  "inputContext": "Use surrounding input text",
-  "inputContextHint": "Send text near the cursor to your text model to improve terminology and continuity.",
-  "enhancementDetails": "Data and compatibility",
-  "previewDetails": "Preview text may change and does not take focus. Realtime sends audio continuously; file recognition uses separate requests and may increase usage. Fully confirmed Realtime text can proceed to refinement; failures attempt file recognition on the same connection. Final text is inserted once after stopping.",
-  "contextDetails": "For ordinary dictation, read up to 500 characters on each side of the starting cursor. Expanded context adds up to 1,200 characters of visible text, 120 title characters and the website domain from the original window, without the full URL. These snippets go to your text service and configured backup when needed, and are not saved in history or learning. Sensitive windows and unverifiable inputs are skipped. Selection commands and marked translations remain separate.",
   "dictionaryTransfer": "Dictionary files",
   "chatProtocolHint": "For standard custom text models. Uses /chat/completions for dictation, translation and selection commands.",
-  "refineProtocolHint": "Only for legacy services implementing /refine: text / preferences in, text out. No translation, selection commands or context enhancements. For standard custom models, choose OpenAI Chat Completions.",
-  "temporaryTranscript": "Temporary transcription",
-  "previewStarting": "Waiting for transcription…",
-  "previewUnavailable": "Preview unavailable. Transcription will continue after stopping.",
-  "previewFinalizing": "Checking the complete recording…"
+  "refineProtocolHint": "Only for legacy services implementing /refine: text / preferences in, text out. No translation or selection commands. For standard custom models, choose OpenAI Chat Completions.",
 });
 const isWindows=()=>data.platform==='windows';
 const windowsWords={zh:{autoInput:'自动输入',pasteSent:'已核对输入内容（未自动发送）',wechatLimit:'请先点击目标输入框。普通听写在结果完成时粘贴到当前光标，不会自动发送；无法输入时可从历史复制结果。',setupReady:'可开始录音',autoInputDesc:'默认开启。普通听写在结果完成时，粘贴到当前光标位置；请将光标留在要输入的文本框内，直到文字出现。不会自动发送；无法输入时保留结果。',previewExplanation:'自动输入已关闭。请复制浮层或历史中的结果。',protectedPreview:'无法自动输入，结果已保留，请复制。',shortcutHelp:'点击“录入按键”，按住 Ctrl、Alt 或 Shift，再按另一个键；也可手动填写 Control+Alt+Space。保存时检查系统占用。',fnHelp:'Windows 硬件 Fn 不作为快捷键；请使用 Ctrl、Alt、Shift 等普通组合键。',captureReady:'按住 Ctrl、Alt 或 Shift，再按另一个键。',microphoneHint:'点击检查时短暂打开麦克风，音频只在内存中丢弃；访问失败请打开 Windows 麦克风隐私设置。',permissionGranted:'访问检查已通过',permissionMissing:'尚未检查访问',permissionIntro:'检查实际麦克风访问，并确认 Windows 允许桌面应用使用麦克风。',permissionSteps:'Windows 设置 → 隐私和安全性 → 麦克风，打开麦克风及桌面应用访问。点击“检查访问”可确认麦克风是否可用。',keysIndependent:'API Key 保存在 Windows 凭据管理器，历史与排版偏好保存在本机。',https:'远程连接使用 HTTPS，本机服务可使用 HTTP。密钥保存在 Windows 凭据管理器。',aboutText:'适用于 Windows 的语音输入工具，支持听写、文字整理、局部翻译和划词处理。Windows 10（1809）及更新版本，64 位。',trialRestoreConfirm:'清除此项自有连接设置，改用默认体验？已保存密钥仍保存在 Windows 凭据管理器。'},en:{autoInput:'Automatic input',pasteSent:'Input contents verified; message not sent',wechatLimit:'Click the destination text field first. Dictation pastes at the current caret when ready, without sending. If insertion is unavailable, copy the result from History.',setupReady:'Ready to record',autoInputDesc:'On by default. Ordinary dictation pastes at the current caret when the result is ready. Keep the destination text field focused. Never sends a message; unavailable inputs keep the result.',previewExplanation:'Automatic insertion is off. Copy the result from the overlay or History.',protectedPreview:'Automatic input was unavailable. Copy the saved result.',shortcutHelp:'Choose Record keys, hold Ctrl, Alt or Shift, then press another key. Or type Control+Alt+Space. Conflicts are reported on save.',fnHelp:'Hardware Fn is not supported on Windows. Use a normal Ctrl, Alt or Shift combination.',captureReady:'Hold Ctrl, Alt or Shift, then press another key.',microphoneHint:'The check briefly opens the microphone and discards in-memory samples. Open Windows microphone privacy settings if access fails.',permissionGranted:'Access check passed',permissionMissing:'Access not checked',permissionIntro:'Check actual microphone access and allow desktop apps in Windows microphone privacy settings.',permissionSteps:'Windows Settings → Privacy & security → Microphone: allow microphone and desktop app access. Use Check access to confirm microphone availability.',keysIndependent:'API keys stay in Windows Credential Manager. History and preferences stay on this PC.',https:'Use HTTPS for remote services. Local HTTP is supported. Keys stay in Windows Credential Manager.',aboutText:'Voice input for Windows, with dictation, text refinement, partial translation and selection tools. Requires Windows 10 (1809) or later, 64-bit.',trialRestoreConfirm:'Clear this custom connection and use the trial? Its saved key remains in Windows Credential Manager.'}};
-Object.assign(windowsWords.zh,{returnToOrigin:'返回录音起始位置',returnToOriginHint:'关闭时，普通听写在结果完成时粘贴到当前光标。开启后尝试返回起始输入框；划词修改始终验证原选区，不会自动发送。',compatibleInput:'返回起始位置时使用兼容粘贴',compatibleInputHint:'仅在开启“返回录音起始位置”时生效。部分应用无法恢复原光标，请在结果完成前回到原输入位置。默认的当前光标输入无需此选项；失败结果保留在历史。',expandedContext:'参考起始窗口标题',expandedContextHint:'最多参考起始窗口标题中的 120 个字符，不读取页面或其他窗口。',contextDetails:'前后文仅用于普通听写，每侧最多 500 字符；窗口参考最多包含 120 字符的起始窗口标题。无法读取、只读或密码输入框会跳过。参考内容发送给所选文字服务，不保存到历史或学习。'});
-Object.assign(windowsWords.en,{returnToOrigin:'Return to the starting input',returnToOriginHint:'Off: ordinary dictation pastes at the current caret when ready. On: try the starting field. Selection edits always verify their original selection. Messages are never sent.',compatibleInput:'Use compatible paste when returning to the starting input',compatibleInputHint:'Applies only when returning to the starting input. Some apps cannot restore the original caret; return there before processing finishes. Current-caret input needs no such option. Failed results stay in History.',expandedContext:'Reference the starting window title',expandedContextHint:'Use up to 120 characters of the starting window title, without reading pages or other windows.',contextDetails:'Ordinary dictation uses up to 500 characters per side; window context adds up to 120 title characters. Unreadable, readonly and password inputs are skipped. Reference text goes to the selected text service and stays out of History and learning.'});
+Object.assign(windowsWords.zh,{returnToOrigin:'返回录音起始位置',returnToOriginHint:'关闭时，普通听写在结果完成时粘贴到当前光标。开启后尝试返回起始输入框；划词修改始终验证原选区，不会自动发送。',compatibleInput:'返回起始位置时使用兼容粘贴',compatibleInputHint:'仅在开启“返回录音起始位置”时生效。部分应用无法恢复原光标，请在结果完成前回到原输入位置。默认的当前光标输入无需此选项；失败结果保留在历史。'});
+Object.assign(windowsWords.en,{returnToOrigin:'Return to the starting input',returnToOriginHint:'Off: ordinary dictation pastes at the current caret when ready. On: try the starting field. Selection edits always verify their original selection. Messages are never sent.',compatibleInput:'Use compatible paste when returning to the starting input',compatibleInputHint:'Applies only when returning to the starting input. Some apps cannot restore the original caret; return there before processing finishes. Current-caret input needs no such option. Failed results stay in History.'});
 Object.assign(windowsWords.zh,{preview:'文字结果',backupClearConfirm:'停用备用连接？已保存密钥仍保存在 Windows 凭据管理器。'});
 Object.assign(windowsWords.en,{preview:'Text result'});
 Object.assign(windowsWords.zh,{limits:'连接与输入',limitsText:'支持兼容 OpenAI 的文件转写及文字服务，也可连接本机模型。识别和整理效果取决于所选模型；无法自动输入时，结果保留在历史中供复制。'});
