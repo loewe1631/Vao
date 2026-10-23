@@ -12,14 +12,14 @@
 
 Vao is an open-source voice-input app for macOS and Windows. It turns speech into usable text, chooses writing styles from your content and destination app, and remembers the layout choices you explicitly ask it to keep.
 
-**Mac 0.2.2 · Windows 0.2.2.** The [unified 0.2.2 release](https://github.com/loewe1631/Vao/releases/tag/v0.2.2) adds optional silence auto-stop on both platforms.
+**Mac 0.2.3 · Windows 0.2.2.** [Mac 0.2.3](https://github.com/loewe1631/Vao/releases/tag/v0.2.3) adds intent-based refinement, clue-based completion and signed in-app updates. Windows remains at its [0.2.2 release](https://github.com/loewe1631/Vao/releases/tag/v0.2.2).
 
 | Platform | Download | Requirements |
 | --- | --- | --- |
-| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-build20261022.1302-mac-arm64.zip) | Apple Silicon · macOS 12+ |
+| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.3/Vao-0.2.3-build20261023.2017-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.3/Vao-0.2.3-build20261023.2017-mac-arm64.zip) | Apple Silicon · macOS 12+ |
 | Windows | [EXE installer](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-setup.exe) | Windows 10 1809+ · x64; downloads WebView2 if missing |
 
-Mac downloads are not yet Apple-notarized; the Windows installer is not code-signed. See the [installation guide](https://vaovao.app/install/) for first-launch prompts. Intel Mac is not available. See [release notes](RELEASE_NOTES.md) for source and build identities.
+Mac downloads are Developer ID signed, Apple-notarized and stapled; the Windows installer is not code-signed. See the [installation guide](https://vaovao.app/install/) for first-launch prompts. Intel Mac is not available. See [release notes](RELEASE_NOTES.md) for source and build identities.
 
 ## Features
 
@@ -30,7 +30,9 @@ Mac downloads are not yet Apple-notarized; the Windows installer is not code-sig
 - **Translate a segment.** Start translated recording directly, or turn translation on and off while recording.
 - **Switch apps while speaking.** On Mac, return to the validated starting input. Windows defaults to the current caret when ready, with an optional return-to-start mode.
 
-- **Optional input enhancements.** Independent recording-preview switch, bounded input context and optional window reference (nearby text on Mac; title only on Windows); Realtime requires an explicitly compatible service.
+- **Focused Mac dictation.** Record, then receive the final transcription and refined text. Mac 0.2.3 removes temporary transcription and ambient input/window reference. Windows retains its own released behavior.
+- **Clue-based completion.** Enabled by default; infer missing names from your dictation, or turn it off in Settings. Saved choices are retained. Verify inferred information.
+- **Signed Mac updates.** About → Check for updates, download and verify, then confirm restart installation. Older versions need one manual upgrade.
 - **Portable vocabulary.** Merge and deduplicate TXT/JSON imports; export terms only.
 
 Selection operations cover editing, translation, composing replies and understanding the selected text. Custom text services run an additional purpose check, adding a request, waiting time and possible cost. Unrelated requests or failed checks stop. Dictated questions remain input text rather than questions answered by Vao.
@@ -53,7 +55,7 @@ See [AI collaboration](AI_DEVELOPMENT.en.md) for the participating tools, models
 
 ## Install and start
 
-1. Choose your platform from the [0.2.2 release](https://github.com/loewe1631/Vao/releases/tag/v0.2.2). On Mac, drag **Vao.app** to **Applications**; on Windows, run **Vao-0.2.2-setup.exe** and follow the installer.
+1. Choose your platform from the platform download links above. On Mac, drag **Vao.app** to **Applications**; on Windows, run **Vao-0.2.2-setup.exe** and follow the installer.
 2. Open Vao. See [installation and permissions](https://vaovao.app/install/) for system prompts and the [Windows guide](docs/WINDOWS.md) for platform-specific steps.
 3. Follow the first-run checklist: activate the optional trial or connect your models, grant needed permissions and check shortcuts.
 4. Click your destination input, press the main shortcut, speak, then press it again to finish.
@@ -74,12 +76,11 @@ Windows uses regular key combinations, without hardware Fn support. Ordinary dic
 
 ## Models and optional trial
 
-Configure ASR and text independently. Enter a URL and optional key, fetch models, select one and save; Advanced allows manual IDs. A model list proves discovery only. Speech and text connection tests validate the selected protocol and show the fixed input, actual output and round-trip latency. Speech tests use a built-in English phrase without enabling the microphone; provider usage applies. Realtime diagnostics require final WebSocket transcription and never fall back to file recognition. Follow with a short real recording to check your microphone and output quality.
+Configure ASR and text independently. Enter a URL and optional key, fetch models, select one and save; Advanced allows manual IDs. A model list proves discovery only. Speech and text connection tests validate the selected protocol and show the fixed input, actual output and round-trip latency. Speech tests use a built-in English phrase without enabling the microphone; provider usage applies. Follow with a short real recording to check your microphone and output quality.
 
 | Stage | Supported contract |
 | --- | --- |
 | ASR | OpenAI-compatible multipart `/v1/audio/transcriptions`, returning JSON `text` |
-| Realtime ASR (explicit selection) | OpenAI Realtime transcription WebSocket sessions; requires compatible service and model support, independently of file transcription |
 | Text, translation, selected-text requests | `/v1/chat/completions`, returning a final non-streaming message |
 | Restricted refinement | Vao `/v1/refine`; ordinary dictation only |
 
@@ -95,7 +96,7 @@ Audio uses a temporary session buffer and is sent to the chosen ASR; no audio hi
 
 ## Source and builds
 
-The default `main` branch currently retains the Mac client and Xcode entry point. Windows release source is at [`windows-v0.2.2`](https://github.com/loewe1631/Vao/tree/windows-v0.2.2); ongoing development uses [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows). The tags remain separate. GitHub’s automatic “Source code” links on the unified release refer to the Mac tag; for Windows use the `windows-source` archive or its tag. See [Windows build steps](docs/WINDOWS_BUILD.md).
+The default `main` branch currently retains the Mac client and Xcode entry point. Windows release source is at [`windows-v0.2.2`](https://github.com/loewe1631/Vao/tree/windows-v0.2.2); ongoing development uses [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows). The tags remain separate. GitHub’s automatic “Source code” links refer to the Mac release tag; for Windows use the `windows-source` archive or its tag. See [Windows build steps](docs/WINDOWS_BUILD.md).
 
 ### Mac build and check
 

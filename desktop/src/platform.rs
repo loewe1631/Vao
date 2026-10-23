@@ -2,38 +2,6 @@ use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 #[cfg(target_os = "macos")]
-static CONTEXT_REPLIES: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, Option<Value>>>> = std::sync::OnceLock::new();
-#[cfg(target_os = "macos")]
-fn replies() -> &'static std::sync::Mutex<std::collections::HashMap<String, Option<Value>>> {
-    CONTEXT_REPLIES.get_or_init(Default::default)
-}
-#[cfg(target_os = "macos")]
-struct PendingContext(String);
-#[cfg(target_os = "macos")]
-impl Drop for PendingContext { fn drop(&mut self) { replies().lock().unwrap().remove(&self.0); } }
-/// No raw context is returned to the WebView or retained after the request.
-pub async fn input_context(target: &Value, expanded: bool) -> Option<crate::context::InputContext> {
-    #[cfg(target_os = "macos")]
-    {
-        let token=target["captureToken"].as_str()?.to_owned();
-        {let mut r=replies().lock().unwrap();if r.len()>=4{return None;}r.insert(token.clone(),None);}
-        let _guard=PendingContext(token.clone());
-        tokio::time::timeout(std::time::Duration::from_millis(700),async {
-            let expires=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).ok()?.as_millis()+650;
-            let request=json!({"action":"context_start","token":token,"expires_ms":expires,"expanded":expanded});
-            let accepted=tauri::async_runtime::spawn_blocking(move || call(request)).await.ok()?.ok()?;
-            if accepted["accepted"]!=true{return None;}
-            loop {
-                let value=replies().lock().unwrap().get_mut(&token).and_then(Option::take);
-                if let Some(v)=value{return crate::context::InputContext::from_value(v);}
-                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-            }
-        }).await.ok().flatten()
-    }
-    #[cfg(not(target_os = "macos"))]
-    {let _=target;None}
-}
-#[cfg(target_os = "macos")]
 struct Bridge {
     child: std::process::Child,
     input: std::process::ChildStdin,
@@ -118,20 +86,9 @@ pub fn call(request: Value) -> Result<Value, String> {
             let mut child = command
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
+                .stderr(Stdio::null())
                 .spawn()
                 .map_err(|_| "系统适配器不可用 / Platform adapter unavailable")?;
-            let context_pipe=child.stderr.take().unwrap();
-            std::thread::spawn(move || {
-                for line in BufReader::new(context_pipe).lines().map_while(Result::ok) {
-                    if line.len()>16384{continue;}
-                    if let Ok(value)=serde_json::from_str::<Value>(&line) {
-                        if let Some(token)=value["context_token"].as_str() {
-                            if let Some(slot)=replies().lock().unwrap().get_mut(token) { *slot=Some(value["context"].clone()); }
-                        }
-                    }
-                }
-            });
             let input = child.stdin.take().unwrap();
             let output = BufReader::new(child.stdout.take().unwrap());
             *state = Some(Bridge {

@@ -1,0 +1,181 @@
+[
+  {
+    "id": "synthetic-name",
+    "text": "李梅你好明天见前面梅是玫瑰的玫",
+    "app": "Messages",
+    "expect": [
+      "李玫",
+      "明天"
+    ],
+    "reject": [
+      "李梅",
+      "玫瑰的玫"
+    ]
+  },
+  {
+    "id": "synthetic-multiple",
+    "text": "林文和林文都到前一个是雨字头的雯后一个是文章的文",
+    "app": "Notes",
+    "expect": [
+      "林雯",
+      "林文"
+    ],
+    "reject": [
+      "前一个"
+    ]
+  },
+  {
+    "id": "synthetic-quote",
+    "text": "原样保留“前面的名字改成林雯”这句例子，不要改名单",
+    "app": "Notes",
+    "expect": [
+      "前面的名字改成林雯",
+      "不要改名单"
+    ],
+    "reject": []
+  },
+  {
+    "id": "synthetic-history",
+    "text": "之前写林文现在写林雯请记录这个变化过程",
+    "app": "Notes",
+    "expect": [
+      "林文",
+      "林雯"
+    ],
+    "reject": []
+  },
+  {
+    "id": "synthetic-list",
+    "text": "采购清单纸张两包墨水一瓶信封十个",
+    "app": "Notes",
+    "expect": [
+      "纸张",
+      "墨水",
+      "信封"
+    ],
+    "numbered_items": 3,
+    "reject": []
+  },
+  {
+    "id": "synthetic-one",
+    "text": "记一种绿茶两百克预算六十元",
+    "app": "Notes",
+    "expect": [
+      "绿茶",
+      "预算"
+    ],
+    "numbered_items": 0,
+    "reject": []
+  },
+  {
+    "id": "synthetic-no-lines",
+    "text": "不要换行不要编号采购纸张墨水信封",
+    "app": "Notes",
+    "expect": [
+      "纸张",
+      "墨水",
+      "信封"
+    ],
+    "single_paragraph": true,
+    "reject": []
+  },
+  {
+    "id": "synthetic-signature",
+    "text": "陈老师您好材料到了谢谢落款Nora",
+    "app": "Messages",
+    "expect": [
+      "陈老师",
+      "材料",
+      "Nora"
+    ],
+    "reject": [
+      "落款"
+    ]
+  },
+  {
+    "id": "synthetic-thanks",
+    "text": "陈老师您好请替我谢谢Nora帮忙",
+    "app": "Messages",
+    "expect": [
+      "陈老师",
+      "替我谢谢Nora"
+    ],
+    "reject": []
+  },
+  {
+    "id": "synthetic-number",
+    "text": "电话2025550101不对最后四位是0182",
+    "app": "Notes",
+    "expect": [
+      "2025550182"
+    ],
+    "reject": [
+      "2025550101"
+    ]
+  },
+  {
+    "id": "synthetic-book-unclear",
+    "text": "记一本写旅行的小说作者记不清了",
+    "app": "Notes",
+    "expect": [
+      "旅行",
+      "记不清"
+    ],
+    "reject": [
+      "《"
+    ]
+  },
+  {
+    "id": "synthetic-question",
+    "text": "那本旅行小说叫什么请保留这个问题",
+    "app": "Notes",
+    "expect": [
+      "什么"
+    ],
+    "reject": [
+      "《"
+    ]
+  },
+  {
+    "id": "synthetic-film-unclear",
+    "text": "记一部海边发生故事的电影，导演和演员都不确定。",
+    "app": "Notes",
+    "expect": [
+      "海边",
+      "不确定"
+    ],
+    "reject": [
+      "《"
+    ]
+  },
+  {
+    "id": "synthetic-film-excluded",
+    "text": "那部电影不是合成片甲，我指的是另一部，先只记录描述。",
+    "app": "Notes",
+    "expect": [
+      "不是",
+      "另一部"
+    ],
+    "reject": []
+  },
+  {
+    "id": "synthetic-entity-question",
+    "text": "那个做某类产品的公司叫什么？",
+    "app": "Messages",
+    "expect": [
+      "什么"
+    ],
+    "reject": []
+  },
+  {
+    "id": "synthetic-private-number",
+    "text": "陈先生的电话号码不知道，下次见面再问。",
+    "app": "Notes",
+    "expect": [
+      "陈先生",
+      "电话",
+      "下次"
+    ],
+    "reject": []
+  }
+]

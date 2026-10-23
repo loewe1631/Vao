@@ -1,10 +1,12 @@
 # Distribution
 
-Source releases do not require Apple Developer Program membership. Free/open-source binaries still undergo Gatekeeper checks. Current direct downloads are not Apple-notarized; do not claim otherwise based on a local build or persistent self-signed certificate.
+Source releases do not require Apple Developer Program membership. Free/open-source binaries still undergo Gatekeeper checks. Mac 0.2.3 direct downloads use Developer ID signatures, Apple notarization and stapled tickets. Historical Mac 0.2.2 assets remain ad-hoc and unnotarized; a local build or persistent self-signed certificate does not acquire notarization automatically.
 
 ## Current public downloads
 
-[Vao 0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2) provides both platforms. Mac DMG/ZIP and `Vao-0.2.2-source.*` match tag `v0.2.2` (build 20261022.1302); Windows EXE and `Vao-0.2.2-windows-source.*` match `windows-v0.2.2` (build 20261022.3014). `SHA256SUMS` covers Mac assets and `SHA256SUMS-windows` covers Windows assets. Automatic GitHub source downloads follow the Mac tag. Existing Mac assets and historical releases retain their original bytes.
+[Mac 0.2.3](https://github.com/loewe1631/Vao/releases/tag/v0.2.3) provides signed, notarized Mac DMG/ZIP, source archive/inventory, the signed `macos-updater.json` and its exact `.app.tar.gz` archive. These match tag `v0.2.3`, build20261023.2017. See [Mac updates](MACOS_UPDATES.md) for verification and publishing. Windows remains on [Vao 0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2).
+
+Historical 0.2.2: Mac DMG/ZIP and `Vao-0.2.2-source.*` match tag `v0.2.2` (build 20261022.1302); Windows EXE and `Vao-0.2.2-windows-source.*` match `windows-v0.2.2` (build 20261022.3014). `SHA256SUMS` covers Mac assets and `SHA256SUMS-windows` covers Windows assets. Automatic GitHub source downloads follow the Mac tag. Existing Mac assets and historical releases retain their original bytes.
 
 The Windows installer is not code-signed. It targets Windows 10 1809+ x64 and installs WebView2 from Microsoft if missing. Windows installation and build information are in [Windows](WINDOWS.md) and [Windows build](WINDOWS_BUILD.md). The default branch remains the Mac source; a unified Release does not merge platform source trees. The following signing instructions apply to Mac.
 

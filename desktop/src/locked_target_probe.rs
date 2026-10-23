@@ -84,6 +84,7 @@ fn ready(
         app: "Isolated fixture".into(),
         delivery: "preview".into(),
         feedback: false,
+        refinement: vec![],
     })?;
     r.target = target.clone();
     r.result = Some(record.clone());

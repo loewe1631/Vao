@@ -25,8 +25,13 @@ tokio = { version = "1", features = ["time", "sync", "macros", "rt-multi-thread"
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "stream"] }
 futures-util = "0.3"
 base64 = "0.22.1"
-tokio-tungstenite = { version = "0.28", default-features = false, features = ["connect", "rustls-tls-native-roots"] }
 getrandom = "0.3.4"
+minisign-verify = "=0.2.5"
+semver = "1"
+sha2 = "0.10"
+tar = { version = "=0.4.46", default-features = false }
+flate2 = "=1.1.10"
+tempfile = "3"
 cpal = "0.15"
 webrtc-vad = "=0.4.0"
 global-hotkey = "0.6"

@@ -60,7 +60,6 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | darling_core | 0.24.1 | MIT |
 | darling_macro | 0.24.1 | MIT |
 | dasp_sample | 0.11.0 | MIT OR Apache-2.0 |
-| data-encoding | 2.11.1 | MIT |
 | defmt | 1.2.0 | MIT OR Apache-2.0 |
 | defmt-macros | 1.2.0 | MIT OR Apache-2.0 |
 | defmt-parser | 1.1.0 | MIT OR Apache-2.0 |
@@ -85,10 +84,12 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | embed_plist | 1.2.2 | MIT OR Apache-2.0 |
 | equivalent | 1.0.3 | Apache-2.0 OR MIT |
 | erased-serde | 0.4.10 | MIT OR Apache-2.0 |
+| errno | 0.3.14 | MIT OR Apache-2.0 |
 | fallible-iterator | 0.3.0 | MIT/Apache-2.0 |
 | fallible-streaming-iterator | 0.1.9 | MIT/Apache-2.0 |
 | fastrand | 2.5.0 | Apache-2.0 OR MIT |
 | fdeflate | 0.3.7 | MIT OR Apache-2.0 |
+| filetime | 0.2.29 | MIT/Apache-2.0 |
 | find-msvc-tools | 0.1.14 | MIT OR Apache-2.0 |
 | flate2 | 1.1.10 | MIT OR Apache-2.0 |
 | fnv | 1.0.7 | Apache-2.0 / MIT |
@@ -162,6 +163,7 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | mime | 0.3.17 | MIT OR Apache-2.0 |
 | mime_guess | 2.0.5 | MIT |
 | minimal-lexical | 0.2.1 | MIT/Apache-2.0 |
+| minisign-verify | 0.2.5 | MIT |
 | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 |
 | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 |
 | mio | 1.2.4 | MIT |
@@ -196,7 +198,6 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | png | 0.18.1 | MIT OR Apache-2.0 |
 | potential_utf | 0.1.6 | Unicode-3.0 |
 | powerfmt | 0.2.1 | MIT OR Apache-2.0 |
-| ppv-lite86 | 0.2.21 | MIT OR Apache-2.0 |
 | precomputed-hash | 0.1.1 | MIT |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 |
 | quick-xml | 0.42.0 | MIT |
@@ -205,10 +206,7 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | quinn-udp | 0.5.16 | MIT OR Apache-2.0 |
 | quote | 1.0.47 | MIT OR Apache-2.0 |
 | rand | 0.10.3 | MIT OR Apache-2.0 |
-| rand | 0.9.5 | MIT OR Apache-2.0 |
-| rand_chacha | 0.9.0 | MIT OR Apache-2.0 |
 | rand_core | 0.10.1 | MIT OR Apache-2.0 |
-| rand_core | 0.9.5 | MIT OR Apache-2.0 |
 | rand_pcg | 0.10.2 | MIT OR Apache-2.0 |
 | raw-window-handle | 0.6.2 | MIT OR Apache-2.0 OR Zlib |
 | ref-cast | 1.0.27 | MIT OR Apache-2.0 |
@@ -221,8 +219,8 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | rusqlite | 0.32.1 | MIT |
 | rustc-hash | 2.1.3 | Apache-2.0 OR MIT |
 | rustc_version | 0.4.1 | MIT OR Apache-2.0 |
+| rustix | 1.1.5 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
 | rustls | 0.23.46 | Apache-2.0 OR ISC OR MIT |
-| rustls-native-certs | 0.8.5 | Apache-2.0 OR ISC OR MIT |
 | rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 |
 | rustls-webpki | 0.103.16 | ISC |
 | ryu | 1.0.23 | Apache-2.0 OR BSL-1.0 |
@@ -250,7 +248,6 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | serialize-to-javascript | 0.1.2 | MIT OR Apache-2.0 |
 | serialize-to-javascript-impl | 0.1.2 | MIT OR Apache-2.0 |
 | servo_arc | 0.4.3 | MIT OR Apache-2.0 |
-| sha1 | 0.10.7 | MIT OR Apache-2.0 |
 | sha2 | 0.10.9 | MIT OR Apache-2.0 |
 | shlex | 1.3.0 | MIT OR Apache-2.0 |
 | shlex | 2.0.1 | MIT OR Apache-2.0 |
@@ -270,6 +267,7 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | sync_wrapper | 1.0.2 | Apache-2.0 |
 | synstructure | 0.14.0 | MIT |
 | tao | 0.35.3 | Apache-2.0 |
+| tar | 0.4.46 | MIT OR Apache-2.0 |
 | tauri | 2.11.2 | Apache-2.0 OR MIT |
 | tauri-build | 2.6.2 | Apache-2.0 OR MIT |
 | tauri-codegen | 2.6.2 | Apache-2.0 OR MIT |
@@ -279,6 +277,7 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | tauri-runtime-wry | 2.11.2 | Apache-2.0 OR MIT |
 | tauri-utils | 2.9.2 | Apache-2.0 OR MIT |
 | tauri-winres | 0.3.6 | MIT |
+| tempfile | 3.27.0 | MIT OR Apache-2.0 |
 | tendril | 0.5.1 | MIT OR Apache-2.0 |
 | thiserror | 1.0.69 | MIT OR Apache-2.0 |
 | thiserror | 2.0.21 | MIT OR Apache-2.0 |
@@ -292,7 +291,6 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | tokio | 1.53.3 | MIT |
 | tokio-macros | 2.7.2 | MIT |
 | tokio-rustls | 0.26.6 | MIT OR Apache-2.0 |
-| tokio-tungstenite | 0.28.0 | MIT |
 | tokio-util | 0.7.20 | MIT |
 | toml | 0.9.12+spec-1.1.0 | MIT OR Apache-2.0 |
 | toml | 1.1.8+spec-1.1.0 | MIT OR Apache-2.0 |
@@ -309,7 +307,6 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | tracing-core | 0.1.36 | MIT |
 | tray-icon | 0.23.1 | MIT OR Apache-2.0 |
 | try-lock | 0.2.5 | MIT |
-| tungstenite | 0.28.0 | MIT OR Apache-2.0 |
 | typeid | 1.0.3 | MIT OR Apache-2.0 |
 | typenum | 1.20.1 | MIT OR Apache-2.0 |
 | unic-char-property | 0.9.0 | MIT/Apache-2.0 |
@@ -323,16 +320,15 @@ Generated from Cargo.lock for aarch64-apple-darwin, including build dependencies
 | untrusted | 0.9.0 | ISC |
 | url | 2.5.8 | MIT OR Apache-2.0 |
 | urlpattern | 0.3.0 | MIT |
-| utf-8 | 0.7.6 | MIT OR Apache-2.0 |
 | utf8_iter | 1.0.4 | Apache-2.0 OR MIT |
 | uuid | 1.28.0 | Apache-2.0 OR MIT |
 | vcpkg | 0.2.15 | MIT/Apache-2.0 |
 | version_check | 0.9.5 | MIT/Apache-2.0 |
 | walkdir | 2.5.0 | Unlicense/MIT |
 | want | 0.3.2 | MIT |
-| webrtc-vad | 0.4.0 | MIT |
 | web_atoms | 0.2.6 | MIT OR Apache-2.0 |
 | webpki-roots | 1.0.10 | CDLA-Permissive-2.0 |
+| webrtc-vad | 0.4.0 | MIT |
 | window-vibrancy | 0.6.0 | Apache-2.0 OR MIT |
 | winnow | 0.7.15 | MIT |
 | winnow | 1.0.4 | MIT |

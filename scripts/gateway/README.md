@@ -9,3 +9,5 @@ cargo run --offline --locked -q -p vao-core --example export-input-policy > scri
 ```
 
 The core test compares every exported prompt with the current Rust source. Host applications provide authenticated transport, token budgets, concurrency, cancellation and storage rules; this adapter does not grant access, deploy a service or include any credentials. Legacy clients receive server-owned templates through recognized fields and fixed markers. Arbitrary chat bodies and unknown operations are rejected. Model judgments can misclassify requests and are not a complete security boundary.
+
+Versioned dictation requests use the exported intent policy with completion on/off, layout provenance and a candidate-blind completion-review operation. `legacy_writing_prompts.json` freezes the prior hosted contract for clients without a policy version. A version mismatch fails explicitly instead of silently selecting old behavior. Both default and custom Chat Completions connections expose the same client features; model responses may differ.

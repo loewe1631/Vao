@@ -1,6 +1,6 @@
 # Architecture
 
-Vao uses a Rust core, Tauri UI and native platform adapters. Mac and Windows 0.2.2 share one release page, with separate source tags. The default branch and the detailed implementation below describe the Mac direct-download client, without App Sandbox; Windows source and platform differences are linked in [Windows build](WINDOWS_BUILD.md). Store distribution needs separate capability and license review.
+Vao uses a Rust core, Tauri UI and native platform adapters. Mac 0.2.3 and Windows 0.2.2 have separate release/source identities. The default branch and the detailed implementation below describe the Mac direct-download client, without App Sandbox; Windows source and platform differences are linked in [Windows build](WINDOWS_BUILD.md). Store distribution needs separate capability and license review.
 
 ## Code map
 
@@ -39,7 +39,7 @@ Transcription is retained in runtime before refinement, so a model error can lea
 
 ## Context and explicit preferences
 
-`WritingPlan` first resolves bounded content rules, then app-name/bundle hints. It chooses messages, actions, plans, technical records or documents. Explicit operational instructions remain tasks in social apps, and conversational messages remain conversational in agent apps. It does not scrape chat history. Optional bounded context from the original window is described below. Presets enter model instructions; they are not canned text replacements. See [writing presets](WRITING_PRESETS.md).
+`WritingPlan` first resolves bounded content rules, then app-name/bundle hints. It chooses messages, actions, plans, technical records or documents. Explicit operational instructions remain tasks in social apps, and conversational messages remain conversational in agent apps. It does not scrape chat history. Mac dictation uses the current transcript, vocabulary and writing preferences without ambient input/window text. Presets enter model instructions; they are not canned text replacements. See [writing presets](WRITING_PRESETS.md).
 
 The profile stores paragraph/numbered choices by chat, task or technical context. One remembered explicit choice activates or reverses a preference for later sessions. Single-use choices and generated output are not long-term evidence. Learning and personalization switches do not increase the learned-rule version. Disabling personalization retains data; deleting learning clears votes, active rules and undo snapshots. This is explicit preference adaptation, without background inference from arbitrary user edits.
 
@@ -53,7 +53,7 @@ All model and trial JSON bodies are bounded to 512 KiB. Redirects are disabled; 
 
 ## Target delivery
 
-The bundled Swift helper communicates through JSON stdin/stdout and keeps opaque AX element/window references in memory. A content SHA256 and caret/selection snapshot are calculated only for the explicitly captured editable field. Fingerprints are not stored or sent to model services. Unselected contents are sent only as bounded, explicitly enabled ordinary-dictation context, described below.
+The bundled Swift helper communicates through JSON stdin/stdout and keeps opaque AX element/window references in memory. A content SHA256 and caret/selection snapshot are calculated only for the explicitly captured editable field. Fingerprints are not stored or sent to model services. Unselected contents are not sent to model services.
 
 For verifiable fields, the helper restores the original window/input after app switches, then checks its identity, contents and selection again before posting paste. Conflicts preserve the result with an overlay notice. Inputs without a reliable snapshot retain foreground/interaction checks. Composer discovery accepts only a unique supported candidate, without guessed click coordinates. The WeChat fallback still needs real-app compatibility work.
 
@@ -69,18 +69,8 @@ SQLite keeps settings, bounded feedback evidence and at most 200 text results fo
 
 ## Optional input enhancements
 
-All enhancement options are off by default. File-window preview uses one in-flight request, a four-second scheduling delay, at most the latest twelve seconds of audio and a twelve-second request deadline. Windows replace each other; file-preview text never contributes to final output, history or learning. Stop/cancel changes the session phase, drops the preview request future and rejects late writes. Remote work may continue after cancellation. Two consecutive preview errors fall back to final-only transcription.
+Mac 0.2.3 has removed temporary transcription and surrounding-input/window reference. Recording makes no preview ASR requests and sends no ambient input text, nearby window text, title or domain to models. Stop performs complete file transcription, followed by writing refinement. Long recordings retain bounded overlapping final chunks. Old enhancement flags are ignored and removed on the next settings save; saved Realtime ASR configurations retain their URL/model and migrate to the file protocol. Target/caret snapshots remain local for insertion protection. Selection commands still send the explicitly selected text.
 
-Input context is ordinary-dictation-only. A bounded native worker uses the captured AX element and original content/caret snapshot, with a separate reply pipe from the serialized delivery RPC. A 700ms host deadline and native AX deadlines limit work; request expiry prevents a queued request from starting later. Context goes only into the user JSON data of compatible text requests, including repair and configured backup, never into transcript/preferences or ASR. The restricted refine protocol omits it. Only context-free metadata can reach general diagnostics; raw snippets are session memory. Selection and translation keep existing semantics.
-
-
-The `openai_realtime` ASR protocol supports compatible transcription services. With preview enabled it opens a public transcription WebSocket session, converts 16 kHz samples to 24 kHz PCM16 and commits bounded turns. Confirmed items are ordered by committed sample coverage; duplicates are idempotent, conflicting or incomplete results fail closed. Only ordinary unmarked dictation without capture warnings reuses a complete final transcript. Other operations, disabled preview and failures use file transcription on the same connection. Credential reuse is session-local. Dropped result receivers or cancelled sessions stop the realtime future. No private provider endpoint is used.
-
-Expanded context depends on the input-context option and adds bounded original-window static text, title and domain; no full URLs or other windows. Native reads stay under node/depth/time limits and recheck the captured input. The Rust boundary revalidates scalar/byte budgets. Reference-copy checks run before final acceptance and after one repair, reverting to spoken source on repeated leakage.
-
-`dictionary_io.rs` imports bounded UTF-8 TXT/JSON after native file selection, validates the full list, then merges into the latest saved settings. Failed/cancelled imports leave data unchanged. Export snapshots saved terms only and atomically replaces a selected TXT/JSON file. Model secrets and histories are never included.
-
-Free-service authorization remains separate from use accounting. The separately operated gateway no longer enforces expiry, per-device/global daily usage or enrollment quotas. New clients use the unlimited status flag; legacy numeric fields are compatibility placeholders. Queues, revocation and physical inference bounds remain.
 
 ## Windows implementation
 

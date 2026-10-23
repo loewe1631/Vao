@@ -81,10 +81,6 @@ impl Recording {
         spool.append(samples)?;
         Ok(Self { spool, warning: None })
     }
-    #[cfg(test)]
-    pub(crate) fn fixture(samples: &[i16]) -> Self {
-        Self::from_pcm(samples).unwrap()
-    }
 
     pub fn len(&self) -> usize {
         self.spool.len.load(Ordering::Acquire)
@@ -239,9 +235,6 @@ impl Capture {
     }
     pub fn position(&self) -> usize {
         self.recording.len()
-    }
-    pub fn reader(&self) -> Recording {
-        self.recording.clone()
     }
     pub fn stop(mut self) -> Result<Recording, String> {
         self.close();

@@ -1,3 +1,23 @@
+# Vao 0.2.3 · macOS
+
+Mac build20261023.2017 · Apple Silicon · macOS 12+ · source tag `v0.2.3`.
+Windows remains at [0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2); this release updates Mac only.
+
+- 改进口述意图整理、清单排版、口头语清理与数字归一化；智能补全根据输入内容线索分析并补全信息，默认开启，可随时关闭，保留已保存的开关选择。作品名称推断仍可能出错，请核对重要内容。
+- 移除整个输入增强区块，包括临时转写、输入框上下文及窗口附近文字参考。保留显式选区、翻译和起始目标/光标回填保护。
+- 默认体验服务与自有 Chat 连接使用完整整理流程；共享资源与队列仍有限，效果和速度取决于模型与网络。
+- Mac 安装包现采用 Developer ID 签名、Apple 公证并附带票据。首次使用仍需按系统提示授予麦克风、辅助功能等权限。
+- “关于 → 软件更新”支持手动检查、下载验签和确认重启安装，保留设置、词典、历史及钥匙串。录音、处理或待回填时不会安装；旧 App 留作回退。
+- 从 0.2.2 等没有更新器的版本需先手动安装本版。已装支持更新的本地测试版可通过签名公开清单升级。
+
+## English summary
+
+Improved intent-based dictation and optional clue-based completion, now enabled by default while respecting saved choices. Removed temporary transcription and ambient input/window reference; explicit selections, translation and insertion safeguards remain. The hosted service supports the same complete refinement flow as custom Chat connections. Check inferred names and important facts.
+
+Mac downloads are Developer ID signed, Apple-notarized and stapled. About now offers manual signed updates with verified downloads, an idle-session guard, retained user data and a previous-App backup. Older releases without an updater need a manual first installation. Windows remains unchanged at 0.2.2.
+
+---
+
 # Vao 0.2.2 · macOS & Windows
 
 [统一下载 / Downloads](https://github.com/loewe1631/Vao/releases/tag/v0.2.2)

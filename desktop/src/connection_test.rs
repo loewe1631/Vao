@@ -1,10 +1,10 @@
 //! Protocol-specific diagnostics using a fixed synthetic phrase, never the microphone.
-use crate::{audio, models, realtime, store::ConnectionConfig};
+use crate::{audio, models, store::ConnectionConfig};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::time::{Duration, Instant};
 
 pub fn validate_asr(config: &ConnectionConfig) -> Result<(), String> {
-    if !matches!(config.protocol.as_str(), "openai_audio" | "openai_realtime") {
+    if !matches!(config.protocol.as_str(), "openai_audio") {
         return Err("请选择支持的语音协议 / Select a supported speech protocol".into());
     }
     if config.model.trim().is_empty() {
@@ -43,20 +43,8 @@ pub async fn asr(config: &ConnectionConfig, key: &str) -> Result<models::Connect
     let (input, recording) = sample()?;
     let started = Instant::now();
     let output = tokio::time::timeout(Duration::from_secs(40), async {
-        match config.protocol.as_str() {
-            "openai_audio" => {
-                models::transcribe(config, key, recording.wav(0, recording.len())?, "en", &[])
-                    .await
-                    .map_err(String::from)
-            }
-            "openai_realtime" => {
-                let (stop, receiver) = tokio::sync::oneshot::channel();
-                let _ = stop.send(recording.len());
-                // Keep the adapter's error. Diagnostic tests must never use file fallback.
-                realtime::run(config, key, "en", &[], recording, receiver, |_| {}).await
-            }
-            _ => unreachable!(),
-        }
+        models::transcribe(config, key, recording.wav(0, recording.len())?, "en", &[])
+            .await.map_err(String::from)
     })
     .await
     .map_err(|_| "语音测试超时，请检查服务状态 / Speech test timed out")??;
@@ -75,9 +63,6 @@ pub async fn asr(config: &ConnectionConfig, key: &str) -> Result<models::Connect
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures_util::{SinkExt, StreamExt};
-    use serde_json::{json, Value};
-    use tokio_tungstenite::tungstenite::Message;
 
     #[tokio::test]
     async fn invalid_speech_config_fails_before_network() {
@@ -118,82 +103,4 @@ mod tests {
         assert_eq!(&wav[8..12], b"WAVE");
     }
 
-    #[tokio::test]
-    async fn speech_realtime_test_requires_negotiation_and_final_transcript() {
-        for outcome in ["complete", "rejected", "empty", "format", "closed"] {
-            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-            let config = ConnectionConfig {
-                base: format!("http://{}/v1", listener.local_addr().unwrap()),
-                model: "synthetic-realtime".into(),
-                protocol: "openai_realtime".into(),
-            };
-            let task = tokio::spawn(async move {
-                let (socket, _) = listener.accept().await.unwrap();
-                let mut ws = tokio_tungstenite::accept_async(socket).await.unwrap();
-                let setup: Value =
-                    serde_json::from_str(ws.next().await.unwrap().unwrap().to_text().unwrap())
-                        .unwrap();
-                assert_eq!(
-                    setup["session"]["audio"]["input"]["transcription"]["model"],
-                    "synthetic-realtime"
-                );
-                if outcome == "rejected" {
-                    ws.send(Message::Text(json!({"type":"error","error":{"message":"synthetic-private-provider-detail"}}).to_string().into())).await.unwrap();
-                } else if outcome != "closed" {
-                    let mut session = setup["session"].clone();
-                    if outcome == "format" {
-                        session["audio"]["input"]["format"]["rate"] = json!(16000);
-                    }
-                    ws.send(Message::Text(
-                        json!({"type":"session.updated","session":session})
-                            .to_string()
-                            .into(),
-                    ))
-                    .await
-                    .unwrap();
-                    if outcome != "format" {
-                        let mut bytes = 0;
-                        while let Some(Ok(Message::Text(text))) = ws.next().await {
-                            let event: Value = serde_json::from_str(&text).unwrap();
-                            if event["type"] == "input_audio_buffer.append" {
-                                bytes += STANDARD
-                                    .decode(event["audio"].as_str().unwrap())
-                                    .unwrap()
-                                    .len();
-                            }
-                            if event["type"] == "input_audio_buffer.commit" {
-                                assert_eq!(bytes, 112832);
-                                ws.send(Message::Text(json!({"type":"input_audio_buffer.committed","item_id":"test-final"}).to_string().into())).await.unwrap();
-                                let transcript = if outcome == "empty" {
-                                    " "
-                                } else {
-                                    "This is a speech recognition test."
-                                };
-                                ws.send(Message::Text(json!({"type":"conversation.item.input_audio_transcription.completed","item_id":"test-final","transcript":transcript}).to_string().into())).await.unwrap();
-                                break;
-                            }
-                        }
-                    }
-                }
-                drop(ws);
-                // No HTTP request or second connection may disguise a failed realtime test.
-                assert!(
-                    tokio::time::timeout(Duration::from_millis(100), listener.accept())
-                        .await
-                        .is_err()
-                );
-            });
-            let result = asr(&config, "").await;
-            if outcome == "complete" {
-                let result = result.unwrap();
-                assert_eq!(result.protocol, "openai_realtime");
-                assert_eq!(result.input, result.output);
-                assert_eq!(result.model, config.model);
-            } else {
-                let error = result.err().unwrap();
-                assert!(!error.contains("synthetic-private-provider-detail"));
-            }
-            task.await.unwrap();
-        }
-    }
 }
