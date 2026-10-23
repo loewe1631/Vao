@@ -1,6 +1,6 @@
 # Windows build and validation
 
-Windows release metadata is in `release.windows.json` and `desktop/tauri.windows.conf.json`. The product version is 0.2.1; build identity is separate. The Windows Git tag is `windows-v0.2.1`; the existing Mac `v0.2.1` tag remains unchanged.
+Windows release metadata is in `release.windows.json` and `desktop/tauri.windows.conf.json`. The product version is 0.2.5, build20261023.3017; build identity is separate. The Windows source tag is `windows-v0.2.5`; the shared `v0.2.5` release retains its existing Mac source tag and provides a separate Windows source archive and checksum list. Windows updates use `https://updates.vaovao.app/windows/stable.json` and versioned installers under `/downloads/windows/`; see [Windows updates](WINDOWS_UPDATES.md).
 
 On a Windows x64 build host with stable Rust, Node.js 22+, Python and the Tauri build prerequisites:
 
