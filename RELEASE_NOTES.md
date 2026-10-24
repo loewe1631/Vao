@@ -1,7 +1,7 @@
-# Vao 0.2.6 · macOS
+# Vao 0.2.6 · macOS & Windows
 
 Mac build20261024.2024 · Apple Silicon · macOS 12+ · source tag `v0.2.6`.
-Windows remains at [0.2.5](https://github.com/loewe1631/Vao/releases/tag/v0.2.5).
+Windows build20261024.3018 · x64 · Windows 10 1809+ · source tag `windows-v0.2.6`.
 
 - 新增个人纠错：普通听写整理后，在本机匹配你保存的错误写法，浮窗逐项选择替换、保留或取消；不会自动替换，不增加模型调用。
 - 相同正确词语自动归组，可管理多个错误写法、启停、搜索、删除和撤销；支持 JSON 导入预览与全部/所选导出。新安装词库为空，不自动迁移独立测试版数据。
@@ -13,6 +13,18 @@ Windows remains at [0.2.5](https://github.com/loewe1631/Vao/releases/tag/v0.2.5)
 ## English summary
 
 Adds on-device personal correction suggestions after ordinary dictation. Saved incorrect spellings can share a preferred form; choose replacements manually, keep the text or cancel. Manage groups and aliases, and import/export JSON. Only explicitly selected relationships are remembered; the library is not sent to models. Translation and selected-text workflows remain unchanged. File panels use a separately signed helper app. The public build includes About → Software update through Cloudflare. Existing stable data is retained; independent preview data is not migrated automatically. Signed, notarized and stapled.
+
+## Windows 0.2.6
+
+- 新增本机个人纠错：普通听写整理后显示建议，逐项手动替换、保留或取消；只有明确勾选的关系会记忆，不增加模型调用。
+- 同正确词归组、多错误别名、启停/搜索/删除/撤销，以及 JSON 导入预览、冲突处理和全部/所选导出。初始词库为空。
+- 保留 Windows 完成时当前光标/可选返回起始目标、UIA/剪贴板保护、非激活浮条、快捷键/Esc、停说自动结束。翻译及划词不触发纠错建议。
+- 0.2.5 用户可从“关于 → 软件更新”检查、下载验签并确认原路径安装；成功后重开。无更新器旧版和便携版请手动安装。更新清单有签名，Windows EXE 尚无 Authenticode 代码签名。
+- Windows CI、合成原生检查和产物核验通过；真实设备升级、物理点击及更多应用行为由用户更新后测试，尚未记为通过。
+
+Windows downloads: `Vao-0.2.6-setup.exe` or the portable ZIP. Windows source is the `windows-source` archive or tag `windows-v0.2.6`; the automatic source archive uses the Mac tag. Windows hashes are in `SHA256SUMS-windows`, and `windows-updater.json` is for the application updater. Existing Mac assets remain unchanged.
+
+Windows adds local personal corrections after ordinary dictation, with explicit review and opt-in memory, grouped aliases and JSON transfer. It retains the Windows input and signed Cloudflare update path. Engineering checks are separate from the user's post-publication device tests.
 
 ---
 

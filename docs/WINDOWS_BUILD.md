@@ -1,11 +1,11 @@
 # Windows build and validation
 
-Windows release metadata is in `release.windows.json` and `desktop/tauri.windows.conf.json`. The product version is 0.2.2, build 20261022.3014. The Windows source tag is `windows-v0.2.2` at `9803072d6ec7cdd69821b0bdd90d76f0cd1037b0`; the Mac `v0.2.2` tag remains unchanged. Both installers are available on the [unified release](https://github.com/loewe1631/Vao/releases/tag/v0.2.2).
+Windows release metadata is in `release.windows.json` and `desktop/tauri.windows.conf.json`. The product version is 0.2.6, build20261024.3018; build identity is separate. The Windows source tag is `windows-v0.2.6`; the shared `v0.2.6` release retains its existing Mac source tag and provides a separate Windows source archive and checksum list. Windows updates use `https://updates.vaovao.app/windows/stable.json` and versioned installers under `/downloads/windows/`; see [Windows updates](WINDOWS_UPDATES.md).
 
-The default `main` branch currently contains the Mac client. Use the Windows release tag for a reproducible Windows build, or `codex/windows` for ongoing Windows development:
+The default `main` branch contains the Mac client. For a reproducible Windows build, use the fixed Windows source tag:
 
 ```sh
-git clone --branch windows-v0.2.2 https://github.com/loewe1631/Vao.git
+git clone --branch windows-v0.2.6 https://github.com/loewe1631/Vao.git
 cd Vao
 ```
 
@@ -27,3 +27,5 @@ Browser UI tests use synthetic IPC. They do not establish microphone, login, des
 Release data uses `app.vaovao.windows`; early test data uses a separate identity. No implicit settings, history or credential migration occurs. Startup defaults to off and respects Windows system disablement. Uninstall hooks remove only matching startup ownership. TSF registration and changing the default input method are not part of installation.
 
 `node scripts/generate-windows-branding.cjs` regenerates the dedicated Windows ICO and installer BMP files from Vao's existing SVG logo. Mac assets are independent. Retain LICENSE, PROVENANCE.md, THIRD_PARTY_NOTICES.md and licenses/ in distributions.
+
+Personal correction matching is shared with Mac 0.2.6; Windows uses its own nonactivating overlay, file dialogs, current-caret/origin input adapters and NSIS updater. `npm run test:corrections-ui` tests browser IPC doubles. The Windows workflow additionally checks synthetic native correction replace/keep/cancel and database results; these do not establish physical clicks, speech or real-app acceptance.

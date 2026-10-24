@@ -12,12 +12,12 @@
 
 Vao 是一款面向 macOS 与 Windows 的开源语音输入工具：把口述整理成可用文字，根据内容与目标应用自动选择表达方式，并记住你明确选择的排版偏好。
 
-**Mac 0.2.6 · Windows 0.2.5。** [Mac 0.2.6 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.6)新增本机个人纠错建议、同正确词条归组与 JSON 导入导出；“关于 → 软件更新”继续使用 Cloudflare 签名更新。Windows 保持 [0.2.5](https://github.com/loewe1631/Vao/releases/tag/v0.2.5)。
+**Mac 0.2.6 · Windows 0.2.6。** [Mac 0.2.6 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.6)新增本机个人纠错建议、同正确词条归组与 JSON 导入导出；“关于 → 软件更新”继续使用 Cloudflare 签名更新。Windows 0.2.6 同步个人纠错，沿用 Windows 原生输入和更新流程。
 
 | 平台 | 安装包 | 要求 |
 | --- | --- | --- |
 | macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.6/Vao-0.2.6-build20261024.2024-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.6/Vao-0.2.6-build20261024.2024-mac-arm64.zip) | Apple Silicon · macOS 12+ |
-| Windows | [EXE 安装程序](https://github.com/loewe1631/Vao/releases/download/v0.2.5/Vao-0.2.5-setup.exe) | Windows 10 1809+ · x64；缺少 WebView2 时自动下载 |
+| Windows | [EXE 安装程序](https://github.com/loewe1631/Vao/releases/download/v0.2.6/Vao-0.2.6-setup.exe) | Windows 10 1809+ · x64；缺少 WebView2 时自动下载 |
 
 Mac 已使用 Developer ID 签名、通过 Apple 公证并附带票据；Windows 安装包尚无代码签名；首次打开提示见[安装指南](https://vaovao.app/install/)。Intel Mac 暂未提供。版本及源码对应关系见[版本说明](RELEASE_NOTES.md)。
 
@@ -30,9 +30,10 @@ Mac 已使用 Developer ID 签名、通过 Apple 公证并附带票据；Windows
 - **整段或局部翻译**：直接开始翻译录音，或仅翻译普通录音中的某一段。
 - **录音中切换应用**：Mac 通过校验后回填起始位置；Windows 默认输入到结果就绪时的当前光标，可选返回起始输入框。
 
-- **简洁的Mac听写流程**：录音结束后识别并整理最终文本。Mac 与 Windows 0.2.5 及以上均不提供临时转写和输入框/窗口参考。
+- **简洁的听写流程**：录音结束后识别并整理最终文本。Mac 与 Windows 0.2.5 及以上均不提供临时转写和输入框/窗口参考。
 - **智能补全**：根据输入内容线索分析并补全信息，默认开启，设置可关闭，保留已保存的选择；请核对推断内容。
-- **Mac 软件更新**：“关于”中手动检查、下载验签、确认重启安装；旧版需先手动升级一次。
+- **个人纠错**：普通听写后本机匹配已记住的错误写法，手动确认替换、保留或取消；仅明确选择的关系会记忆，支持 JSON 迁移。
+- **软件更新**：“关于”中手动检查、下载验签和确认安装，使用 Cloudflare 独立平台端点。Windows 0.2.5 可直接升级；没有升级器的旧版需先手动安装一次。
 - **词典迁移**：TXT/JSON 导入合并去重，只导出词条。
 
 划词只处理所选文字的编辑、翻译、回复组织及相关理解。自有文字服务会先做一次用途判断，增加一次请求、等待及可能费用；无关请求或判断失败会停止。普通口述中的问题仍作为输入，不由 Vao 回答。
@@ -55,7 +56,7 @@ Mac 已使用 Developer ID 签名、通过 Apple 公证并附带票据；Windows
 
 ## 安装与使用
 
-1. 从上方对应平台链接下载：Mac 将 **Vao.app** 拖入“应用程序”；Windows 运行 **Vao-0.2.5-setup.exe** 并按安装向导操作。
+1. 从上方对应平台链接下载：Mac 将 **Vao.app** 拖入“应用程序”；Windows 运行 **Vao-0.2.6-setup.exe** 并按安装向导操作。
 2. 打开 Vao。首次系统安全提示及权限设置见[安装与授权指南](https://vaovao.app/install/)；Windows 的详细操作见 [Windows 指南](docs/WINDOWS.md)。
 3. 按开始页完成：主动开通体验或配置自有模型、按需授权、检查快捷键。
 4. 点击目标输入框，按主键开始，说完再按一次结束。
@@ -68,7 +69,7 @@ Mac 已使用 Developer ID 签名、通过 Apple 公证并附带票据；Windows
 
 Mac 可录入按键或手动填写，包含 **Fn**、**Fn+Space**。Fn 依赖辅助功能，可能与系统地球键冲突。输入监控列表没有 Vao 时，用系统 **＋** 添加“应用程序”中的 Vao，开启后重启。点击授权不等于已经允许，权限页显示实际状态。
 
-自动输入默认开启，关闭后先预览、复制。选中文字后按主键立即录制要求，再按一次结束：提问显示并复制答案、保留原文；修改在自动输入开启时尝试替换原选区。
+自动输入默认开启，关闭后先预览、复制。选中文字后按主键立即录制要求，再按一次结束：提问保留原文，Mac 显示并复制答案，Windows 显示答案后可点击复制；修改在自动输入开启时尝试替换原选区。
 
 Mac 跨应用回填依赖辅助功能支持。原窗口关闭、内容或光标冲突时保留结果，不填入其他窗口。不提供可靠输入快照的应用仍受前台交互校验限制；微信目前需先点消息输入框。发出粘贴事件不等于验证目标收到。
 
@@ -100,7 +101,7 @@ ASR、文字服务分别配置。填写地址与可选密钥，获取模型、�
 
 ## 源码与编译
 
-当前 `main` 保留 Mac 客户端和 Xcode 构建入口；Windows 发行源码位于 [`windows-v0.2.5`](https://github.com/loewe1631/Vao/tree/windows-v0.2.5)，后续开发在 [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows)。两个标签未合并，统一 Release 中的自动 “Source code” 对应 Mac 标签；Windows 请下载带 `windows-source` 的归档或检出其标签。Windows 构建步骤见 [Windows build](docs/WINDOWS_BUILD.md)。
+当前 `main` 保留 Mac 客户端和 Xcode 构建入口；Windows 发行源码位于 [`windows-v0.2.6`](https://github.com/loewe1631/Vao/tree/windows-v0.2.6)，后续开发在 [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows)。两个标签未合并，统一 Release 中的自动 “Source code” 对应 Mac 标签；Windows 请下载带 `windows-source` 的归档或检出其标签。Windows 构建步骤见 [Windows build](docs/WINDOWS_BUILD.md)。
 
 ### Mac 编译与检查
 

@@ -1,6 +1,6 @@
 # Vao privacy / 数据处理说明
 
-Version 2026-10-23. Applies to Vao 0.2.3 for Mac and 0.2.2 for Windows.
+Version 2026-10-24. Applies to Vao 0.2.6 for Mac and Windows.
 
 ## 本机保存
 
@@ -77,7 +77,7 @@ Connection diagnostics send only fixed synthetic speech or a fixed correction se
 
 “返回录音起始位置”默认关闭。开启后校验起始进程、字段、内容和光标；其兼容粘贴选项默认开启，仅在该模式下生效。部分应用无法恢复原光标，请在结果完成前回到原输入位置。划词修改始终校验原选区。完整字段快照仅留有界内存，不落日志或历史。显式复制结果也会更新剪贴板。
 
-输入增强默认关闭；启用前后文时，仅在普通听写中向所选文字服务发送起始可验证字段光标前后各最多 500 字符。Windows 的窗口参考最多增加起始窗口标题的 120 个字符，不扫描页面、文档或采集域名。无法读取、密码、只读或已变化的目标会跳过上下文。原始上下文不参与历史或学习。
+Windows 0.2.5 起已移除临时转写及输入框/窗口参考增强，不再通过这些开关采集或发送上下文。原有目标、光标与选区快照仅用于本机输入保护；显式选区处理仍发送所选文字。
 
 The Windows release stores settings and credentials separately from early test editions, without automatic migration. Keys and installation credentials stay in Windows Credential Manager. Uninstalling does not automatically erase them or local history. Microphone access checks discard samples and contact no model. Long recordings use owner-restricted, exclusively opened temporary files deleted on close.
 
@@ -85,10 +85,18 @@ Ordinary dictation defaults to the clipboard plus one Ctrl+V at the current care
 
 Returning to the starting input is off by default. If enabled, it verifies the original process, field, contents and caret. Its compatibility paste option defaults to on and applies only in this mode. Some apps cannot restore the original caret; return there before processing finishes. Selection edits always verify their original selection. Full-field snapshots stay in bounded memory, outside logs and history. Explicit copying also updates the clipboard.
 
-Input enhancements are off by default. Ordinary-dictation context contains up to 500 characters per side of the original verified caret. Windows window context adds only up to 120 characters of the starting title; no page/document scan or domain collection. Unreadable, changed, password and readonly inputs skip context. Raw reference data stays out of history and learning.
+Windows 0.2.5 and later remove temporary transcription and ambient input/window enhancement. Target/caret/selection snapshots remain local insertion safeguards; explicit selection processing still sends selected text.
 
 ## Mac 软件更新 / Mac software updates
 
-在“关于”中主动点击检查更新时，Vao 会连接 GitHub 的官方公开发布清单；点击下载后再请求对应更新包及 GitHub 资产分发节点。请求不包含录音、转写、词典、历史、模型密钥或体验凭据；网络服务仍会处理来源 IP、请求路径和通用更新客户端标识。不在后台自动检查或下载，未提供有效清单时明确显示无法检查。更新前校验签名、包完整性与应用身份；应用数据和钥匙串不随 App 替换，旧 App 留在安装目录旁的隐藏备份目录。
+在“关于”中主动点击检查更新时，Vao 会连接 updates.vaovao.app 的 Mac 平台公开发布清单；点击下载后再从同域请求对应更新包。请求不包含录音、转写、词典、历史、模型密钥或体验凭据；网络服务仍会处理来源 IP、请求路径和通用更新客户端标识。不在后台自动检查或下载，未提供有效清单时明确显示无法检查。更新前校验签名、包完整性与应用身份；应用数据和钥匙串不随 App 替换，旧 App 留在安装目录旁的隐藏备份目录。
 
-When you choose Check for updates in About, Vao requests the official public GitHub release manifest. Downloading requests the selected archive and GitHub asset distribution hosts. These requests contain no audio, transcripts, vocabulary, history, model keys or trial credentials. Network services still process the source IP, request path and a generic updater user agent. There are no background checks or downloads. Updates verify the signed release and archive before replacing the App; app data and Keychain remain separate, and the previous App is retained in a hidden directory beside the installation.
+When you choose Check for updates in About, Vao requests the public Mac release manifest from updates.vaovao.app. Downloading requests the selected archive on the same domain. These requests contain no audio, transcripts, vocabulary, history, model keys or trial credentials. Network services still process the source IP, request path and a generic updater user agent. There are no background checks or downloads. Updates verify the signed release and archive before replacing the App; app data and Keychain remain separate, and the previous App is retained in a hidden directory beside the installation.
+
+## Windows 0.2.6 个人纠错与更新 / Windows corrections and updates
+
+个人纠错只在普通听写整理完成后本机匹配，不向模型发送词库，也不增加请求；只有明确选择记忆的关系进入本机词库。历史纠正版与原结果分开保存，清历史保留词库。JSON 导出只含纠错组和别名及格式元数据，不含密钥、录音或历史；词语可能私人，由你决定分享。
+
+Windows“关于 → 软件更新”主动访问 updates.vaovao.app 的 Windows 清单，下载经同源限定的安装器并验签、校验大小及 SHA256；不后台检查/下载，不发送录音、正文、词典、纠错库、模型密钥或体验凭据。网络设施处理来源 IP、路径及通用客户端标识。确认后使用原注册目录更新并在成功后重开，保留数据与 Windows 凭据。取消或失败可能需手动重开，不承诺 Mac 式自动回滚；更新清单签名不等于安装器已有 Authenticode 签名。
+
+Windows personal corrections match locally after ordinary dictation. The library is not sent to models; only explicitly selected relationships are remembered. Corrected history is separate from the original, and clearing history keeps the library. JSON exports contain correction groups/aliases and format metadata, without keys, audio or history; the terms themselves may be private. Windows updates are manually requested from updates.vaovao.app without private content or credentials. Verified installation uses the registered directory and reopens on success; a cancelled/failed installation may need manual reopening. Signed metadata does not make the installer Authenticode-signed.
