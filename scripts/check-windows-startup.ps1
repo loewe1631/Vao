@@ -80,3 +80,11 @@ foreach ($name in $requiredPaste) {
     if (!($pasteProbe.checks | Where-Object { $_.name -eq $name -and $_.passed })) { throw "Missing native paste regression: $name" }
 }
 Write-Output 'Native paste receipt, clipboard ownership, delayed consumers and retired context checks passed.'
+
+$correctionPath = Join-Path $output 'runner-corrections.json'
+$corrections = Run-Probe -ProbeArgs @('--verify-ui', '--windows-corrections-probe', '--smoke-test', ('"' + $correctionPath + '"')) -ReportPath $correctionPath
+if (!$corrections.passed -or $corrections.audio -ne $false -or $corrections.external_insertion -ne $false -or
+    $corrections.checks.Count -lt 12 -or @($corrections.checks | Where-Object { $_.passed -ne $true }).Count -ne 0) {
+    throw 'Native corrections WebView/IPC/database checks failed'
+}
+Write-Output 'Corrections replace/keep/cancel, nonactivating overlay and immutable original passed with synthetic content.'

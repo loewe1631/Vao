@@ -1,7 +1,7 @@
 {
   "product": "Vao",
-  "version": "0.2.5",
-  "build": "20261023.3017",
+  "version": "0.2.6",
+  "build": "20261024.3018",
   "bundle": "app.vaovao.windows",
   "binary": "vao.exe",
   "channel": "stable",

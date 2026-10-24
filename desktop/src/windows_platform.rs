@@ -59,6 +59,8 @@ pub fn call(request: Value) -> Result<Value, String> {
         "deliver" => crate::windows_input::deliver(&request, true),
         "deliver_current" => crate::windows_paste::deliver_current(&request),
         "return_source" => crate::windows_input::deliver(&request, false),
+        "corrections_import" => crate::windows_files::correction_dialog(false),
+        "corrections_export" => crate::windows_files::correction_dialog(true),
         "dictionary_import" => crate::windows_files::dictionary_dialog(false),
         "dictionary_export" => crate::windows_files::dictionary_dialog(true),
         _ => Err("Windows adapter does not support this operation".into()),

@@ -85,16 +85,22 @@ pub fn replace(temporary: &Path, target: &Path) -> Result<(), &'static str> {
 }
 
 pub fn dictionary_dialog(save: bool) -> Result<Value, String> {
+    file_dialog(save, false)
+}
+pub fn correction_dialog(save: bool) -> Result<Value, String> {
+    file_dialog(save, true)
+}
+fn file_dialog(save: bool, corrections: bool) -> Result<Value, String> {
     static DIALOG: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _dialog = DIALOG.lock().map_err(|_| "文件窗口不可用")?;
     unsafe {
         let mut file = vec![0u16; 32768];
         if save {
-            for (i, c) in "Vao-dictionary.json".encode_utf16().enumerate() {
+            for (i, c) in (if corrections { "Vao-personal-corrections.json" } else { "Vao-dictionary.json" }).encode_utf16().enumerate() {
                 file[i] = c;
             }
         }
-        let filter: Vec<_> = "Dictionary (*.json;*.txt)\0*.json;*.txt\0JSON (*.json)\0*.json\0Text (*.txt)\0*.txt\0\0".encode_utf16().collect();
+        let filter: Vec<_> = (if corrections { "Personal corrections (*.json)\0*.json\0\0" } else { "Dictionary (*.json;*.txt)\0*.json;*.txt\0JSON (*.json)\0*.json\0Text (*.txt)\0*.txt\0\0" }).encode_utf16().collect();
         let extension: Vec<_> = "json\0".encode_utf16().collect();
         let mut dialog: OPENFILENAMEW = std::mem::zeroed();
         dialog.lStructSize = std::mem::size_of::<OPENFILENAMEW>() as u32;

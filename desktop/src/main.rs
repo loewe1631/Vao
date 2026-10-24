@@ -3,6 +3,12 @@ mod audio;
 mod auto_stop;
 mod connection_test;
 mod dictionary_io;
+mod correction_store;
+mod correction_io;
+mod correction_runtime;
+mod correction_probe;
+use correction_io::{save_correction_book,undo_correction_book,preview_correction_import,commit_correction_import,cancel_correction_import,export_corrections};
+use correction_runtime::{save_result_correction,resolve_correction_prompt};
 use dictionary_io::{import_dictionary,export_dictionary};
 mod transcription;
 mod hotkeys;
@@ -60,6 +66,9 @@ struct Runtime {
     answer_serial: u64,
     bar_mouse_start: u32,
     auto_stopped: bool,
+    correction_book: vao_core::corrections::Book,
+    pending_correction: Option<correction_runtime::Pending>,
+    correction_resolved: Option<u64>,
 }
 impl Default for Runtime {
     fn default() -> Self {
@@ -82,6 +91,9 @@ impl Default for Runtime {
             answer_serial: 0,
             bar_mouse_start: 0,
             auto_stopped: false,
+            correction_book: Default::default(),
+            pending_correction: None,
+            correction_resolved: None,
         }
     }
 }
@@ -190,7 +202,7 @@ async fn save_shortcuts(
             let mut runtime = state.runtime.lock().unwrap();
             if matches!(
                 runtime.session.phase,
-                Phase::Preparing | Phase::Listening | Phase::Processing | Phase::Delivering
+                Phase::Preparing | Phase::Listening | Phase::Processing | Phase::AwaitingCorrection | Phase::Delivering
             ) {
                 return Err(
                     "请结束或取消当前录音后再修改 / Finish or cancel the session first".into(),
@@ -250,7 +262,7 @@ fn shortcut_capture(app: tauri::AppHandle, enabled: bool) -> Result<bool, String
     if enabled
         && matches!(
             r.session.phase,
-            Phase::Preparing | Phase::Listening | Phase::Processing | Phase::Delivering
+            Phase::Preparing | Phase::Listening | Phase::Processing | Phase::AwaitingCorrection | Phase::Delivering
         )
     {
         return Err("请先结束录音 / Finish recording first".into());
@@ -280,6 +292,10 @@ fn dispatch_shortcut(h: tauri::AppHandle, action: usize) {
             if let Err(e) = toggle_translation(h.clone()).await {
                 h.state::<AppState>().runtime.lock().unwrap().error = e;
             }
+            return;
+        }
+        // A stop-key repeat while reviewing cannot steal the destination focus.
+        if h.state::<AppState>().runtime.lock().unwrap().session.phase == Phase::AwaitingCorrection {
             return;
         }
         let pending = {
@@ -354,7 +370,7 @@ fn show_bar(app: &tauri::AppHandle, show: bool) {
                 (
                     r.target["display_id"].as_u64().unwrap_or(0) as u32,
                     r.session.id,
-                    if !r.answer.is_empty(){1}else{0},
+                    if !r.answer.is_empty()||r.pending_correction.is_some(){1}else{0},
                 )
             };
             let handle = app.clone();
@@ -386,7 +402,8 @@ fn snapshot(state: State<AppState>) -> Value {
     let auto = r.capture.as_ref().and_then(audio::Capture::auto_stop_status);
     let countdown = auto.and_then(|(seconds, status)| status.countdown(seconds));
     let unavailable = auto.is_some_and(|(_, status)| status.unavailable);
-    json!({"session":r.session,"level":level,"seconds":r.started.map(|t|t.elapsed().as_secs()).unwrap_or(0),"translating":r.translating,"detail":r.detail,"error":r.error,"result":r.result,"hotkeys":r.hotkeys,"uiLanguage":r.settings.ui_language,"translationLanguage":r.settings.translation_language,"theme":r.settings.theme,"notice":r.notice,"answer":r.answer,"selection":r.target["selection"].as_str().is_some_and(|s|!s.is_empty()),"autoStopCountdown":countdown,"autoStopUnavailable":unavailable})
+    let result=r.result.as_ref().map(|v|state.store.lock().unwrap().correction_view(v).unwrap_or_else(|_|json!(v)));
+    json!({"session":r.session,"level":level,"seconds":r.started.map(|t|t.elapsed().as_secs()).unwrap_or(0),"translating":r.translating,"detail":r.detail,"error":r.error,"result":result,"correction":r.pending_correction,"hotkeys":r.hotkeys,"uiLanguage":r.settings.ui_language,"translationLanguage":r.settings.translation_language,"theme":r.settings.theme,"notice":r.notice,"answer":r.answer,"selection":r.target["selection"].as_str().is_some_and(|s|!s.is_empty()),"autoStopCountdown":countdown,"autoStopUnavailable":unavailable})
 }
 #[tauri::command]
 fn update_status(state: State<windows_updater::Updates>) -> windows_updater::Status { state.status() }
@@ -401,7 +418,7 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         worker.state::<windows_updater::Updates>().install(|| {
             let state = worker.state::<AppState>();
             let runtime = state.runtime.lock().unwrap();
-            !matches!(runtime.session.phase, Phase::Preparing | Phase::Listening | Phase::Processing | Phase::Ready)
+            !matches!(runtime.session.phase, Phase::Preparing | Phase::Listening | Phase::Processing | Phase::AwaitingCorrection | Phase::Ready | Phase::Delivering)
         })
     }).await.map_err(|_| "更新安装中断 / Update installation interrupted".to_string())??;
     // NSIS /R starts the updated installation after a successful install.
@@ -431,6 +448,17 @@ async fn report_ui_ready(window: tauri::WebviewWindow, state: State<'_, AppState
     }
     let args = std::env::args().collect::<Vec<_>>();
     if args.iter().any(|arg| arg == "--windows-input-probe") { return Ok(false); }
+    #[cfg(target_os = "windows")]
+    if args.iter().any(|arg| arg == "--windows-corrections-probe") {
+        let report = correction_probe::probe_corrections(window.app_handle().clone()).await?;
+        let directory = verification_output()?;
+        let args = std::env::args().collect::<Vec<_>>();
+        let index = args.iter().position(|a| a == "--smoke-test").ok_or("Missing probe output")?;
+        let path = directory.join(std::path::Path::new(args.get(index + 1).ok_or("Missing probe output")?).file_name().ok_or("Invalid probe output")?);
+        std::fs::write(path, serde_json::to_vec_pretty(&report).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        return Ok(false);
+    }
     if let Some(i) = args.iter().position(|s| s == "--smoke-test") {
         if let Some(path) = args.get(i + 1) {
             #[cfg(target_os = "windows")]
@@ -461,7 +489,8 @@ async fn report_ui_ready(window: tauri::WebviewWindow, state: State<'_, AppState
 #[tauri::command]
 fn bootstrap(state: State<AppState>) -> Result<Value, String> {
     let db = state.store.lock().unwrap();
-    let data = json!({"settings":db.get::<Settings>("settings"),"profile":db.get::<Profile>("profile"),"history":db.history()?,"version":env!("VAO_RELEASE_VERSION"),"build":env!("VAO_BUILD_NUMBER"),"platform":std::env::consts::OS,"permissions":permissions::snapshot(),"trial":trial::local_status(&db.get::<Settings>("settings"))});
+    let history=db.history()?.iter().map(|r|db.correction_view(r)).collect::<Result<Vec<_>,_>>()?;
+    let data = json!({"settings":db.get::<Settings>("settings"),"profile":db.get::<Profile>("profile"),"corrections":db.corrections()?,"history":history,"version":env!("VAO_RELEASE_VERSION"),"build":env!("VAO_BUILD_NUMBER"),"platform":std::env::consts::OS,"permissions":permissions::snapshot(),"trial":trial::local_status(&db.get::<Settings>("settings"))});
     #[cfg(target_os = "windows")]
     let data = {
         let mut data = data;
@@ -612,7 +641,7 @@ async fn permissions(app: tauri::AppHandle) -> Value {
             !r.hotkeys
                 && !matches!(
                     r.session.phase,
-                    Phase::Preparing | Phase::Listening | Phase::Processing | Phase::Delivering
+                    Phase::Preparing | Phase::Listening | Phase::Processing | Phase::AwaitingCorrection | Phase::Delivering
                 )
         };
         if can_recover {
@@ -755,7 +784,7 @@ async fn repair_permission(app: tauri::AppHandle, kind: String) -> Result<Value,
             .unwrap()
             .session
             .phase,
-        Phase::Preparing | Phase::Listening | Phase::Processing | Phase::Delivering
+        Phase::Preparing | Phase::Listening | Phase::Processing | Phase::AwaitingCorrection | Phase::Delivering
     ) {
         return Err("请先完成当前录音或处理 / Finish the current recording first".into());
     }
@@ -782,7 +811,7 @@ fn restart_for_permissions(app: tauri::AppHandle) -> Result<(), String> {
             .unwrap()
             .session
             .phase,
-        Phase::Preparing | Phase::Listening | Phase::Processing | Phase::Delivering
+        Phase::Preparing | Phase::Listening | Phase::Processing | Phase::AwaitingCorrection | Phase::Delivering
     ) {
         return Err("请先完成当前录音或处理 / Finish the current recording first".into());
     }
@@ -873,7 +902,7 @@ async fn toggle_recording(app: tauri::AppHandle) -> Result<(), String> {
         Ok(())
     } else if matches!(
         phase,
-        Phase::Processing | Phase::Preparing | Phase::Delivering
+        Phase::Processing | Phase::Preparing | Phase::AwaitingCorrection | Phase::Delivering
     ) {
         Err(
             "正在处理，可使用取消快捷键或取消按钮 / Busy; use your cancel shortcut or button"
@@ -884,10 +913,10 @@ async fn toggle_recording(app: tauri::AppHandle) -> Result<(), String> {
     }
 }
 async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
-    let (settings, profile) = {
+    let (settings, profile, corrections) = {
         let state = app.state::<AppState>();
         let db = state.store.lock().unwrap();
-        (db.get::<Settings>("settings"), db.get::<Profile>("profile"))
+        (db.get::<Settings>("settings"), db.get::<Profile>("profile"), db.corrections()?)
     };
     // Reserve the session before asynchronous target/microphone work, preventing double starts.
     let id = {
@@ -901,6 +930,9 @@ async fn start(app: tauri::AppHandle, translating: bool) -> Result<(), String> {
         { windows_paste::clear(); windows_uia::invalidate(); }
         r.settings = settings.clone();
         r.profile = profile;
+        r.correction_book=corrections;
+        r.pending_correction=None;
+        r.correction_resolved=None;
         r.target = json!({});
         r.markers.clear();
         if translating {
@@ -1051,6 +1083,7 @@ fn cancel(app: tauri::AppHandle) {
         r.notice = None;
         r.answer.clear();
         r.translating = false;
+        r.pending_correction=None;
         r.started = None;
         r.detail = "已取消 / Cancelled".into();
         r.capture.take()
@@ -1283,9 +1316,9 @@ async fn finish(app: tauri::AppHandle, expected_id: u64, automatic: bool) -> Res
  }
  current(&app,id)?;
  let record=ResultRecord{id:0,created:now(),scene:used_scene,layout:used_layout,revision:profile.learned_revision,original:originals.join("\n"),text:outputs.join("\n"),risks:risk_flags,app:target["name"].as_str().unwrap_or("").into(),delivery:"preview".into(),feedback:false,refinement};
- let record={let state=app.state::<AppState>();let mut runtime=state.runtime.lock().unwrap();if !runtime.session.active(id){return Err("cancelled".into());}let record=state.store.lock().unwrap().add(record)?;runtime.session.advance(id,Phase::Ready)?;runtime.result=Some(record.clone());runtime.detail="已整理 / Ready".into();record};
- show_bar(&app,false);escape_key(&app,false);
- route_result(&app,id,&target,&record,settings.auto_input);
+ let (record,waiting)={let state=app.state::<AppState>();let mut runtime=state.runtime.lock().unwrap();if !runtime.session.active(id){return Err("cancelled".into());}let record=state.store.lock().unwrap().add(record)?;runtime.result=Some(record.clone());runtime.detail="已整理 / Ready".into();let waiting=correction_runtime::prepare(&mut runtime,&record,selection.is_none()&&markers.is_empty())?;(record,waiting)};
+ show_bar(&app,waiting);escape_key(&app,waiting);
+ if !waiting {route_result(&app,id,&target,&record,settings.auto_input);}
  if recording.warning.is_some(){recording_warning(&app,id);}
  let _=app.emit("result-ready",record.id);Ok::<(),FlowError>(())
  }).await.unwrap_or_else(|_|Err("本次处理等待超时，已停止请求 / Session timed out".into()));
@@ -1330,6 +1363,13 @@ fn route_result(
 ) {
     #[cfg(target_os = "windows")]
     {
+        let mut effective = record.clone();
+        let effective_text = { app.state::<AppState>().store.lock().unwrap().effective_text(record) };
+        match effective_text {
+            Ok(text) => effective.text = text,
+            Err(error) => { app.state::<AppState>().runtime.lock().unwrap().error = error; return; }
+        }
+        let record = &effective;
         let asks = !target["selection"].as_str().unwrap_or("").is_empty()
             && vao_core::selection_asks(&record.original);
         if auto_input && !asks {
@@ -1433,7 +1473,7 @@ fn deliver_inner(app: &tauri::AppHandle, id: u64) -> Result<(), String> {
             return Err("没有外部输入目标，请复制结果 / Copy the result".into());
         }
         let result = r.result.as_ref().ok_or("无可输入结果")?;
-        let text = result.text.clone();
+        let text = state.store.lock().unwrap().effective_text(result)?;
         let record_id = result.id;
         r.session.claim_delivery(id)?;
         (
@@ -1481,7 +1521,7 @@ fn deliver_inner(app: &tauri::AppHandle, id: u64) -> Result<(), String> {
 #[tauri::command]
 fn copy_result(state: State<AppState>, id: i64) -> Result<(), String> {
     let text = if id > 0 {
-        state.store.lock().unwrap().result(id)?.text
+        {let db=state.store.lock().unwrap();db.effective_text(&db.result(id)?)?}
     } else {
         state
             .runtime
@@ -1533,13 +1573,16 @@ fn profile_action(
     db.set("profile", &p)
 }
 #[tauri::command]
-fn clear_history(state: State<AppState>) -> Result<(), String> {
-    state.store.lock().unwrap().clear_history()?;
+fn clear_history(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
+    // Use the delivery lock order so a waiting confirmation cannot race history removal.
     let mut r = state.runtime.lock().unwrap();
+    state.store.lock().unwrap().clear_history()?;
     r.result = None;
-    if r.session.phase == Phase::Ready {
-        r.session.cancel();
-    }
+    let pending=matches!(r.session.phase,Phase::Ready|Phase::AwaitingCorrection);
+    if pending {r.session.cancel();}
+    r.pending_correction=None;
+    drop(r);
+    if pending {show_bar(&app,false);escape_key(&app,false);}
     Ok(())
 }
 
@@ -1818,6 +1861,7 @@ fn main() {
 
     let builder = tauri::Builder::default()
         .manage(windows_updater::Updates::default())
+        .manage(correction_io::Transfers::default())
         .plugin(tauri_plugin_single_instance::init(|app, args, _| {
             if !login_background_launch(&args) { show_main(app); }
         }))
@@ -1845,6 +1889,11 @@ fn main() {
                     path.join("vao.sqlite3"),
                     std::fs::Permissions::from_mode(0o600),
                 )?;
+            }
+            if args.iter().any(|a| a == "--verify-ui") {
+                let mut settings=db.get::<Settings>("settings");
+                settings.shortcuts=hotkeys::Shortcuts{record:"Control+Alt+Shift+F19".into(),translate:"Control+Alt+Shift+F20".into(),cancel:"Escape".into()};
+                db.set("settings",&settings).map_err(std::io::Error::other)?;
             }
             app.manage(AppState {
                 runtime: Mutex::new(Runtime::default()),
@@ -1941,6 +1990,8 @@ fn main() {
             fit_voicebar,drag_voicebar,dismiss_answer,locked_target_probe::probe_locked_target,overlay_probe::probe_overlay,overlay_probe::probe_overlay_event,
             bootstrap,
             save_settings,import_dictionary,export_dictionary,save_shortcuts,shortcut_status,shortcut_capture,
+            save_correction_book,undo_correction_book,preview_correction_import,commit_correction_import,cancel_correction_import,export_corrections,
+            save_result_correction,resolve_correction_prompt,correction_probe::probe_corrections,
             save_key,
             key_status,
             fetch_models,

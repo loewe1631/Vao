@@ -1,3 +1,17 @@
+# Vao 0.2.6 · Windows
+
+Windows build20261024.3018 · Windows 10 1809+ · x64 · source tag `windows-v0.2.6`.
+
+- 新增本机个人纠错：同正确词归组、多错误别名；普通听写后静态等待，逐位置手动替换、保留或取消，不增加模型调用、不上传纠错库。
+- 结果与历史可保存纠正版，仅明确勾选的关系会记忆；支持词库搜索、启停、撤销及 JSON 导入预览/冲突/全部或所选导出。新库为空，清历史保留词库。
+- Windows 非激活浮条、原生文件窗口和安全覆盖；确认后沿用当前光标或可选起始目标输入策略。翻译、划词、音频和停说结束保持原链。
+- 0.2.5 可通过“关于 → 软件更新”从 Cloudflare 升级；安装器仍无 Authenticode 签名，签名更新清单单独验签。
+- 工程检查与真实设备测试分别记录；本版按用户安排先公开，更新后的真实笔记本验收待进行。
+
+Adds local personal correction suggestions, explicit memory, corrected history and JSON transfer. Confirm replacements manually without additional model requests. Windows retains its own nonactivating overlay, native file handling and insertion policy. Existing 0.2.5 installations can update from About through Cloudflare. The installer remains unsigned by Authenticode. Windows laptop acceptance follows publication at the user's request.
+
+---
+
 # Vao 0.2.1 for Windows · build20261021.3013
 
 Windows 10（1809）及更新版本，64 位。下载文件：`Vao-0.2.1-setup.exe`。

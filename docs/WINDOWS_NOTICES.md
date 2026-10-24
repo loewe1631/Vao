@@ -143,9 +143,9 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | memchr | 2.8.3 | Unlicense OR MIT |
 | mime | 0.3.17 | MIT OR Apache-2.0 |
 | mime_guess | 2.0.5 | MIT |
+| minisign-verify | 0.2.5 | MIT |
 | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 |
 | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 |
-| minisign-verify | 0.2.5 | MIT |
 | mio | 1.2.4 | MIT |
 | muda | 0.19.3 | Apache-2.0 OR MIT |
 | new_debug_unreachable | 1.0.6 | MIT |
@@ -248,6 +248,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | tauri-runtime-wry | 2.11.2 | Apache-2.0 OR MIT |
 | tauri-utils | 2.9.2 | Apache-2.0 OR MIT |
 | tauri-winres | 0.3.6 | MIT |
+| tempfile | 3.27.0 | MIT OR Apache-2.0 |
 | tendril | 0.5.1 | MIT OR Apache-2.0 |
 | thiserror | 1.0.69 | MIT OR Apache-2.0 |
 | thiserror | 2.0.21 | MIT OR Apache-2.0 |
@@ -288,6 +289,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | unic-ucd-version | 0.9.0 | MIT/Apache-2.0 |
 | unicase | 2.10.0 | MIT OR Apache-2.0 |
 | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 |
+| unicode-normalization | 0.1.25 | MIT OR Apache-2.0 |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 |
 | untrusted | 0.9.0 | ISC |
 | url | 2.5.8 | MIT OR Apache-2.0 |
@@ -303,7 +305,7 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | want | 0.3.2 | MIT |
 | web_atoms | 0.2.6 | MIT OR Apache-2.0 |
 | webpki-roots | 1.0.10 | CDLA-Permissive-2.0 |
-| webrtc-vad | 0.4.0 | MIT; bundled libfvad/WebRTC BSD-3-Clause and PATENTS |
+| webrtc-vad | 0.4.0 | MIT |
 | webview2-com | 0.38.2 | MIT |
 | webview2-com-macros | 0.8.1 | MIT |
 | webview2-com-sys | 0.38.2 | MIT |
@@ -348,5 +350,3 @@ Locked x86_64-pc-windows-msvc dependencies, including build tools. Full texts an
 | zerovec-derive | 0.11.6 | Unicode-3.0 |
 | zlib-rs | 0.6.8 | Zlib |
 | zmij | 1.0.23 | MIT |
-
-Local pause detection uses webrtc-vad 0.4.0. The crate includes libfvad/WebRTC native code. Its MIT license, bundled BSD license/attributions and patent grant are preserved in `licenses/windows/webrtc-vad-0.4.0/` and indexed with SHA256 in `licenses/windows/index.json`. Audio is not uploaded by this detector.

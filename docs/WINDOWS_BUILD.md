@@ -1,6 +1,6 @@
 # Windows build and validation
 
-Windows release metadata is in `release.windows.json` and `desktop/tauri.windows.conf.json`. The product version is 0.2.5, build20261023.3017; build identity is separate. The Windows source tag is `windows-v0.2.5`; the shared `v0.2.5` release retains its existing Mac source tag and provides a separate Windows source archive and checksum list. Windows updates use `https://updates.vaovao.app/windows/stable.json` and versioned installers under `/downloads/windows/`; see [Windows updates](WINDOWS_UPDATES.md).
+Windows release metadata is in `release.windows.json` and `desktop/tauri.windows.conf.json`. The product version is 0.2.6, build20261024.3018; build identity is separate. The Windows source tag is `windows-v0.2.6`; the shared `v0.2.6` release retains its existing Mac source tag and provides a separate Windows source archive and checksum list. Windows updates use `https://updates.vaovao.app/windows/stable.json` and versioned installers under `/downloads/windows/`; see [Windows updates](WINDOWS_UPDATES.md).
 
 On a Windows x64 build host with stable Rust, Node.js 22+, Python and the Tauri build prerequisites:
 
@@ -20,3 +20,5 @@ Browser UI tests use synthetic IPC. They do not establish microphone, login, des
 Release data uses `app.vaovao.windows`; early test data uses a separate identity. No implicit settings, history or credential migration occurs. Startup defaults to off and respects Windows system disablement. Uninstall hooks remove only matching startup ownership. TSF registration and changing the default input method are not part of installation.
 
 `node scripts/generate-windows-branding.cjs` regenerates the dedicated Windows ICO and installer BMP files from Vao's existing SVG logo. Mac assets are independent. Retain LICENSE, PROVENANCE.md, THIRD_PARTY_NOTICES.md and licenses/ in distributions.
+
+Personal correction matching is shared with Mac 0.2.6; Windows uses its own nonactivating overlay, file dialogs, current-caret/origin input adapters and NSIS updater. `npm run test:corrections-ui` tests browser IPC doubles. The Windows workflow additionally checks synthetic native correction replace/keep/cancel and database results; these do not establish physical clicks, speech or real-app acceptance.

@@ -22,6 +22,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
       - run: npm run test:windows-ui
+      - run: npm run test:corrections-ui
       - run: python3 scripts/package-source.py
   mac-core-and-host:
     runs-on: macos-15

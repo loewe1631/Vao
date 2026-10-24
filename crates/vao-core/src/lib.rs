@@ -4,6 +4,7 @@ mod writing;
 mod input_scope;
 mod semantic;
 pub mod completion;
+pub mod corrections;
 pub use semantic::{LayoutSource, WritingOptions};
 pub use semantic::spelling_evidence;
 pub use semantic::semantic_completion_allowed;
@@ -20,6 +21,7 @@ pub enum Phase {
     Preparing,
     Listening,
     Processing,
+    AwaitingCorrection,
     Ready,
     Delivering,
     Completed,
@@ -46,7 +48,7 @@ impl Session {
     pub fn begin(&mut self) -> Result<u64, String> {
         if matches!(
             self.phase,
-            Phase::Preparing | Phase::Listening | Phase::Processing | Phase::Delivering
+            Phase::Preparing | Phase::Listening | Phase::Processing | Phase::AwaitingCorrection | Phase::Delivering
         ) {
             return Err("busy".into());
         }
@@ -64,6 +66,9 @@ impl Session {
             (Phase::Preparing, Phase::Listening)
                 | (Phase::Listening, Phase::Processing)
                 | (Phase::Processing, Phase::Ready)
+                | (Phase::Processing, Phase::AwaitingCorrection)
+                | (Phase::AwaitingCorrection, Phase::Ready)
+                | (Phase::AwaitingCorrection, Phase::Failed)
                 | (Phase::Ready, Phase::Delivering)
                 // A copied/displayed answer completes without inserting into the source.
                 | (Phase::Ready, Phase::Completed)
@@ -83,7 +88,7 @@ impl Session {
     pub fn cancel(&mut self) {
         if matches!(
             self.phase,
-            Phase::Preparing | Phase::Listening | Phase::Processing | Phase::Ready
+            Phase::Preparing | Phase::Listening | Phase::Processing | Phase::AwaitingCorrection | Phase::Ready
         ) {
             self.phase = Phase::Cancelled;
         }

@@ -1,23 +1,29 @@
-# Vao 0.2.5 for Windows
+# Vao 0.2.6 for Windows
 
-适用于 Windows 10（1809）及更新版本，64 位。安装程序为 **Vao-0.2.5-setup.exe**，包含 Vao 图标与中文、英文安装向导。
+适用于 Windows 10（1809）及更新版本，64 位。安装程序为 **Vao-0.2.6-setup.exe**，包含 Vao 图标与中文、英文安装向导。
 
 ## 安装与开始使用
 
-1. 从 [Vao 0.2.5 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.5)下载 Windows 安装程序并双击运行，也可使用 [Cloudflare 直接下载](https://updates.vaovao.app/downloads/windows/Vao-0.2.5-build20261023.3017-windows-x64-setup.exe)。首次安装需要网络；如果缺少 Microsoft WebView2，安装程序会下载其官方运行环境。
+1. 从 [Vao 0.2.6 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.6)下载 Windows 安装程序并双击运行，也可使用 [Cloudflare 直接下载](https://updates.vaovao.app/downloads/windows/Vao-0.2.6-build20261024.3018-windows-x64-setup.exe)。首次安装需要网络；如果缺少 Microsoft WebView2，安装程序会下载其官方运行环境。
 2. 按向导完成安装，打开 Vao。在设置中检查麦克风访问，选择语音与文字服务；可使用免费体验服务，也可配置自有连接。
 3. 点击需要输入文字的文本框，按主快捷键开始录音，说完再按一次。默认主快捷键为 Ctrl+Alt+Space；可在设置中修改。
 4. 整理期间保持目标输入框获得焦点。结果完成时，文字粘贴到当前光标位置，不会替你发送消息。无法输入时可从历史复制结果。
 
 本安装包尚无 Windows 代码签名。若系统拦截，请核对下载来源与发布页校验值，再根据系统提示决定是否运行。
 
-Windows 0.2.2 及使用同一安装目录的近期候选可以直接覆盖升级，保留设置、词典、历史、凭据和登录启动选择。曾使用独立身份的早期 Windows 预览版需先退出并卸载该预览版，再安装正式版；两者分别保存设置和凭据，不自动导入旧数据。卸载只清理匹配的登录启动项，不自动清除凭据或历史。
+Windows 0.2.2、0.2.5 及使用同一安装目录的近期候选可以直接覆盖升级，保留设置、词典、历史、凭据和登录启动选择。曾使用独立身份的早期 Windows 预览版需先退出并卸载该预览版，再安装正式版；两者分别保存设置和凭据，不自动导入旧数据。卸载只清理匹配的登录启动项，不自动清除凭据或历史。
 
 ## 软件更新
 
 在“关于 → 软件更新”手动检查并下载，校验完成后确认安装。客户端从 `updates.vaovao.app` 获取 Windows 签名清单和安装包；确认后退出 Vao、更新原安装目录，成功后重新打开。录音、处理或待回填期间不能安装，请先完成或取消当前任务。
 
 没有升级器的旧版本需先手动安装本版一次；便携版也需手动安装。网络错误或尚无清单会明确提示，不表示已是最新版。安装取消或失败后可能需要手动重开 Vao。更多说明见 [Windows 软件更新](WINDOWS_UPDATES.md)。
+
+## 个人纠错
+
+在“词典 → 个人纠错”添加正确写法和多个错误写法，相同正确词自动归组。新安装词库为空。普通听写整理后在本机匹配，命中时逐位置选择“替换并输入”“保留原文并输入”或“取消输入”；关闭自动输入时只保存结果。没有倒计时，不会自动替换或发送消息。确认时请保持目标输入框获得焦点；默认使用确认输入时的当前光标，可选返回起始位置仍需目标校验。
+
+结果及历史可编辑纠正版，只有明确勾选的错误→正确关系才加入词库；中文或多处修改请填写完整词语。翻译、划词和受保护的 URL/邮箱/路径/代码不自动纠错。词库不发送给模型，不增加模型请求，与原词典提示分别管理。支持 JSON 导入预览/冲突选择和全部/所选导出；清历史保留词库，重装不会自动清除。文件可能包含私人词语，分享前请检查。
 
 ## 日常功能
 
@@ -46,7 +52,7 @@ Windows 0.2.2 及使用同一安装目录的近期候选可以直接覆盖升级
 
 ## English
 
-Download **Vao-0.2.5-setup.exe** from the [Vao release](https://github.com/loewe1631/Vao/releases/tag/v0.2.5) or [Cloudflare](https://updates.vaovao.app/downloads/windows/Vao-0.2.5-build20261023.3017-windows-x64-setup.exe). Requires Windows 10 (1809) or later, 64-bit. The installer downloads the official WebView2 runtime if missing. This build is not Windows code-signed; verify its source and release checksum before deciding whether to run it if Windows blocks it.
+Download **Vao-0.2.6-setup.exe** from the [Vao release](https://github.com/loewe1631/Vao/releases/tag/v0.2.6) or [Cloudflare](https://updates.vaovao.app/downloads/windows/Vao-0.2.6-build20261024.3018-windows-x64-setup.exe). Requires Windows 10 (1809) or later, 64-bit. The installer downloads the official WebView2 runtime if missing. This build is not Windows code-signed; verify its source and release checksum before deciding whether to run it if Windows blocks it.
 
 About → Software update manually checks and downloads a signed Windows update from `updates.vaovao.app`. Confirm installation after verification; Vao exits, updates the registered installation and reopens after success. Recording, processing and pending insertion block installation. Older versions without an updater and portable copies need a manual install. A cancelled or failed installation may require manually reopening Vao; a failed check never means the app is up to date.
 
@@ -56,8 +62,10 @@ Optional pause stopping is off by default. Enable it in Settings and choose 2–
 
 Sign-in startup is optional and off by default. When enabled, Vao stays hidden in the system tray after login. Open it from the tray or its shortcut to show the window. Windows may separately disable startup in system settings. Uninstalling removes only the startup entry matching this installation path; it does not erase local settings, history or Credential Manager entries.
 
-Windows 0.2.2 and recent candidates sharing the installation can update in place, retaining data, credentials and the startup choice. Only early preview editions using a separate identity require removal and fresh configuration; they have no automatic data migration. Removing that edition removes its matching startup entry.
+Windows 0.2.2, 0.2.5 and recent candidates sharing the installation can update in place, retaining data, credentials and the startup choice. Only early preview editions using a separate identity require removal and fresh configuration; they have no automatic data migration. Removing that edition removes its matching startup entry.
 
 Automatic insertion never presses Enter, submits or automatically retries. Unsupported inputs keep results in History for copying. Review the destination before copying again to avoid duplicates. Returning to the starting input is optional and cannot restore the original caret in every app.
 
 Intent-aware refinement handles dictated content, editing instructions, messages, lists and later corrections. Smart completion defaults to on, respects saved choices and applies to the next recording; review inferred content. Ordinary dictated questions are not answered automatically. Temporary transcripts and input/title context enhancement have been removed while local target and selection protection remain. Legacy realtime transcript connections migrate to file recognition with the same service and model.
+
+Personal corrections are managed in Dictionary → Personal corrections. Ordinary dictation is matched locally after refinement. Choose occurrences to replace, keep the text, or cancel; there is no countdown or automatic replacement. With automatic insertion off, choices only save/display the result. Keep the destination focused when confirming: the default uses the current caret, with optional original-target validation unchanged. Only explicitly checked relationships are remembered; editing history never changes another app automatically. The correction library is not sent to models. JSON import previews conflicts; export supports all or selected groups. Clearing history keeps this library.

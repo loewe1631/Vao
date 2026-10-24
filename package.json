@@ -1,7 +1,7 @@
 {
   "name": "vao-development-tools",
   "private": true,
-  "version": "0.2.5",
+  "version": "0.2.6",
   "license": "AGPL-3.0-only",
   "engines": {
     "node": ">=22"
@@ -10,7 +10,8 @@
     "test:ui": "node scripts/check-ui.cjs",
     "check:source": "python3 scripts/check-source.py",
     "test:source": "python3 -B -m unittest discover -s scripts/tests -v",
-    "test:windows-ui": "node scripts/check-windows-ui.cjs"
+    "test:windows-ui": "node scripts/check-windows-ui.cjs",
+    "test:corrections-ui": "node scripts/check-corrections-ui.cjs"
   },
   "devDependencies": {
     "playwright": "1.64.1",

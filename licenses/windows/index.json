@@ -5177,6 +5177,31 @@
     "directory": "../tauri-winres-0.3.6"
   },
   {
+    "name": "tempfile",
+    "version": "3.27.0",
+    "license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/Stebalien/tempfile",
+    "authors": [
+      "Steven Allen <steven@stebalien.com>",
+      "The Rust Project Developers",
+      "Ashley Mannix <ashleymannix@live.com.au>",
+      "Jason White <me@jasonwhite.io>"
+    ],
+    "directory": "tempfile-3.27.0",
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "8b427f5bc501764575e52ba4f9d95673cf8f6d80a86d0d06599852e1a9a20a36",
+        "source": "crate archive"
+      }
+    ]
+  },
+  {
     "name": "tendril",
     "version": "0.5.1",
     "license": "MIT OR Apache-2.0",
@@ -6009,6 +6034,34 @@
     "directory": "../unicode-ident-1.0.27"
   },
   {
+    "name": "unicode-normalization",
+    "version": "0.1.25",
+    "license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/unicode-rs/unicode-normalization",
+    "authors": [
+      "kwantam <kwantam@gmail.com>",
+      "Manish Goregaokar <manishsmail@gmail.com>"
+    ],
+    "files": [
+      {
+        "file": "LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+        "source": "crate archive"
+      },
+      {
+        "file": "COPYRIGHT",
+        "sha256": "23860c2a7b5d96b21569afedf033469bab9fe14a1b24a35068b8641c578ce24d",
+        "source": "crate archive"
+      },
+      {
+        "file": "LICENSE-MIT",
+        "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0",
+        "source": "crate archive"
+      }
+    ],
+    "directory": "../unicode-normalization-0.1.25"
+  },
+  {
     "name": "unicode-segmentation",
     "version": "1.13.3",
     "license": "MIT OR Apache-2.0",
@@ -6342,8 +6395,8 @@
         "source": "crate archive"
       },
       {
-        "file": "resources__libfvad__PATENTS",
-        "sha256": "01462e2068d1a04c2274f3389773014c14ed9bc3446b28303543bd3e3c064145",
+        "file": "resources__libfvad__debian__copyright",
+        "sha256": "355e6e66afa14611ae4b5d6c908b47e921d0b2caac2efb29e73c628aae4aa7a2",
         "source": "crate archive"
       }
     ]

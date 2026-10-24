@@ -1,12 +1,20 @@
 # Vao privacy / 数据处理说明
 
-Version 2026-10-21. Applies to Vao 0.2.1 for Mac and Windows.
+Version 2026-10-23. Applies to Vao 0.2.3 for Mac and 0.2.6 for Windows.
 
 ## 本机保存
 
 录音使用有界队列和仅本用户可读写的临时会话文件；Mac 在打开后移除文件名，Windows 独占打开并在关闭时删除；处理完成、取消或退出后关闭。不保留音频历史，不承诺介质上的安全擦除。文字历史保留最近七天、最多 200 条，可在应用内删除；逻辑删除不保证清除备份或介质残留。词典和明确反馈形成的偏好本机保存，可编辑、暂停、撤销或清空。应用不会将一般键盘输入作为学习材料。
 
 API Key、随机安装标识及体验凭据保存在 macOS 钥匙串或 Windows 凭据管理器，不进入设置导出。词典导入支持 UTF-8 TXT 和 JSON，合并去重；导出文件只包含词条，不包含密钥、历史、偏好或安装标识。导出位置和文件分享由你决定，词条本身也可能包含私人名称。
+
+## Mac 个人纠错本地测试版补充（2026-10-24）
+
+个人纠错词库只在本机匹配，不加入 ASR/LLM 提示词，也不为纠错建议新增网络调用。只有明确保存并勾选记住的词语对应关系才形成记忆；可编辑、停用、删除、撤销。整理完成后命中词库时等待用户选择，再保存纠正版并按原目标保护输入；不自动替换或发送。原始识别、模型整理结果和纠正版分别保存；历史清理也会清理所属纠正版，词库独立保留。
+
+JSON 导入导出只包含正确写法、错误写法与启停状态，不含历史、音频、密钥或安装标识。词语本身可能涉及隐私，请自行保管和分享。此独立预览使用自己的应用身份、数据和钥匙串空间，不接入正式版更新。
+
+The Mac correction preview matches personal phrases locally, without adding them to ASR/LLM prompts or making extra model calls. Only explicitly checked, saved phrase pairs become memory. Suggestions wait for a choice before correction and protected insertion. Original ASR, model output and corrected text are stored separately; History cleanup removes related edits while the library remains. JSON transfers contain phrases and enabled states only. The preview uses separate app, data and Keychain identities and local test-package updates.
 
 ## 划词用途判断
 
@@ -16,11 +24,17 @@ API Key、随机安装标识及体验凭据保存在 macOS 钥匙串或 Windows 
 
 使用默认体验服务前需主动同意。开通向 https://test.vaovao.app 发送随机安装标识及同意版本，不采集硬件序列号。服务保存安装标识的带密钥摘要、凭据摘要、同意记录、撤销状态和请求计数，不保存凭据原文。旧设备表中的期限、额度字段不再用于拒绝请求。为兼容旧客户端，状态接口保留数字型期限和额度占位值；新客户端依据 `unlimited` 标记显示不设期限及每日额度。
 
-服务不设使用期限、每日请求总量、每设备每日请求量或每日开通人数限制。仍需有效凭据，撤销的凭据不能重新开通。ASR 同时两路、文字同时四路、总处理四路，另有最多八个请求短时排队；请求体、单次音频片段、模型上下文和超时等资源边界仍存在；ASR 只在 512 token 的运行预算内选取词典提示，超出的提示不发送给语音模型，不因此拒绝音频；完整词典仍在本机保留并参与文字整理。长录音由客户端分段。服务免费共享，不保证稳定性和响应速度，繁忙时可能排队或暂不可用；建议按需要配置自有云服务或本地模型。
+服务不设使用期限、每日请求总量、每设备每日请求量或每日开通人数限制。仍需有效凭据，撤销的凭据不能重新开通。截至 2026-10-23，ASR 同时十六路、文字同时十六路、合计最多三十二路，另有最多八个请求短时排队；请求体、单次音频片段、模型上下文和超时等资源边界仍存在；ASR 只在 512 token 的运行预算内选取词典提示，超出的提示不发送给语音模型，不因此拒绝音频；完整词典仍在本机保留并参与文字整理。长录音由客户端分段。服务免费共享，不保证稳定性和响应速度，繁忙时可能排队或暂不可用；建议按需要配置自有云服务或本地模型。
 
-模型请求会发送录音、待整理文字、词典及适用偏好；选区操作还包含所选文字。开启上下文增强后会发送下文说明范围内的参考文字。服务在请求期间处理，不保存音频或文字正文，不用于训练。运维日志只含请求编号、路径、状态和耗时；网络设施仍会处理来源地址。设备记录用于鉴权和撤销，使用计数保留约 35 天。新开通不再记录网络摘要；既有按日变化的网络摘要随后续开通清理超过约 35 天的记录。
+模型请求会发送录音、待整理文字、词典及适用偏好；选区操作还包含所选文字。本Mac候选不采集或发送输入框前后文、窗口附近文字、标题或域名；Windows行为见文末专节。服务在请求期间处理，不保存音频或文字正文，不用于训练。运维日志只含请求编号、路径、状态和耗时；网络设施仍会处理来源地址。设备记录用于鉴权和撤销，使用计数保留约 35 天。新开通不再记录网络摘要；既有按日变化的网络摘要随后续开通清理超过约 35 天的记录。
 
 当前没有服务端自助删除入口，可通过项目 issue 询问处理方式。**不要在 issue 中提交密钥、录音或私人正文**；先请求私密渠道，见 SECURITY.md。重新安装不自动清除钥匙串、Windows 凭据管理器或服务端记录。
+
+## 本机停顿检测
+
+“停说后自动结束”默认关闭。开启后使用本机 WebRTC VAD 判断本次录音的语音与停顿，不为检测新增音频上传或音频历史；既有识别、整理及可选增强仍按所选服务处理数据。
+
+Optional silence auto-stop uses local WebRTC VAD and adds no audio upload or audio history. Existing recognition, refinement and optional enhancements still use the selected services.
 
 ## 自有模型
 
@@ -28,35 +42,30 @@ API Key、随机安装标识及体验凭据保存在 macOS 钥匙串或 Windows 
 
 点击语音连接测试时，仅向当前所选服务发送内置合成英语短句，不启用麦克风，不发送历史、词典或输入框上下文；文字连接测试仅发送固定改口例句。两者均使用所选协议、可能产生服务用量，不改变已保存连接，测试报告仅在当前应用会话显示。
 
-## 输入增强和剪贴板
+## Mac录音处理和剪贴板
 
-麦克风权限用于录音；辅助功能用于快捷键、选区读取、原输入位置校验与回填。目标保护会临时读取本次捕获输入框的内容，计算仅存于适配进程内存的指纹，不发送该指纹。录音中切应用后仍尝试返回起始位置；内容或光标冲突、原窗口失效时保留结果并浮层提示。应用只输入，不替你发送消息。安装新版或更换签名后可能需重新授权。
+麦克风权限用于录音；在 Mac 上，辅助功能用于快捷键、选区读取、原输入位置校验与回填。Mac 目标保护会临时读取本次捕获输入框的内容，计算仅存于适配进程内存的指纹，不发送该指纹。Mac 录音中切应用后仍尝试返回起始位置；内容或光标冲突、原窗口失效时保留结果并浮层提示。应用只输入，不替你发送消息。安装新版或更换签名后可能需重新授权。
 
-以下开关默认关闭，下一次录音生效。预览需要兼容语音连接；上下文仅用于普通听写。选区操作和翻译的最终处理保持独立：
+Mac 0.2.3 移除了临时转写、输入框前后文和窗口附近文字参考。录音期间不发起临时识别请求；停止后发送完整录音或长录音的最终分段进行识别，再整理文字。旧增强开关不再生效，下一次保存设置时清理；旧实时协议连接保留地址和模型，迁移为文件识别。目标字段和光标快照仍只用于本地回填保护，显式选区操作仍发送所选文字。取消可阻止后续请求和使用晚到结果，不能收回已经发送的数据。
 
-- **录音时显示临时转写**：文件接口发送最近最多十二秒的窗口，每次请求结束后间隔约四秒，再对完整录音进行最终识别。实时接口持续发送 PCM 音频、分段提交，只有完整确认且覆盖录音的结果才复用；中断或不完整时尝试同一连接的文件识别。默认共享服务当前使用文件接口。预览文字不单独进入历史或学习；复用并完成整理的转写会作为最终结果的原文进入正常历史。
-- **参考输入框前后文**：校验起始非安全输入框后，读取光标前后各最多 500 字符、合计最多 8 KiB，发给本次文字连接及必要时已配置的备用连接。
-- **参考起始窗口的附近文字**：依赖前后文开关，额外参考原窗口最多 1200 字符可见静态文字、120 字符标题及网页域名，不包含完整网址、路径或查询。跳过已识别的敏感应用、密码控件及不可验证输入框；其他应用的可见文字仍可能敏感，请按场景决定是否开启。附近文字可能包括消息内容。采集有时间和节点数量边界，不读取切换后的新应用，也不遍历其他窗口。无法读取的部分留空。
 
-上下文仅作为不可信参考，不作为指令，不写入历史或学习，处理完成或取消后释放；受限 Vao 整理协议不发送上下文。开启预览会增加发送量、请求量和自有服务费用。取消只能阻止后续请求与本机使用晚到结果，不能收回已发送数据或保证远端立即停止。
-
-选区读取和回填可能临时使用剪贴板，尽量保留多格式内容，并仅在剪贴板未被其他程序更新时恢复。回填内容带临时、隐藏标记，但不能保证所有第三方剪贴板管理器都遵守。
+Mac 选区读取和回填可能临时使用剪贴板，尽量保留多格式内容，并仅在剪贴板未被其他程序更新时恢复。回填内容带临时、隐藏标记，但不能保证所有第三方剪贴板管理器都遵守。
 
 ## English
 
 Audio uses a bounded queue and an owner-only session file, unlinked immediately on Mac or exclusively opened with deletion on close on Windows. Files close after processing, cancellation or exit. No audio history is retained. Text history lasts seven days, up to 200 results. Deletion is logical, without guarantees about backups or media erasure. Vocabulary and explicit layout feedback stay locally. Keys and installation credentials stay in macOS Keychain or Windows Credential Manager. Dictionary TXT/JSON exports contain terms only, without keys, history, preferences or installation identifiers; terms may themselves be private.
 
-Optional hosted access requires consent and sends a random installation secret and notice version, not hardware identifiers. The service stores keyed installation hashes, credential hashes, consent, revocation and request counters. No expiry, daily use quota or daily enrollment quota is enforced, including for existing credentials; revocations remain effective. Numeric expiry/quota placeholders remain solely for legacy-client compatibility, with an `unlimited` flag for new clients. Resource bounds remain: two ASR slots, four text slots, four total active requests, up to eight queued requests, bounded request bodies/audio slices, model context, an ASR hint budget of 512 tokens (longer hints are reduced without rejecting audio; saved vocabulary still accompanies text refinement), and timeouts. Free shared service does not guarantee stability or response times. Consider your own cloud/local models for regular use.
+Optional hosted access requires consent and sends a random installation secret and notice version, not hardware identifiers. The service stores keyed installation hashes, credential hashes, consent, revocation and request counters. No expiry, daily use quota or daily enrollment quota is enforced, including for existing credentials; revocations remain effective. Numeric expiry/quota placeholders remain solely for legacy-client compatibility, with an `unlimited` flag for new clients. Resource bounds remain: as of 2026-10-23, sixteen ASR slots, sixteen text slots and thirty-two total active requests, up to eight queued requests, bounded request bodies/audio slices, model context, an ASR hint budget of 512 tokens (longer hints are reduced without rejecting audio; saved vocabulary still accompanies text refinement), and timeouts. Free shared service does not guarantee stability or response times. Consider your own cloud/local models for regular use.
 
-Model requests send audio, current text, vocabulary, relevant preferences, selected text when applicable and enabled context. Audio/text bodies are processed temporarily, not retained or used for training. Operational logs exclude content; infrastructure handles network addresses. Usage counters last about 35 days. New enrollments no longer store source-network digests; old digests older than about 35 days are cleaned during subsequent enrollments. Device records support authentication and revocation. Reinstallation does not erase Keychain, Credential Manager or server records. For record-handling questions, request a private channel through the project; never post credentials or private content in issues.
+Model requests send audio, current text, vocabulary, relevant preferences, selected text when applicable and Windows context when enabled. Audio/text bodies are processed temporarily, not retained or used for training. Operational logs exclude content; infrastructure handles network addresses. Usage counters last about 35 days. New enrollments no longer store source-network digests; old digests older than about 35 days are cleaned during subsequent enrollments. Device records support authentication and revocation. Reinstallation does not erase Keychain, Credential Manager or server records. For record-handling questions, request a private channel through the project; never post credentials or private content in issues.
 
 Custom connections go directly to your provider under its policy, without silent fallback to hosted access. A configured backup text connection handles only limited failures. On Mac, Microphone and Accessibility support recording, shortcuts, selection and original-target insertion; messages are never automatically sent. Input fingerprints remain native memory and are not sent to models.
 
-All input-enhancement options are off by default. File preview sends overlapping recent audio windows; final recognition runs separately. Realtime preview requires the public transcription WebSocket contract. Only complete confirmed coverage can be reused for ordinary final dictation, otherwise the same connection's file API is attempted. The hosted service currently uses files. Temporary text is excluded from history/learning, except when confirmed text becomes the original of a normal final result. Cancellation cannot recall transmitted audio or guarantee remote cancellation.
 
-On Mac, surrounding-input context sends up to 500 characters per side, 8 KiB total. Its separate expanded option adds up to 1200 visible-text characters, 120 title characters and a website domain from the originally captured window, without full URL/path/query. Known sensitive applications, password controls and unverifiable inputs are skipped; other visible material, including messages, can still be private. Data goes to the chosen text service and configured backup when needed. Raw context is session-only, excluded from history/learning, never an instruction, and omitted for restricted Vao refine, translation and selection workflows.
 
-Selection and insertion may temporarily use the clipboard. Multiple formats are preserved where possible and restored only if another app has not updated it. Transient/concealed markers are advisory; third-party clipboard tools may ignore them.
+Mac 0.2.3 removes temporary transcription and ambient input/window reference. No preview recognition runs while recording. Stopping sends the complete recording, or final chunks of a long recording, for file transcription and refinement. Old opt-ins are inert and removed on the next settings save; old Realtime configurations keep their URL/model and migrate to file transcription. Input/caret snapshots remain local insertion safeguards. Explicit selection operations still send the selected text. Windows behavior is documented separately below.
+
+On Mac, selection and insertion may temporarily use the clipboard. Multiple formats are preserved where possible and restored only if another app has not updated it. Transient/concealed markers are advisory; third-party clipboard tools may ignore them.
 
 Connection diagnostics send only fixed synthetic speech or a fixed correction sentence to the selected provider/protocol, using its service allowance. They do not enable the microphone, include history/dictionary/context, or change saved connections. Reports remain in the current app session only.
 
@@ -68,7 +77,7 @@ Connection diagnostics send only fixed synthetic speech or a fixed correction se
 
 “返回录音起始位置”默认关闭。开启后校验起始进程、字段、内容和光标；其兼容粘贴选项默认开启，仅在该模式下生效。部分应用无法恢复原光标，请在结果完成前回到原输入位置。划词修改始终校验原选区。完整字段快照仅留有界内存，不落日志或历史。显式复制结果也会更新剪贴板。
 
-输入增强默认关闭；启用前后文时，仅在普通听写中向所选文字服务发送起始可验证字段光标前后各最多 500 字符。Windows 的窗口参考最多增加起始窗口标题的 120 个字符，不扫描页面、文档或采集域名。无法读取、密码、只读或已变化的目标会跳过上下文。原始上下文不参与历史或学习。
+Windows 0.2.5 起已移除临时转写及输入框/窗口参考增强，不再通过这些开关采集或发送上下文。原有目标、光标与选区快照仅用于本机输入保护；显式选区处理仍发送所选文字。
 
 The Windows release stores settings and credentials separately from early test editions, without automatic migration. Keys and installation credentials stay in Windows Credential Manager. Uninstalling does not automatically erase them or local history. Microphone access checks discard samples and contact no model. Long recordings use owner-restricted, exclusively opened temporary files deleted on close.
 
@@ -76,4 +85,18 @@ Ordinary dictation defaults to the clipboard plus one Ctrl+V at the current care
 
 Returning to the starting input is off by default. If enabled, it verifies the original process, field, contents and caret. Its compatibility paste option defaults to on and applies only in this mode. Some apps cannot restore the original caret; return there before processing finishes. Selection edits always verify their original selection. Full-field snapshots stay in bounded memory, outside logs and history. Explicit copying also updates the clipboard.
 
-Input enhancements are off by default. Ordinary-dictation context contains up to 500 characters per side of the original verified caret. Windows window context adds only up to 120 characters of the starting title; no page/document scan or domain collection. Unreadable, changed, password and readonly inputs skip context. Raw reference data stays out of history and learning.
+Windows 0.2.5 and later remove temporary transcription and ambient input/window enhancement. Target/caret/selection snapshots remain local insertion safeguards; explicit selection processing still sends selected text.
+
+## Mac 软件更新 / Mac software updates
+
+在“关于”中主动点击检查更新时，Vao 会连接 GitHub 的官方公开发布清单；点击下载后再请求对应更新包及 GitHub 资产分发节点。请求不包含录音、转写、词典、历史、模型密钥或体验凭据；网络服务仍会处理来源 IP、请求路径和通用更新客户端标识。不在后台自动检查或下载，未提供有效清单时明确显示无法检查。更新前校验签名、包完整性与应用身份；应用数据和钥匙串不随 App 替换，旧 App 留在安装目录旁的隐藏备份目录。
+
+When you choose Check for updates in About, Vao requests the official public GitHub release manifest. Downloading requests the selected archive and GitHub asset distribution hosts. These requests contain no audio, transcripts, vocabulary, history, model keys or trial credentials. Network services still process the source IP, request path and a generic updater user agent. There are no background checks or downloads. Updates verify the signed release and archive before replacing the App; app data and Keychain remain separate, and the previous App is retained in a hidden directory beside the installation.
+
+## Windows 0.2.6 个人纠错与更新 / Windows corrections and updates
+
+个人纠错只在普通听写整理完成后本机匹配，不向模型发送词库，也不增加请求；只有明确选择记忆的关系进入本机词库。历史纠正版与原结果分开保存，清历史保留词库。JSON 导出只含纠错组和别名及格式元数据，不含密钥、录音或历史；词语可能私人，由你决定分享。
+
+Windows“关于 → 软件更新”主动访问 updates.vaovao.app 的 Windows 清单，下载经同源限定的安装器并验签、校验大小及 SHA256；不后台检查/下载，不发送录音、正文、词典、纠错库、模型密钥或体验凭据。网络设施处理来源 IP、路径及通用客户端标识。确认后使用原注册目录更新并在成功后重开，保留数据与 Windows 凭据。取消或失败可能需手动重开，不承诺 Mac 式自动回滚；更新清单签名不等于安装器已有 Authenticode 签名。
+
+Windows personal corrections match locally after ordinary dictation. The library is not sent to models; only explicitly selected relationships are remembered. Corrected history is separate from the original, and clearing history keeps the library. JSON exports contain correction groups/aliases and format metadata, without keys, audio or history; the terms themselves may be private. Windows updates are manually requested from updates.vaovao.app without private content or credentials. Verified installation uses the registered directory and reopens on success; a cancelled/failed installation may need manual reopening. Signed metadata does not make the installer Authenticode-signed.
