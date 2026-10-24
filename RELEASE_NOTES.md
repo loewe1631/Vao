@@ -1,3 +1,21 @@
+# Vao 0.2.6 · macOS
+
+Mac build20261024.2024 · Apple Silicon · macOS 12+ · source tag `v0.2.6`.
+Windows remains at [0.2.5](https://github.com/loewe1631/Vao/releases/tag/v0.2.5).
+
+- 新增个人纠错：普通听写整理后，在本机匹配你保存的错误写法，浮窗逐项选择替换、保留或取消；不会自动替换，不增加模型调用。
+- 相同正确词语自动归组，可管理多个错误写法、启停、搜索、删除和撤销；支持 JSON 导入预览与全部/所选导出。新安装词库为空，不自动迁移独立测试版数据。
+- 结果与历史可保存纠正版，只有明确选择记忆的词语关系进入个人纠错库。翻译、划词追问、快捷键与起始窗口回填沿用现有流程。
+- 文件导入导出使用独立签名的辅助应用，修复文件窗口不能操作 Open/Cancel 的问题。
+- 正式版恢复“关于 → 软件更新”完整入口，继续从 Cloudflare 检查、下载验签和确认重启安装。0.2.4/0.2.5 可在软件内更新；无更新器的旧版或独立纠错测试版请手动安装。保留正式身份的既有设置、词典、历史与钥匙串。
+- Developer ID 签名、Apple 公证与票据；不包含已暂停的 App Store 实验。
+
+## English summary
+
+Adds on-device personal correction suggestions after ordinary dictation. Saved incorrect spellings can share a preferred form; choose replacements manually, keep the text or cancel. Manage groups and aliases, and import/export JSON. Only explicitly selected relationships are remembered; the library is not sent to models. Translation and selected-text workflows remain unchanged. File panels use a separately signed helper app. The public build includes About → Software update through Cloudflare. Existing stable data is retained; independent preview data is not migrated automatically. Signed, notarized and stapled.
+
+---
+
 # Vao 0.2.5 · macOS
 
 Mac build20261023.2020 · Apple Silicon · macOS 12+ · source tag `v0.2.5`.

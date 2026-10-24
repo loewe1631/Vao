@@ -113,7 +113,7 @@ fn retire_input_enhancements(value: &mut serde_json::Value) {
     }
 }
 pub struct Store {
-    conn: Connection,
+    pub(crate) conn: Connection,
 }
 impl Store {
     pub fn open_read_only(path: &Path) -> Result<Self, String> {
@@ -125,6 +125,7 @@ impl Store {
     pub fn open(path: &Path) -> Result<Self, String> {
         let conn = Connection::open(path).map_err(|e| e.to_string())?;
         conn.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY,value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT,created INTEGER NOT NULL,data TEXT NOT NULL); DELETE FROM results WHERE created < unixepoch()-604800;").map_err(|e|e.to_string())?;
+        crate::correction_store::migrate(&conn)?;
         Ok(Self { conn })
     }
     pub fn get<T: serde::de::DeserializeOwned + Default>(&self, key: &str) -> T {

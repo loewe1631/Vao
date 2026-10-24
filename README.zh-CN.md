@@ -12,12 +12,12 @@
 
 Vao 是一款面向 macOS 与 Windows 的开源语音输入工具：把口述整理成可用文字，根据内容与目标应用自动选择表达方式，并记住你明确选择的排版偏好。
 
-**Mac 0.2.5 · Windows 0.2.2。** [Mac 0.2.5 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.5)修正录音与翻译的悬浮窗状态显示；保留意图整理、线索补全与签名软件更新；Windows 保持 [0.2.2](https://github.com/loewe1631/Vao/releases/tag/v0.2.2)。
+**Mac 0.2.6 · Windows 0.2.5。** [Mac 0.2.6 发布页](https://github.com/loewe1631/Vao/releases/tag/v0.2.6)新增本机个人纠错建议、同正确词条归组与 JSON 导入导出；“关于 → 软件更新”继续使用 Cloudflare 签名更新。Windows 保持 [0.2.5](https://github.com/loewe1631/Vao/releases/tag/v0.2.5)。
 
 | 平台 | 安装包 | 要求 |
 | --- | --- | --- |
-| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.5/Vao-0.2.5-build20261023.2020-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.5/Vao-0.2.5-build20261023.2020-mac-arm64.zip) | Apple Silicon · macOS 12+ |
-| Windows | [EXE 安装程序](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-setup.exe) | Windows 10 1809+ · x64；缺少 WebView2 时自动下载 |
+| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.6/Vao-0.2.6-build20261024.2024-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.6/Vao-0.2.6-build20261024.2024-mac-arm64.zip) | Apple Silicon · macOS 12+ |
+| Windows | [EXE 安装程序](https://github.com/loewe1631/Vao/releases/download/v0.2.5/Vao-0.2.5-setup.exe) | Windows 10 1809+ · x64；缺少 WebView2 时自动下载 |
 
 Mac 已使用 Developer ID 签名、通过 Apple 公证并附带票据；Windows 安装包尚无代码签名；首次打开提示见[安装指南](https://vaovao.app/install/)。Intel Mac 暂未提供。版本及源码对应关系见[版本说明](RELEASE_NOTES.md)。
 
@@ -30,7 +30,7 @@ Mac 已使用 Developer ID 签名、通过 Apple 公证并附带票据；Windows
 - **整段或局部翻译**：直接开始翻译录音，或仅翻译普通录音中的某一段。
 - **录音中切换应用**：Mac 通过校验后回填起始位置；Windows 默认输入到结果就绪时的当前光标，可选返回起始输入框。
 
-- **简洁的Mac听写流程**：录音结束后识别并整理最终文本。Mac 0.2.5 移除临时转写和输入框/窗口参考；Windows保持各自已发行版本的行为。
+- **简洁的Mac听写流程**：录音结束后识别并整理最终文本。Mac 与 Windows 0.2.5 及以上均不提供临时转写和输入框/窗口参考。
 - **智能补全**：根据输入内容线索分析并补全信息，默认开启，设置可关闭，保留已保存的选择；请核对推断内容。
 - **Mac 软件更新**：“关于”中手动检查、下载验签、确认重启安装；旧版需先手动升级一次。
 - **词典迁移**：TXT/JSON 导入合并去重，只导出词条。
@@ -55,7 +55,7 @@ Mac 已使用 Developer ID 签名、通过 Apple 公证并附带票据；Windows
 
 ## 安装与使用
 
-1. 从上方对应平台链接下载：Mac 将 **Vao.app** 拖入“应用程序”；Windows 运行 **Vao-0.2.2-setup.exe** 并按安装向导操作。
+1. 从上方对应平台链接下载：Mac 将 **Vao.app** 拖入“应用程序”；Windows 运行 **Vao-0.2.5-setup.exe** 并按安装向导操作。
 2. 打开 Vao。首次系统安全提示及权限设置见[安装与授权指南](https://vaovao.app/install/)；Windows 的详细操作见 [Windows 指南](docs/WINDOWS.md)。
 3. 按开始页完成：主动开通体验或配置自有模型、按需授权、检查快捷键。
 4. 点击目标输入框，按主键开始，说完再按一次结束。
@@ -90,19 +90,23 @@ ASR、文字服务分别配置。填写地址与可选密钥，获取模型、�
 
 自有 ASR、LLM 按阶段优先，失败不会静默改用体验服务。仅在已明确配置备用 LLM 时，传输错误、HTTP 429 或服务端错误才尝试备用。
 
+## Mac 个人纠错
+
+在“词典 → 个人纠错”保存错误写法和正确词语，相同正确词语自动归组。普通听写整理后，本机匹配已保存的错误写法，在浮窗逐项选择替换、保留或取消；没有自动替换或倒计时。翻译与划词沿用原流程。纠错库保存在本机，不注入模型请求；可通过 JSON 导入导出全部或所选词组。全新安装的纠错库为空，请核对建议后再应用。
+
 ## 隐私
 
 录音使用临时会话缓冲并发送到所选 ASR，不保留音频历史；本机文字历史保留最近七天、最多 200 条。密钥保存在 macOS 钥匙串或 Windows 凭据管理器。词典与相关偏好随模型请求发送；选区用于处理所选内容。权限、剪贴板、保留与删除方式见[隐私说明](PRIVACY.md)。
 
 ## 源码与编译
 
-当前 `main` 保留 Mac 客户端和 Xcode 构建入口；Windows 发行源码位于 [`windows-v0.2.2`](https://github.com/loewe1631/Vao/tree/windows-v0.2.2)，后续开发在 [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows)。两个标签未合并，统一 Release 中的自动 “Source code” 对应 Mac 标签；Windows 请下载带 `windows-source` 的归档或检出其标签。Windows 构建步骤见 [Windows build](docs/WINDOWS_BUILD.md)。
+当前 `main` 保留 Mac 客户端和 Xcode 构建入口；Windows 发行源码位于 [`windows-v0.2.5`](https://github.com/loewe1631/Vao/tree/windows-v0.2.5)，后续开发在 [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows)。两个标签未合并，统一 Release 中的自动 “Source code” 对应 Mac 标签；Windows 请下载带 `windows-source` 的归档或检出其标签。Windows 构建步骤见 [Windows build](docs/WINDOWS_BUILD.md)。
 
 ### Mac 编译与检查
 
 需要 Apple Silicon、Xcode Command Line Tools、Python 3.11+、Node.js 22+、Rust stable 及 Clippy。
 
-安装完整 Xcode 后，也可以打开 **[xcode/Vao.xcodeproj](xcode/Vao.xcodeproj)**，选择 **Vao Direct**，点击 **Product → Build**。它使用本地 ad-hoc 签名，构建同一套完整客户端，详见 [Xcode 构建说明](docs/XCODE.md)。当前目标用于直装；[App Store 适配](docs/APP_STORE.md)在同一仓库中单独推进。
+安装完整 Xcode 后，也可以打开 **[xcode/Vao.xcodeproj](xcode/Vao.xcodeproj)**，选择 **Vao Direct**，点击 **Product → Build**。它使用本地 ad-hoc 签名，构建同一套完整客户端，详见 [Xcode 构建说明](docs/XCODE.md)。当前目标用于官网直装；App Store 开发已暂停并独立保存，本源码不包含商店版。
 
 ```sh
 cargo fetch --locked --target aarch64-apple-darwin

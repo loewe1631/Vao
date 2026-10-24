@@ -12,6 +12,23 @@ target=Path(os.environ.get('CARGO_TARGET_DIR',root/'target'))
 if not target.is_absolute(): target=root/target
 shutil.copy2(target/'release'/meta['binary'],app/'Contents/MacOS'/meta['binary'])
 shutil.copy2(root/'.build/vao-macos-bridge',app/'Contents/Resources/vao-macos-bridge')
+# AppKit file panels must belong to a registered application bundle, separate
+# from both the main app and the long-lived input-target adapter.
+dialog=app/'Contents/Resources/Vao File Dialog.app'
+(dialog/'Contents/MacOS').mkdir(parents=True)
+shutil.copy2(root/'.build/vao-macos-bridge',dialog/'Contents/MacOS/vao-file-dialog')
+(dialog/'Contents/Info.plist').write_bytes(plistlib.dumps(dict(
+    CFBundleIdentifier=meta['bundle']+'.file-dialog',
+    CFBundleExecutable='vao-file-dialog',
+    CFBundleName='Vao 文件选择器',
+    CFBundleDisplayName='Vao 文件选择器',
+    CFBundlePackageType='APPL',
+    CFBundleShortVersionString=meta['version'].split('-',1)[0],
+    CFBundleVersion=meta['build'],
+    LSMinimumSystemVersion=meta['minimum_macos'],
+    LSUIElement=True,
+    NSPrincipalClass='NSApplication',
+)))
 shutil.copy2(root/'desktop/icons/icon.icns',app/'Contents/Resources/icon.icns')
 for name in ['LICENSE','PROVENANCE.md','PRIVACY.md','THIRD_PARTY_NOTICES.md']:
     shutil.copy2(root/name,app/'Contents/Resources'/name)

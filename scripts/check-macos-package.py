@@ -8,8 +8,15 @@ info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
 for key, expected in [('CFBundleIdentifier', meta['bundle']), ('CFBundleVersion', meta['build']), ('CFBundleShortVersionString', meta['version'].split('-',1)[0]), ('VaoReleaseVersion', meta['version']), ('CFBundleExecutable', meta['binary'])]:
     if info.get(key) != expected:
         raise SystemExit(f'Metadata mismatch: {key}')
+dialog = app / 'Contents/Resources/Vao File Dialog.app'
+dialog_info = plistlib.loads((dialog / 'Contents/Info.plist').read_bytes())
+for key, expected in [('CFBundleIdentifier', meta['bundle'] + '.file-dialog'), ('CFBundleExecutable', 'vao-file-dialog'), ('CFBundleVersion', meta['build']), ('LSUIElement', True), ('NSPrincipalClass', 'NSApplication')]:
+    if dialog_info.get(key) != expected:
+        raise SystemExit(f'File dialog metadata mismatch: {key}')
+if not os.access(dialog / 'Contents/MacOS/vao-file-dialog', os.X_OK):
+    raise SystemExit('File dialog executable is missing or not executable')
 requirements = {}
-for item, identity in [(app, meta['bundle']), (app / 'Contents/Resources/vao-macos-bridge', meta['bundle'] + '.bridge')]:
+for item, identity in [(app, meta['bundle']), (app / 'Contents/Resources/vao-macos-bridge', meta['bundle'] + '.bridge'), (dialog, meta['bundle'] + '.file-dialog')]:
     subprocess.run(['codesign', '--verify', '--strict', str(item)], check=True)
     signature = subprocess.run(['codesign', '-dvv', str(item)], capture_output=True, text=True, check=True).stderr
     if f'Identifier={identity}\n' not in signature:

@@ -32,6 +32,7 @@ sha2 = "0.10"
 tar = { version = "=0.4.46", default-features = false }
 flate2 = "=1.1.10"
 tempfile = "3"
+time = { version = "=0.3.55", features = ["formatting"] }
 cpal = "0.15"
 webrtc-vad = "=0.4.0"
 global-hotkey = "0.6"

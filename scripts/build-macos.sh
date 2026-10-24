@@ -16,11 +16,13 @@ cargo build --offline --release --locked -p vao-desktop
 python3 scripts/package-macos.py
 VAO_BUNDLE_ID="$(python3 -c 'import json; print(json.load(open("release.json"))["bundle"])')"
 if [[ "$VAO_SIGNING_IDENTITY" == "-" ]]; then
+  codesign --force --sign - --identifier "$VAO_BUNDLE_ID.file-dialog" "dist/Vao.app/Contents/Resources/Vao File Dialog.app"
   codesign --force --sign - --identifier "$VAO_BUNDLE_ID.bridge" "dist/Vao.app/Contents/Resources/vao-macos-bridge"
   codesign --force --sign - --identifier "$VAO_BUNDLE_ID" "dist/Vao.app"
 else
   VAO_TIMESTAMP=--timestamp=none
   if [[ "$VAO_SIGNING_IDENTITY" == Developer\ ID\ Application:* ]]; then VAO_TIMESTAMP=--timestamp; fi
+  codesign --force --sign "$VAO_SIGNING_IDENTITY" --options runtime "$VAO_TIMESTAMP" --identifier "$VAO_BUNDLE_ID.file-dialog" "dist/Vao.app/Contents/Resources/Vao File Dialog.app"
   codesign --force --sign "$VAO_SIGNING_IDENTITY" --options runtime "$VAO_TIMESTAMP" --identifier "$VAO_BUNDLE_ID.bridge" "dist/Vao.app/Contents/Resources/vao-macos-bridge"
   codesign --force --sign "$VAO_SIGNING_IDENTITY" --options runtime "$VAO_TIMESTAMP" --entitlements desktop/entitlements.plist --identifier "$VAO_BUNDLE_ID" "dist/Vao.app"
 fi

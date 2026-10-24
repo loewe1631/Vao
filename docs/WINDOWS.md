@@ -1,3 +1,5 @@
+> Historical Windows 0.2.2 guide / Windows 0.2.2 历史说明。当前 Windows 0.2.5 请查看[已发行源码中的指南](https://github.com/loewe1631/Vao/blob/windows-v0.2.5/docs/WINDOWS.md)与[下载](https://github.com/loewe1631/Vao/releases/tag/v0.2.5)。下方旧版增强功能不适用于现行 0.2.5。
+
 # Vao 0.2.2 for Windows
 
 适用于 Windows 10（1809）及更新版本，64 位。安装程序为 **Vao-0.2.2-setup.exe**，包含 Vao 图标与中文、英文安装向导。

@@ -26,6 +26,20 @@ fn helper_path() -> Result<std::path::PathBuf, String> {
     Ok(helper)
 }
 #[cfg(target_os = "macos")]
+fn dialog_helper_path() -> Result<std::path::PathBuf, String> {
+    // File panels need their own Launch Services identity. A bare executable
+    // inside the parent's Resources can display a panel without reliably
+    // receiving its mouse/keyboard events.
+    let helper = helper_path()?
+        .parent()
+        .unwrap()
+        .join("Vao File Dialog.app/Contents/MacOS/vao-file-dialog");
+    if !helper.exists() {
+        return Err("文件选择器缺失，请重新安装 / Reinstall Vao to restore file dialogs".into());
+    }
+    Ok(helper)
+}
+#[cfg(target_os = "macos")]
 fn dialog_reply(mut command: Command, request: &Value) -> Result<Value, String> {
     let mut child = command
         .stdin(Stdio::piped())
@@ -59,12 +73,12 @@ fn dialog_reply(mut command: Command, request: &Value) -> Result<Value, String> 
 pub fn call(request: Value) -> Result<Value, String> {
     #[cfg(target_os = "macos")]
     {
-        if matches!(request["action"].as_str(), Some("dictionary_import" | "dictionary_export")) {
+        if matches!(request["action"].as_str(), Some("dictionary_import" | "dictionary_export" | "corrections_import" | "corrections_export")) {
             static DIALOG: std::sync::Mutex<()> = std::sync::Mutex::new(());
             let _dialog = DIALOG.lock().unwrap();
             // Modal AppKit windows must not outlive their event loop in the daemon.
             // A separate process also leaves the captured input target available.
-            return dialog_reply(Command::new(helper_path()?), &request);
+            return dialog_reply(Command::new(dialog_helper_path()?), &request);
         }
         let mut state = BRIDGE
             .get_or_init(|| std::sync::Mutex::new(None))

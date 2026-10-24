@@ -357,15 +357,17 @@ func run(_ request:[String:Any]) -> [String:Any] {
         }
         return ["error":"Invalid fixture request"]
     case "permissions": return ["accessibility": AXIsProcessTrusted()]
-    case "dictionary_import":
+    case "dictionary_import", "corrections_import":
         guard !CommandLine.arguments.contains("--daemon") else{return ["error":"File dialogs require a one-shot helper"]}
-        let panel=NSOpenPanel();panel.title="导入 Vao 词典 / Import dictionary";panel.allowedContentTypes=[.plainText,.json];panel.allowsMultipleSelection=false;panel.canChooseDirectories=false
+        let corrections=(request["action"] as? String)=="corrections_import"
+        let panel=NSOpenPanel();panel.title=corrections ? "导入个人纠错 / Import personal corrections" : "导入 Vao 词典 / Import dictionary";panel.allowedContentTypes=corrections ? [.json] : [.plainText,.json];panel.allowsMultipleSelection=false;panel.canChooseDirectories=false
         NSApplication.shared.setActivationPolicy(.accessory);NSApplication.shared.finishLaunching();NSApplication.shared.activate(ignoringOtherApps:true)
         guard panel.runModal() == .OK,let url=panel.url else{return ["cancelled":true]}
         return ["path":url.path]
-    case "dictionary_export":
+    case "dictionary_export", "corrections_export":
         guard !CommandLine.arguments.contains("--daemon") else{return ["error":"File dialogs require a one-shot helper"]}
-        let panel=NSSavePanel();panel.title="导出 Vao 词典 / Export dictionary";panel.allowedContentTypes=[.json,.plainText];panel.nameFieldStringValue="Vao-dictionary.json"
+        let corrections=(request["action"] as? String)=="corrections_export"
+        let panel=NSSavePanel();panel.title=corrections ? "导出个人纠错 / Export personal corrections" : "导出 Vao 词典 / Export dictionary";panel.allowedContentTypes=corrections ? [.json] : [.json,.plainText];panel.nameFieldStringValue=corrections ? "Vao-Personal-Corrections.json" : "Vao-dictionary.json"
         NSApplication.shared.setActivationPolicy(.accessory);NSApplication.shared.finishLaunching();NSApplication.shared.activate(ignoringOtherApps:true)
         guard panel.runModal() == .OK,let url=panel.url else{return ["cancelled":true]}
         return ["path":url.path]

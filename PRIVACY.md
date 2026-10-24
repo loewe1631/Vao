@@ -8,6 +8,14 @@ Version 2026-10-23. Applies to Vao 0.2.3 for Mac and 0.2.2 for Windows.
 
 API Key、随机安装标识及体验凭据保存在 macOS 钥匙串或 Windows 凭据管理器，不进入设置导出。词典导入支持 UTF-8 TXT 和 JSON，合并去重；导出文件只包含词条，不包含密钥、历史、偏好或安装标识。导出位置和文件分享由你决定，词条本身也可能包含私人名称。
 
+## Mac 个人纠错本地测试版补充（2026-10-24）
+
+个人纠错词库只在本机匹配，不加入 ASR/LLM 提示词，也不为纠错建议新增网络调用。只有明确保存并勾选记住的词语对应关系才形成记忆；可编辑、停用、删除、撤销。整理完成后命中词库时等待用户选择，再保存纠正版并按原目标保护输入；不自动替换或发送。原始识别、模型整理结果和纠正版分别保存；历史清理也会清理所属纠正版，词库独立保留。
+
+JSON 导入导出只包含正确写法、错误写法与启停状态，不含历史、音频、密钥或安装标识。词语本身可能涉及隐私，请自行保管和分享。此独立预览使用自己的应用身份、数据和钥匙串空间，不接入正式版更新。
+
+The Mac correction preview matches personal phrases locally, without adding them to ASR/LLM prompts or making extra model calls. Only explicitly checked, saved phrase pairs become memory. Suggestions wait for a choice before correction and protected insertion. Original ASR, model output and corrected text are stored separately; History cleanup removes related edits while the library remains. JSON transfers contain phrases and enabled states only. The preview uses separate app, data and Keychain identities and local test-package updates.
+
 ## 划词用途判断
 
 划词处理只服务于所选文字的编辑、翻译、回复组织和相关理解。自有文字模型会先收到一次包含选中文字及语音指令的用途判断请求，再在通过后生成结果；这会增加一次模型调用、耗时和可能的费用。默认服务在服务端独立判断。判断失败或请求无关时不生成答案、不替换原文、不复制结果，也不将本次结果记入历史或学习。判断由模型完成，可能误判，不能保证阻止所有提示注入。普通口述和翻译不增加这次判断。

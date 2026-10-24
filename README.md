@@ -12,12 +12,12 @@
 
 Vao is an open-source voice-input app for macOS and Windows. It turns speech into usable text, chooses writing styles from your content and destination app, and remembers the layout choices you explicitly ask it to keep.
 
-**Mac 0.2.5 · Windows 0.2.2.** [Mac 0.2.5](https://github.com/loewe1631/Vao/releases/tag/v0.2.5) fixes recording and translation status in the floating bar. It includes intent-based refinement, clue-based completion and signed in-app updates. Windows remains at its [0.2.2 release](https://github.com/loewe1631/Vao/releases/tag/v0.2.2).
+**Mac 0.2.6 · Windows 0.2.5.** [Mac 0.2.6 release](https://github.com/loewe1631/Vao/releases/tag/v0.2.6) adds local personal correction suggestions, grouped aliases and JSON import/export. About retains signed updates from Cloudflare. Windows remains at [0.2.5](https://github.com/loewe1631/Vao/releases/tag/v0.2.5).
 
 | Platform | Download | Requirements |
 | --- | --- | --- |
-| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.5/Vao-0.2.5-build20261023.2020-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.5/Vao-0.2.5-build20261023.2020-mac-arm64.zip) | Apple Silicon · macOS 12+ |
-| Windows | [EXE installer](https://github.com/loewe1631/Vao/releases/download/v0.2.2/Vao-0.2.2-setup.exe) | Windows 10 1809+ · x64; downloads WebView2 if missing |
+| macOS | [DMG](https://github.com/loewe1631/Vao/releases/download/v0.2.6/Vao-0.2.6-build20261024.2024-mac-arm64.dmg) · [ZIP](https://github.com/loewe1631/Vao/releases/download/v0.2.6/Vao-0.2.6-build20261024.2024-mac-arm64.zip) | Apple Silicon · macOS 12+ |
+| Windows | [EXE installer](https://github.com/loewe1631/Vao/releases/download/v0.2.5/Vao-0.2.5-setup.exe) | Windows 10 1809+ · x64; downloads WebView2 if missing |
 
 Mac downloads are Developer ID signed, Apple-notarized and stapled; the Windows installer is not code-signed. See the [installation guide](https://vaovao.app/install/) for first-launch prompts. Intel Mac is not available. See [release notes](RELEASE_NOTES.md) for source and build identities.
 
@@ -30,7 +30,7 @@ Mac downloads are Developer ID signed, Apple-notarized and stapled; the Windows 
 - **Translate a segment.** Start translated recording directly, or turn translation on and off while recording.
 - **Switch apps while speaking.** On Mac, return to the validated starting input. Windows defaults to the current caret when ready, with an optional return-to-start mode.
 
-- **Focused Mac dictation.** Record, then receive the final transcription and refined text. Mac 0.2.5 removes temporary transcription and ambient input/window reference. Windows retains its own released behavior.
+- **Focused Mac dictation.** Record, then receive the final transcription and refined text. Mac and Windows 0.2.5+ omit temporary transcription and ambient input/window reference.
 - **Clue-based completion.** Enabled by default; infer missing names from your dictation, or turn it off in Settings. Saved choices are retained. Verify inferred information.
 - **Signed Mac updates.** About → Check for updates, download and verify, then confirm restart installation. Older versions need one manual upgrade.
 - **Portable vocabulary.** Merge and deduplicate TXT/JSON imports; export terms only.
@@ -55,7 +55,7 @@ See [AI collaboration](AI_DEVELOPMENT.en.md) for the participating tools, models
 
 ## Install and start
 
-1. Choose your platform from the platform download links above. On Mac, drag **Vao.app** to **Applications**; on Windows, run **Vao-0.2.2-setup.exe** and follow the installer.
+1. Choose your platform from the platform download links above. On Mac, drag **Vao.app** to **Applications**; on Windows, run **Vao-0.2.5-setup.exe** and follow the installer.
 2. Open Vao. See [installation and permissions](https://vaovao.app/install/) for system prompts and the [Windows guide](docs/WINDOWS.md) for platform-specific steps.
 3. Follow the first-run checklist: activate the optional trial or connect your models, grant needed permissions and check shortcuts.
 4. Click your destination input, press the main shortcut, speak, then press it again to finish.
@@ -90,19 +90,23 @@ The optional hosted trial is for testing before connecting your own service. It 
 
 Custom ASR and LLM connections take priority independently. Failures never silently fall back to the trial. An explicitly configured backup LLM handles only transport errors, HTTP 429 and server errors.
 
+## Personal corrections on Mac
+
+Open Dictionary → Personal corrections to save incorrect spellings and a preferred form. Identical preferred forms share a group. After ordinary dictation, matching text offers a manual choice in the floating window: replace, keep or cancel. There is no automatic replacement or countdown. Translation and selected-text operations keep their existing workflow. Corrections stay on this device and are not added to model prompts; JSON import/export supports moving selected groups between devices. New installations start with an empty correction library. Check matches before applying them.
+
 ## Privacy
 
 Audio uses a temporary session buffer and is sent to the chosen ASR; no audio history is retained. Local text history is limited to seven days and 200 results. Keys stay in macOS Keychain or Windows Credential Manager. Dictionary terms and relevant preferences accompany model requests. Selected text is sent for the selected-text operation. Read [PRIVACY.md](PRIVACY.md) for permissions, clipboard use and retention.
 
 ## Source and builds
 
-The default `main` branch currently retains the Mac client and Xcode entry point. Windows release source is at [`windows-v0.2.2`](https://github.com/loewe1631/Vao/tree/windows-v0.2.2); ongoing development uses [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows). The tags remain separate. GitHub’s automatic “Source code” links refer to the Mac release tag; for Windows use the `windows-source` archive or its tag. See [Windows build steps](docs/WINDOWS_BUILD.md).
+The default `main` branch currently retains the Mac client and Xcode entry point. Windows release source is at [`windows-v0.2.5`](https://github.com/loewe1631/Vao/tree/windows-v0.2.5); ongoing development uses [`codex/windows`](https://github.com/loewe1631/Vao/tree/codex/windows). The tags remain separate. GitHub’s automatic “Source code” links refer to the Mac release tag; for Windows use the `windows-source` archive or its tag. See [Windows build steps](docs/WINDOWS_BUILD.md).
 
 ### Mac build and check
 
 Use Apple Silicon, Xcode Command Line Tools, Python 3.11+, Node.js 22+ and stable Rust with Clippy. Fetch locked dependencies, then build:
 
-With full Xcode installed, you can instead open **[xcode/Vao.xcodeproj](xcode/Vao.xcodeproj)**, select **Vao Direct** and choose **Product → Build**. This builds the same complete client with local ad-hoc signing. See [Xcode setup](docs/XCODE.md). The current target is for direct installation; [App Store preparation](docs/APP_STORE.md) is separate work in this repository.
+With full Xcode installed, you can instead open **[xcode/Vao.xcodeproj](xcode/Vao.xcodeproj)**, select **Vao Direct** and choose **Product → Build**. This builds the same complete client with local ad-hoc signing. See [Xcode setup](docs/XCODE.md). The current target is for direct installation. App Store development is paused and kept separately; this source does not include a Store build.
 
 ```sh
 cargo fetch --locked --target aarch64-apple-darwin
