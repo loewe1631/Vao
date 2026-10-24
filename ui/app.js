@@ -829,7 +829,10 @@ function fitWindowsBar(){
   barFitFrame=0;
   const notice=document.querySelector('#bar-notice'),bar=document.querySelector('.bar-stage > .voicebar'),correction=document.querySelector('[data-correction-prompt]');
   let height=20;
-  if(correction&&!correction.classList.contains('hidden'))height+=correction.scrollHeight;
+  if(correction&&!correction.classList.contains('hidden')){
+   const review=correction.querySelector('.correction-review');
+   if(review){for(const item of review.children){if(item.classList.contains('correction-review-items'))height+=Math.min(176,item.scrollHeight);else{const style=getComputedStyle(item);height+=item.offsetHeight+(parseFloat(style.marginTop)||0)+(parseFloat(style.marginBottom)||0);}}height+=2;}
+  }
   if(notice&&!notice.classList.contains('hidden')){
    height+=notice.classList.contains('answer')?document.querySelector('.answer-toolbar').offsetHeight+document.querySelector('#bar-delivery-hint').offsetHeight+document.querySelector('#bar-message').scrollHeight+2:notice.scrollHeight+2;
   }
