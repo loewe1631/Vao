@@ -100,3 +100,9 @@ When you choose Check for updates in About, Vao requests the public Mac release 
 Windows“关于 → 软件更新”主动访问 updates.vaovao.app 的 Windows 清单，下载经同源限定的安装器并验签、校验大小及 SHA256；不后台检查/下载，不发送录音、正文、词典、纠错库、模型密钥或体验凭据。网络设施处理来源 IP、路径及通用客户端标识。确认后使用原注册目录更新并在成功后重开，保留数据与 Windows 凭据。取消或失败可能需手动重开，不承诺 Mac 式自动回滚；更新清单签名不等于安装器已有 Authenticode 签名。
 
 Windows personal corrections match locally after ordinary dictation. The library is not sent to models; only explicitly selected relationships are remembered. Corrected history is separate from the original, and clearing history keeps the library. JSON exports contain correction groups/aliases and format metadata, without keys, audio or history; the terms themselves may be private. Windows updates are manually requested from updates.vaovao.app without private content or credentials. Verified installation uses the registered directory and reopens on success; a cancelled/failed installation may need manual reopening. Signed metadata does not make the installer Authenticode-signed.
+
+## Mac window compatibility
+
+When automatic insertion is enabled and Vao is idle, Mac app activation notifications may prepare the foreground application's accessibility interface. This step checks application identity and interface availability; it does not read input text, selected text, window titles or clipboard contents. Recording, processing and pending input sessions keep their existing destination safeguards.
+
+Mac 自动输入开启且 Vao 空闲时，会在前台应用激活后准备其辅助功能接口。该步骤只检查应用身份和接口可用性，不读取输入正文、选中文字、窗口标题或剪贴板内容。录音、处理及待输入期间沿用原有目标保护。

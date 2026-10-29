@@ -33,6 +33,7 @@ fn main() {
             .file("../platform/macos/Permissions.m")
             .file("../platform/macos/ShortcutCapture.m")
             .file("../platform/macos/VoiceBar.m")
+            .file("../platform/macos/InputActivation.m")
             .flag("-fobjc-arc")
             .flag("-fblocks")
             .compile("vao_permissions");
@@ -50,6 +51,7 @@ fn main() {
         println!("cargo:rerun-if-changed=../platform/macos/Permissions.m");
         println!("cargo:rerun-if-changed=../platform/macos/ShortcutCapture.m");
         println!("cargo:rerun-if-changed=../platform/macos/VoiceBar.m");
+        println!("cargo:rerun-if-changed=../platform/macos/InputActivation.m");
     }
     tauri_build::build()
 }

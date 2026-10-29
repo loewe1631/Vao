@@ -75,3 +75,9 @@ Test inserting in the middle of existing text: only the newly spoken text should
 ## Protocol-specific connection diagnostics
 
 In Models, select a protocol under Advanced and use Test speech connection / Test text connection. Speech tests send the built-in English phrase without activating the microphone; provider usage applies. The displayed draft endpoint/model/key are used without saving or changing the connection. Success requires a nonempty response from that protocol. The report includes protocol, elapsed time, source phrase and returned text. It does not grade recognition accuracy. Changing connection fields clears its old report. This Mac preview supports file transcription; follow diagnostics with an actual recording to verify capture and delivery.
+
+## Mac window capture compatibility
+
+With automatic insertion enabled, relaunch a target application and test the first input after clicking its empty input field. Verify ordinary dictation, selected-text operations, manual stopping and return-to-start safeguards. Repeat with automatic insertion disabled and while another recording or pending input is active; activation preparation must not interfere with those sessions. Initial-focus policy checks can run with .build/vao-macos-bridge --verify-electron-recovery after compiling the helper. These checks use synthetic closures and do not replace actual desktop receipt.
+
+The public build excludes the temporary target-tracing, structural-inspection and baseline-bypass interfaces used during development.

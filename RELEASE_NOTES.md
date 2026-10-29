@@ -1,3 +1,18 @@
+# Vao 0.2.7 · macOS
+
+Mac build20261029.2030 · Apple Silicon · macOS 12+ · source tag: v0.2.7.
+Windows remains at [0.2.6](https://github.com/loewe1631/Vao/releases/tag/v0.2.6).
+
+- 修复了某些程序窗口识别定位问题。
+- 保留已有设置、词典、历史与连接；支持通过“关于 → 软件更新”升级。
+- 安装包使用 Developer ID 签名、Apple 公证并附带票据。
+
+## English summary
+
+Fixes window recognition and input targeting in some applications. Existing settings, vocabulary, history and connections are retained. Available through About → Software update. Signed, notarized and stapled.
+
+---
+
 # Vao 0.2.6 · macOS & Windows
 
 Mac build20261024.2024 · Apple Silicon · macOS 12+ · source tag `v0.2.6`.

@@ -82,6 +82,26 @@ func enableAccessibility(_ process:AXUIElement)->[String:Int32] {
     }
     return result
 }
+func isElectronApplication(_ app:NSRunningApplication)->Bool {
+    guard let bundle=app.bundleURL else{return false}
+    return FileManager.default.fileExists(atPath:bundle.appendingPathComponent("Contents/Frameworks/Electron Framework.framework").path)
+}
+// A newly enabled Electron tree is populated asynchronously. Never capture a
+// replacement recipient if the user changes apps or clicks during this wait.
+func initialFocus<T>(timeout:TimeInterval=0.5,now:()->TimeInterval={ProcessInfo.processInfo.systemUptime},
+                     unchanged:()->Bool,read:()->T?,pause:()->Void={RunLoop.current.run(until:Date(timeIntervalSinceNow:0.015))})->T? {
+    let deadline=now()+timeout
+    repeat {
+        guard unchanged() else{return nil}
+        if let value=read(){return unchanged() ? value : nil}
+        pause()
+    } while now()<deadline
+    return nil
+}
+// Opt-in structural diagnostics for the local candidate. No field text,
+// selection, clipboard, window title or model credentials are recorded.
+
+
 func elementRect(_ element:AXUIElement)->CGRect? {
     guard let p=attribute(element,kAXPositionAttribute),let s=attribute(element,kAXSizeAttribute),
         CFGetTypeID(p)==AXValueGetTypeID(),CFGetTypeID(s)==AXValueGetTypeID() else{return nil}
@@ -177,6 +197,25 @@ func target(_ readSelection: Bool, capture: Bool = false, allowCopy:Bool = true,
     let process=AXUIElementCreateApplication(app.processIdentifier);AXUIElementSetMessagingTimeout(process,0.3)
     let isChat=app.bundleIdentifier=="com.tencent.xinWeChat" || ["app.vaovao.fixturecomposer","app.vaovao.fixtureambiguous","app.vaovao.fixtureopaque"].contains(app.bundleIdentifier ?? "")
     var focused=focusedElement(process,app.processIdentifier)
+    if capture,focused==nil,isElectronApplication(app) {
+        let mouse=mouseCount()
+        let initialWindow=axElement(attribute(process,kAXFocusedWindowAttribute))
+        func unchanged()->Bool {
+            let front=frontmost()?.processIdentifier
+            let currentWindow=axElement(attribute(process,kAXFocusedWindowAttribute))
+            let windowChanged=initialWindow.flatMap{old in currentWindow.map{!CFEqual(old,$0)}} ?? false
+            return (front==nil || front==app.processIdentifier) && mouseCount()==mouse && !windowChanged
+        }
+        let status=AXUIElementSetAttributeValue(process,"AXManualAccessibility" as CFString,kCFBooleanTrue)
+        if status == .success {
+            focused=initialFocus(unchanged:unchanged,read:{frontmost()?.processIdentifier==app.processIdentifier ? focusedElement(process,app.processIdentifier) : nil})
+        }
+        let finalWindow=axElement(attribute(process,kAXFocusedWindowAttribute))
+        let windowChanged=initialWindow.flatMap{old in finalWindow.map{!CFEqual(old,$0)}} ?? false
+        guard frontmost()?.processIdentifier==app.processIdentifier,mouseCount()==mouse,!windowChanged else {
+            out["capture_reason"]="interaction_changed_during_initialization";return out
+        }
+    }
     if isChat&&(focused==nil || !isEditable(focused!)){enableAccessibility(process);focused=focusedElement(process,app.processIdentifier)}
     let fixtureOpaque=CommandLine.arguments.contains("--verify-selection") && app.bundleIdentifier=="app.vaovao.fixtureopaque"
     if fixtureOpaque{focused=nil}
@@ -356,6 +395,13 @@ func run(_ request:[String:Any]) -> [String:Any] {
             Thread.sleep(forTimeInterval:0.08);return ["ok":true]
         }
         return ["error":"Invalid fixture request"]
+    case "prepare_input_tree":
+        guard AXIsProcessTrusted(),let pid=request["pid"] as? Int,
+              let app=NSRunningApplication(processIdentifier:pid_t(pid)),!app.isTerminated,isElectronApplication(app) else{return ["prepared":false,"obsolete":true]}
+        guard frontmost()?.processIdentifier==pid_t(pid) else{return ["prepared":false,"retry":true]}
+        let process=AXUIElementCreateApplication(app.processIdentifier);AXUIElementSetMessagingTimeout(process,0.15)
+        let status=AXUIElementSetAttributeValue(process,"AXManualAccessibility" as CFString,kCFBooleanTrue)
+        return ["prepared":status == .success,"ax":status.rawValue]
     case "permissions": return ["accessibility": AXIsProcessTrusted()]
     case "dictionary_import", "corrections_import":
         guard !CommandLine.arguments.contains("--daemon") else{return ["error":"File dialogs require a one-shot helper"]}
@@ -450,6 +496,26 @@ func respond(_ data:Data) {
     if let request=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any] {result=run(request)} else {result=["error":"invalid request"]}
     var output=(try? JSONSerialization.data(withJSONObject:result,options:[.sortedKeys])) ?? Data("{}".utf8)
     output.append(10);FileHandle.standardOutput.write(output)
+}
+if CommandLine.arguments.contains("--verify-electron-recovery") {
+    var checks:[String:Any]=[:]
+    var tick:TimeInterval=0
+    let delayed:Int?=initialFocus(now:{tick},unchanged:{true},read:{tick>=0.1 ? 7 : nil},pause:{tick+=0.025})
+    checks["delayed_tree_is_captured"]=delayed==7
+    tick=0
+    let switched:Int?=initialFocus(now:{tick},unchanged:{tick<0.1},read:{tick>=0.1 ? 8 : nil},pause:{tick+=0.025})
+    checks["changed_application_is_rejected"]=switched==nil
+    var untouched=true
+    let raced:Int?=initialFocus(unchanged:{untouched},read:{untouched=false;return 9})
+    checks["interaction_during_read_is_rejected"]=raced==nil
+    tick=0
+    let absent:Int?=initialFocus(now:{tick},unchanged:{true},read:{nil},pause:{tick+=0.025})
+    checks["unavailable_tree_has_bounded_wait"]=absent==nil && tick>=0.5 && tick<0.55
+    let immediate:Int?=initialFocus(unchanged:{true},read:{11},pause:{checks["unexpected_pause"]=true})
+    checks["ready_tree_is_not_delayed"]=immediate==11 && checks["unexpected_pause"]==nil
+    let passed=checks.values.allSatisfy{($0 as? Bool)==true}
+    let data=try! JSONSerialization.data(withJSONObject:["passed":passed,"checks":checks],options:[.sortedKeys])
+    FileHandle.standardOutput.write(data);exit(passed ? 0 : 1)
 }
 if CommandLine.arguments.contains("--daemon") {
     while let line=readLine(){autoreleasepool{respond(Data(line.utf8))}}

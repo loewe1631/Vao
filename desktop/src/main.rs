@@ -23,6 +23,7 @@ mod overlay_probe;
 mod locked_target_probe;
 mod permissions;
 mod platform;
+mod input_activation;
 mod store;
 mod trial;
 mod voice_bar;
@@ -1719,6 +1720,7 @@ fn main() {
             }
             app.manage(native_keys::NativeKeys::default());
             local_capture::install(app.handle());
+            input_activation::install(app.handle());
             let handle = app.handle().clone();
             let registration = (|| {
                 use global_hotkey::GlobalHotKeyManager;
